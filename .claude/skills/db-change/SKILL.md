@@ -24,12 +24,18 @@ paths:
 - Wrap every multi-table write in one `db.transaction(...)`, started in the service layer.
 - Never `DELETE` business rows. Set `active = 0` or a void status.
 - Set `updated_at` on every update.
-- Write an `audit_logs` row in the same transaction (`user_id`, `approved_by`, `entity`, `entity_id`, `action`, `old_value`, `new_value`).
+- Write an `audit_logs` row in the same transaction only for: master data (products, units, categories, customers, suppliers), users, settings, all voids, PIN approvals. Not for sales, payments, purchases, adjustments, opname.
 
 ## Stock
 - Never change `products.stock` without a `stock_movements` row.
 - Insert the movement and update the cache in the same transaction: `stock = stock + qty_change`.
 - Set `type` (`sale`, `void`, `purchase`, `purchase_void`, `adjustment`) and `ref_id` to the source row.
+- Opname completion: `delta = counted_qty - system_qty_at_start`, written as an `opname` adjustment against current stock.
+
+## Voids
+- Set status `voided`, `voided_at`, `voided_by`; never delete.
+- Payment void: reverse its allocations and restore `remaining` on receivables/purchases in the same transaction.
+- Purchase void: also void its initial payment and allocations; reverse stock with `purchase_void`. Do not revert `cost_price`.
 - Allow negative stock; return a warning, do not block.
 
 ## Verify

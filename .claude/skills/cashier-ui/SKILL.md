@@ -20,10 +20,12 @@ paths:
 
 ## Keyboard
 - Register shortcuts in one global handler: F1 Kasir, F2 Cari, F3 Barang, F4 Stok, F5 Pelanggan, F6 Riwayat, F8 Bayar, F9 Tahan, Esc batal/tutup, Ctrl+L kunci.
-- Capture F1-F12 with `preventDefault()` so Edge defaults (help, reload, find, fullscreen, devtools) do not fire.
+- Capture F1-F10 with `preventDefault()` so Edge defaults (help, reload, find) do not fire. Never bind F11/F12.
+- Wire `Alt+<number>` fallbacks only for keys that fail the Stage 3 Windows capture test (see `docs/design.md` section 8).
 - Esc closes the topmost dialog; with no dialog in Kasir, it cancels the current action.
 - Every dialog: autofocus primary field, Enter confirms, Esc cancels, focus trapped.
-- "Simpan nota PDF?": Enter = save, Esc = skip. Then "Nota tersimpan" with Buka and Unduh.
+- "Simpan nota PDF?": Enter = save, Esc = skip. Then "Nota tersimpan" with Buka, Buka folder, Unduh.
+- Resuming a held sale: show refreshed prices; notify which deactivated items were removed.
 - After every action (add, remove, pay, hold, close dialog, error) return focus to the Kasir search input.
 - Everything reachable without a mouse.
 

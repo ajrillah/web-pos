@@ -14,20 +14,21 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 - [ ] Drizzle schema + drizzle-kit versioned SQL migrations; migrations applied on startup
 - [ ] Configurable data directory (dev: local folder; prod: `C:\ProgramData\TokoPodomoro\`)
 - [ ] Error format `{ error: { code, message } }` with Indonesian messages; Zod errors mapped
-- [ ] Shared math: line subtotal, cost_total, half-up rounding, total rounding (none/100/500) with Vitest tests
+- [ ] Shared math: line subtotal, cost_total, half-up rounding, total rounding (none/100/500, ties up, negative `rounding_amount`) with Vitest tests
 - [ ] React + Vite + React Router + Tailwind shell renders
 
 **Done when:** one command runs the app; math tests pass.
 
 ## Stage 1 — Users
 
-- [ ] First-run setup: create owner, show one-time recovery code (hash in settings)
+- [ ] First-run setup: create owner, show one-time recovery code (`users.recovery_code_hash`)
 - [ ] Login with username + 6-digit PIN; logout
-- [ ] Sessions in DB, httpOnly cookie; survive server restart
+- [ ] Sessions in DB, httpOnly cookie; survive restart; expire after 12 h inactivity
 - [ ] `GET auth/me`; `PUT auth/me/pin`
 - [ ] Roles owner/cashier; role-based menus
-- [ ] User management (create, edit, deactivate)
-- [ ] PIN recovery via recovery code; new code issued after use
+- [ ] User management (create, edit, deactivate); multiple owners allowed
+- [ ] Last active owner cannot be deactivated; owners cannot deactivate themselves
+- [ ] PIN recovery via the owner's recovery code; new code issued after use
 - [ ] Audit log for user changes
 
 **Done when:** owner and cashier see the correct menus; session survives restart.
@@ -36,10 +37,10 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 
 - [ ] Categories with defaults (Rokok, Sembako, Lain-lain); owner can add
 - [ ] Product CRUD; code unique across all products (incl. inactive) and editable; deactivate, never delete
-- [ ] Unit rows (exactly one base) used for wholesale pricing
-- [ ] Bulk products (`pricing_factor = 1000`, sold via kg/liter factor 1000)
+- [ ] Unit rows with exactly one `is_base` (primary sell unit); wholesale pricing via unit rows
+- [ ] Bulk products: stock in gram/ml, single `kg`/`liter` row factor 1000, `pricing_factor = 1000`
 - [ ] Search by code/name, filter by category, pagination
-- [ ] Audit log for product/category changes
+- [ ] Audit log for product, unit, and category changes
 - [ ] Initial stock entered via stock adjustment (creates movement)
 
 **Done when:** 100 products entered and searchable.
@@ -48,64 +49,68 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 
 - [ ] Full-screen Kasir: search by code or name; "Barang tidak ditemukan"
 - [ ] Unit selection, quantity edit (bulk: integer g/ml; normal: whole numbers), remove line
-- [ ] Cash and/or QRIS; QRIS <= total; change from cash only
-- [ ] Total rounding per setting; `rounding_amount` stored
-- [ ] Atomic sale save (sale, items, payments, movements, stock cache, audit) in one transaction
+- [ ] Cash and/or QRIS against rounded total; QRIS <= total; change from cash only
+- [ ] Total rounding per setting; `total` stored after rounding; `rounding_amount` stored
+- [ ] Atomic sale save (sale, items, payments, movements, stock cache) in one transaction
 - [ ] Idempotency: client UUID, duplicate rejected
 - [ ] Server recomputes all totals
 - [ ] Negative stock allowed with warning
-- [ ] Hold (DB, no number, no reservation) / resume / delete; cancel before payment
-- [ ] Sale number `TRX-YYYYMMDD-NNNN` assigned on completion, local-time date
-- [ ] Receipt PDF (58/80 mm) saved to receipt folder; "Nota tersimpan" with Buka and Unduh
+- [ ] Hold (DB, no number, no reservation) / resume with refreshed prices and removal notice for deactivated products / delete; cancel before payment
+- [ ] Sale number `TRX-YYYYMMDD-NNNN` on completion; daily reset from 0001 (local date); 5+ digits after 9999
+- [ ] Receipt PDF (58/80 mm) saved to receipt folder; "Nota tersimpan" with Buka, Buka folder, Unduh
 - [ ] "Simpan nota PDF?" prompt (Enter = yes, Esc = skip); "SALINAN" on reprint
-- [ ] Riwayat Transaksi: default today; filter date/text/status; detail with Buka/Unduh
-- [ ] Keyboard UX: shortcuts, F1-F12 captured in Edge, focus returns to search, large fonts
+- [ ] Riwayat Transaksi: default today; filter date/text/status; detail with Buka/Buka folder/Unduh
+- [ ] Keyboard UX: shortcuts, focus returns to search, large fonts
+- [ ] F-key capture tested in Edge `--app` mode on Windows; Alt+number fallback for any key that fails; no F11/F12
 
 **Done when:** 50 test sales completed; stock matches movements; receipts correct.
 
 ## Stage 4 — Kasbon
 
-- [ ] Customers: list, add (cashier allowed), edit, deactivate
+- [ ] Customers: list, add (cashier allowed), edit, deactivate; audit logged
 - [ ] Underpayment -> kasbon dialog; pick or quick-add customer; one receivable per sale
 - [ ] Customer payments (cash/QRIS) allocated to ticked receivables (oldest pre-ticked, oldest filled first, cannot exceed ticked total)
 - [ ] Cash payment: amount received and change shown
 - [ ] Kartu Piutang (ledger) and Daftar Piutang
-- [ ] Reconciliation tests: remaining = amount - allocations; customer balance = sum of remaining
+- [ ] Reconciliation tests: remaining = amount - active allocations; customer balance = sum of remaining
 
 **Done when:** balances always reconcile.
 
 ## Stage 5 — PIN & void
 
 - [ ] `POST auth/approve` -> in-memory short-lived token; `X-Approval-Token` enforced for cashier on PIN endpoints; action tokens single-use
-- [ ] Owner session bypasses approval
-- [ ] Void sale: stock returned via movements, receivable voided; rejected if receivable has payments
-- [ ] Voided receipts marked "DIBATALKAN"
-- [ ] Auto-lock (setting) and quick lock (Ctrl+L); unlock same user only; "Ganti pengguna" -> login
-- [ ] Settings page: store profile, rounding, receipt width, receipt folder, auto-lock (PIN)
+- [ ] Owner session bypasses approval; every approval audit-logged
+- [ ] Void sale: stock returned via movements, receivable voided; rejected if receivable has active payments
+- [ ] Void customer payment (PIN): allocations reversed, receivable remaining restored
+- [ ] Voided receipts marked "DIBATALKAN"; all voids audit-logged
+- [ ] Auto-lock (default 5 min) and quick lock (Ctrl+L); unlock same user only; "Ganti pengguna" -> login
+- [ ] Settings page (PIN): store name/address/phone, receipt footer, rounding, receipt width, receipt folder, auto-lock; audit logged
 
 **Done when:** MVP complete; tag `v0.1.0-mvp` (ask before tagging).
 
 ## Stage 6 — Distribution
 
 - [ ] Inno Setup installer with bundled portable `node.exe`
-- [ ] Launcher: starts server, prevents duplicate server, opens Edge `--app=http://127.0.0.1:<port>`
+- [ ] Launcher runs server under the logged-in user; prevents duplicate server; opens Edge `--app=http://127.0.0.1:<port>`
 - [ ] Autostart on login
 - [ ] Port configurable in config file; busy-port error shown to user
 - [ ] Data in `C:\ProgramData\TokoPodomoro\`; uninstall keeps data
+- [ ] Default receipt folder `%USERPROFILE%\Documents\TokoPodomoro\Nota` created on first save
 - [ ] Manual backup (and documented restore)
 
 **Done when:** runs on a clean PC; deployed to pilot store; tag `v0.2.0-pilot` (ask before tagging).
 
 ## Stage 7 — Stock & suppliers
 
-- [ ] Suppliers: list, add, edit, deactivate
+- [ ] Suppliers: list, add, edit, deactivate; audit logged
 - [ ] Stok Masuk: purchases, no edit; cost suggestions (last buy, weighted average) and margin
 - [ ] Initial paid amount creates supplier payment + allocation
 - [ ] Supplier debt payments allocated to ticked purchases (oldest pre-ticked)
-- [ ] Purchase void (PIN) only if no payments besides the initial one; `purchase_void` movements
+- [ ] Purchase void (PIN) only if no active payments besides the initial one; voids initial payment + allocations; `purchase_void` movements; cost-price review reminder for owner
+- [ ] Supplier payment void (PIN): allocations reversed, purchase remaining restored
 - [ ] Kartu Hutang and Daftar Hutang
 - [ ] Stock adjustments with reason (rusak, kedaluwarsa, hilang, opname, lainnya)
-- [ ] Stock opname: physical count -> computed delta
+- [ ] Stock opname sessions: start, enter counts, complete (delta vs `system_qty_at_start` applied to current stock), cancel
 - [ ] Stock movement history
 
 **Done when:** stock and payables reconcile with movements/allocations.
@@ -115,14 +120,15 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 - [ ] Sales & profit
 - [ ] Per category (revenue, profit, margin, share)
 - [ ] Top / slow products
-- [ ] Stock value
+- [ ] Stock value (negative stock counted as 0; negative items listed separately)
 - [ ] Negative-stock items
 - [ ] Cash vs QRIS
 - [ ] Daily cash flow (cash sales - change + cash kasbon payments - cash supplier payments)
 - [ ] Receivables / payables
 - [ ] Stock losses
-- [ ] Activity log
-- [ ] Category filter on all reports
+- [ ] Activity log (includes voids and approvals)
+- [ ] Category filter on product-based reports only (category sales, top/slow, stock value, losses)
+- [ ] Voided records excluded from all totals
 - [ ] Export PDF and Excel
 
 **Done when:** totals match raw data on a seeded dataset.
@@ -161,7 +167,7 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 - [ ] Server reachable only on 127.0.0.1 (verified from another LAN device)
 - [ ] No outbound network requests (verified with network monitor)
 - [ ] Stock reconciliation: `products.stock` equals sum of `stock_movements` for all products
-- [ ] Receivable/payable reconciliation passes
+- [ ] Receivable/payable reconciliation passes (active allocations only)
 - [ ] Receipt PDFs print correctly at 58 mm and 80 mm
 - [ ] Keyboard-only walkthrough of Kasir flow completed in Edge app mode
 - [ ] All UI text and errors in Indonesian; reviewed by a native speaker
