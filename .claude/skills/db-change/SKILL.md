@@ -9,27 +9,29 @@ paths:
 
 ## Schema change
 1. Edit the Drizzle schema in `apps/server`. Do not hand-write DDL outside migrations.
-2. Every new table: `id` text UUID primary key, `created_at` not null, `active` flag or status column (no hard deletes).
-3. Store money and quantities as `integer`.
-4. Add foreign keys and indexes for lookup columns (codes, dates, foreign keys).
-5. Run `pnpm --filter server db:generate`. Review the generated SQL.
+2. Every table: `id` text UUID primary key, `created_at` not null. Mutable tables: `updated_at`. Use `active` or a status column; no hard deletes.
+3. Store money and quantities as `integer`. Store timestamps as UTC.
+4. Add foreign keys and indexes for lookup columns (codes, dates, foreign keys). Keep `products.code` unique across all rows.
+5. Run `pnpm db:generate`. Review the generated SQL.
 6. Commit schema and migration together.
-7. Never edit, rename, or delete a migration that has been applied or committed. Fix forward with a new migration.
-8. Update `docs/design.md` section 9 if tables or columns change.
+7. Never edit, rename, or delete an applied or committed migration. Fix forward with a new one.
+8. Update `docs/design.md` section 9 when tables or columns change.
 
 ## Connection
-- Keep `PRAGMA foreign_keys = ON` and `PRAGMA journal_mode = WAL` on every connection.
+- Set `PRAGMA foreign_keys = ON` and `PRAGMA journal_mode = WAL` on every connection.
 
 ## Writes
-- Wrap every multi-table write in one `db.transaction(...)`. Start the transaction in the service layer.
-- Never call `DELETE` on business tables. Set `active = 0` or a void status.
-- Write an `audit_logs` row in the same transaction for every data change (`user_id`, `approved_by`, `entity`, `entity_id`, `action`, `old_value`, `new_value`).
+- Wrap every multi-table write in one `db.transaction(...)`, started in the service layer.
+- Never `DELETE` business rows. Set `active = 0` or a void status.
+- Set `updated_at` on every update.
+- Write an `audit_logs` row in the same transaction (`user_id`, `approved_by`, `entity`, `entity_id`, `action`, `old_value`, `new_value`).
 
 ## Stock
-- Never update `products.stock` directly without a `stock_movements` row.
+- Never change `products.stock` without a `stock_movements` row.
 - Insert the movement and update the cache in the same transaction: `stock = stock + qty_change`.
-- Set movement `type` (`sale`, `void`, `purchase`, `adjustment`) and `ref_id` to the source row.
+- Set `type` (`sale`, `void`, `purchase`, `purchase_void`, `adjustment`) and `ref_id` to the source row.
+- Allow negative stock; return a warning, do not block.
 
 ## Verify
-- Add a test that runs the write and asserts `products.stock` equals `SUM(stock_movements.qty_change)`.
-- Add a test that a failure mid-write leaves no partial rows.
+- Test that `products.stock` equals `SUM(stock_movements.qty_change)` after the write.
+- Test that a failure mid-write leaves no partial rows.

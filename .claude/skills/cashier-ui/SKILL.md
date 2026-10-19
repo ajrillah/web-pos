@@ -8,28 +8,30 @@ paths:
 # Cashier UI
 
 ## Text
-- Write all visible text in Indonesian. Keep code identifiers in English.
+- Write all visible text in Indonesian. Keep identifiers in English.
 - Show API `error.message` directly; it is already Indonesian.
-- Unknown product search result: "Barang tidak ditemukan". Never offer product creation from Kasir.
+- Unknown product: "Barang tidak ditemukan". Never offer product creation from Kasir.
 
-## Money
-- Format Rupiah with one shared helper: `Rp 12.345` (dot thousands separator, no decimals). Negative: `-Rp 12.345`.
-- Parse user money input to integers only. Never display server values recomputed with floats.
-- Show quantities in the chosen unit; send integers in base unit.
+## Money and quantity
+- Format Rupiah with one shared helper: `Rp 12.345` (dot thousands, no decimals); negative `-Rp 12.345`.
+- Parse money input to integers. Display server totals; never recompute them with floats.
+- Bulk qty input: integer grams/ml. Normal items: whole numbers only.
+- Show negative-stock warnings without blocking the sale.
 
 ## Keyboard
-- Register global shortcuts in one place: F1 Kasir, F2 Cari, F3 Barang, F4 Stok, F5 Pelanggan, F6 Riwayat, F8 Bayar, F9 Tahan, Esc batal/tutup, Ctrl+L kunci.
-- Call `preventDefault()` on handled function keys (F1, F3, F5, F6 have browser defaults).
+- Register shortcuts in one global handler: F1 Kasir, F2 Cari, F3 Barang, F4 Stok, F5 Pelanggan, F6 Riwayat, F8 Bayar, F9 Tahan, Esc batal/tutup, Ctrl+L kunci.
+- Capture F1-F12 with `preventDefault()` so Edge defaults (help, reload, find, fullscreen, devtools) do not fire.
 - Esc closes the topmost dialog; with no dialog in Kasir, it cancels the current action.
-- Every dialog: autofocus its primary field, Enter confirms, Esc cancels, trap focus inside.
-- After every action (add line, remove, pay, hold, close dialog, error), return focus to the Kasir search input.
-- Everything must be reachable without a mouse.
+- Every dialog: autofocus primary field, Enter confirms, Esc cancels, focus trapped.
+- "Simpan nota PDF?": Enter = save, Esc = skip. Then "Nota tersimpan" with Buka and Unduh.
+- After every action (add, remove, pay, hold, close dialog, error) return focus to the Kasir search input.
+- Everything reachable without a mouse.
 
 ## Layout
-- Kasir is full-screen without sidebar; all other pages use the sidebar layout.
-- Use large fonts on Kasir (totals and search at least `text-2xl`; grand total larger).
-- High contrast; no hover-only controls.
-- Hide owner-only menus from cashier; PIN-protected actions open the owner PIN dialog.
+- Kasir is full-screen; all other pages use the sidebar layout.
+- Large fonts on Kasir: search and totals at least `text-2xl`, grand total larger. High contrast; no hover-only controls.
+- Hide owner-only menus from cashier; PIN actions open the owner PIN dialog.
+- Lock screen unlocks only the same user; "Ganti pengguna" navigates to login.
 
 ## Offline
 - Bundle all assets, fonts, and icons locally. No CDN links, no external fonts.
