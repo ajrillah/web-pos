@@ -20,17 +20,19 @@ paths:
 - Map Zod failures to `VALIDATION_ERROR` with an Indonesian message. Never leak stack traces or SQL.
 
 ## Auth
-- Require a valid DB session cookie on every route except `setup/*`, `auth/login`, `auth/recover`.
-- PIN endpoints (void, reports, users, settings PUT): owner session passes directly. Cashier must send a valid `X-Approval-Token`.
+- Require a valid DB session cookie on every route except `setup/*`, `auth/login`, `auth/recover`. Sessions expire after 12 h inactivity.
+- PIN endpoints (all voids, reports, users, settings PUT): owner session passes directly. Cashier must send a valid `X-Approval-Token`.
 - Approval tokens live in memory, are short-lived; action tokens (void) are consumed on use.
-- Record the approving owner in `audit_logs.approved_by`.
+- Audit-log every approval; record the approving owner in `audit_logs.approved_by`.
+- Users: reject deactivating the last active owner or self-deactivation by an owner.
 - Do not choose approval token lifetime or menu-token scope; they are open questions. Ask.
 
 ## Integrity
 - Sales, purchases, payments: accept the client UUID as `id`; if it exists, reject with a duplicate error. Never insert twice.
 - Ignore client totals. Load prices and costs from the DB and recompute with `packages/shared` math (money-rules skill).
 - Multi-table writes in one transaction (db-change skill).
-- Compute "today" and TRX dates in the PC's local time zone; store UTC.
+- Compute "today" and TRX dates in the PC's local time zone; store UTC. TRX `NNNN` resets daily from 0001, grows past 9999.
+- Exclude voided records from list totals and reports.
 
 ## Tests
 - Fastify `inject` in Vitest: success, validation error, unauthenticated, approval required, token reuse rejected, duplicate id.
