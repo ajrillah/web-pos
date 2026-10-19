@@ -20,6 +20,7 @@ paths:
 - Map Zod failures to `VALIDATION_ERROR` with an Indonesian message. Never leak stack traces or SQL.
 
 ## Auth
+- The Host header check (403 `FORBIDDEN_HOST`) and the error handler are global in `src/app.ts`; do not re-implement them per route.
 - Require a valid DB session cookie on every route except `setup/*`, `auth/login`, `auth/recover`. Sessions expire after 12 h inactivity.
 - PIN endpoints (all voids, reports, users, settings PUT): owner session passes directly. Cashier must send a valid `X-Approval-Token`.
 - Approval tokens live in memory, are short-lived; action tokens (void) are consumed on use.

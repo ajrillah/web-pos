@@ -10,7 +10,7 @@ paths:
 ## Schema change
 1. Edit the Drizzle schema in `apps/server`. Do not hand-write DDL outside migrations.
 2. Every table: `id` text UUID primary key, `created_at` not null. Mutable tables: `updated_at`. Use `active` or a status column; no hard deletes.
-3. Store money and quantities as `integer`. Store timestamps as UTC.
+3. Store money and quantities as `integer`. Store timestamps as ISO 8601 UTC text `YYYY-MM-DDTHH:mm:ss.sssZ` via `toISOString()`; use the helpers in `src/db/columns.ts`.
 4. Add foreign keys and indexes for lookup columns (codes, dates, foreign keys). Keep `products.code` unique across all rows.
 5. Run `pnpm db:generate`. Review the generated SQL.
 6. Commit schema and migration together.

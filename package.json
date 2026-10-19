@@ -1,0 +1,24 @@
+{
+  "name": "toko-podomoro",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.14.0",
+  "engines": {
+    "node": ">=26 <27"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --filter @toko-podomoro/web build && pnpm --filter @toko-podomoro/server build",
+    "start": "node apps/server/dist/main.js",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "check": "biome check .",
+    "db:generate": "pnpm --filter @toko-podomoro/server db:generate",
+    "db:migrate": "pnpm --filter @toko-podomoro/server db:migrate"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "typescript": "7.0.2"
+  }
+}

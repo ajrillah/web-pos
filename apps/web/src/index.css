@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* System fonts only: the app runs offline and bundles no web fonts. */
+@theme {
+  --font-sans: "Segoe UI", system-ui, sans-serif;
+}
