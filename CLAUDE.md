@@ -16,14 +16,14 @@ TOKO PODOMORO (slug `toko-podomoro`): offline POS web app for Indonesian grocery
 
 - Single Windows PC. Server binds `127.0.0.1` only. Fully offline: no LAN, no CDN, no outbound requests.
 - Default port `4747`, set in the config file (never in `settings`). Busy port -> clear Indonesian error.
-- Data directory: `C:\ProgramData\TokoPodomoro\`. Uninstall keeps data.
+- Data directory: `C:\ProgramData\TokoPodomoro\` in production, `./data/` in dev; `TOKO_PODOMORO_DATA_DIR` overrides (tests use it). Holds `config.json` (port) and the DB. Uninstall keeps data.
 - Server runs under the logged-in Windows user, started by the launcher (not a service).
 - Receipt PDFs default to `%USERPROFILE%\Documents\TokoPodomoro\Nota\<TRX>.pdf` (setting `receipt_folder`).
 - Packaged with Inno Setup + bundled portable `node.exe`; launcher opens Edge `--app=http://127.0.0.1:<port>`.
 
 ## Stack
 
-- TypeScript, Node LTS, pnpm workspaces.
+- TypeScript, Node 26 (`.nvmrc`, `engines`), pnpm workspaces.
 - `apps/server`: Fastify, better-sqlite3, Drizzle ORM + drizzle-kit (versioned SQL migrations).
 - `apps/web`: React, Vite, React Router, Tailwind.
 - `packages/shared`: Zod schemas, shared types, money/unit math.

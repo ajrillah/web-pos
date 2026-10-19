@@ -22,17 +22,25 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
   - Starts the server; prevents a duplicate server (if already running, only opens the window).
   - Opens Microsoft Edge with `--app=http://127.0.0.1:<port>`.
   - Autostarts on user login.
-- Port: default `4747`, set in a config file (not in the `settings` table). If the port is busy, show a clear Indonesian error.
+- Port: default `4747`, set in the config file (not in the `settings` table). If the port is busy, show a clear Indonesian error.
 - Data directory: `C:\ProgramData\TokoPodomoro\` (database, config, logs).
 - Uninstall keeps the data directory.
 - Manual backup (Stage 6). Auto backup and safe upgrade flow deferred (Stage 10).
+
+### 2.1 Data directory and config
+- Data directory resolution, first match wins:
+  1. Env var `TOKO_PODOMORO_DATA_DIR` (tests use it for isolated DBs).
+  2. Production (`NODE_ENV=production` on Windows, as set by the launcher): `C:\ProgramData\TokoPodomoro\`.
+  3. Development: `./data/` at the repo root (git-ignored).
+- Config file: `config.json` in the data directory. Created on first start if missing with `{ "port": 4747 }`.
+- Database file: `toko-podomoro.db` in the data directory.
 
 ## 3. Stack and architecture
 
 | Area | Choice |
 |---|---|
 | Language | TypeScript |
-| Runtime | Node LTS |
+| Runtime | Node 26 (pinned: `engines`, `.nvmrc`, bundled `node.exe`) |
 | Monorepo | pnpm workspaces |
 | Server | `apps/server`: Fastify, better-sqlite3, Drizzle ORM, drizzle-kit |
 | Web | `apps/web`: React, Vite, React Router, Tailwind |
@@ -44,6 +52,7 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - Server serves the built web app and `/api` on the same port.
 - Server layering: `routes -> services -> repositories`.
 - Versioned SQL migrations via drizzle-kit from Stage 0.
+- Node 26 rationale: better-sqlite3 13.x ships Node-API (v10) prebuilds inside the npm package, including `win32-x64`, so it needs no compiler and works on any Node >= 22. Verified on Node v26.12.0 on 2026-10-19 with install scripts disabled. Node 26 is scheduled for LTS promotion in late October 2026, before the pilot (Stage 6).
 
 ## 4. Data rules
 
@@ -385,15 +394,13 @@ Tracked with checkboxes in `../production_checklist.md`.
 
 Not decided. Do not implement a choice without asking. Tagged with the stage that needs the answer.
 
-1. [Stage 0] Config file location, name, and format (e.g. `config.json` in the data directory), and the dev-mode data directory.
-2. [Stage 0] Exact Node LTS major version to pin (`engines`, portable `node.exe`, better-sqlite3 prebuilds).
-3. [Stage 1] Cashier forgot PIN: can an owner reset a cashier's PIN from user management?
-4. [Stage 1] Can an owner reset another owner's PIN or recovery code?
-5. [Stage 2] Can cashiers edit product data and cost prices with no control, or does that need owner PIN? (Product edits are audit-logged either way.)
-6. [Stage 3] Are old held sales ever cleaned up, or kept indefinitely?
-7. [Stage 5] Should failed PIN attempts be logged?
-8. [Stage 5] Approval token lifetime, and the scope of menu-access tokens (e.g. one Laporan visit vs. a time window).
-9. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
-10. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
-11. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
-12. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
+1. [Stage 1] Cashier forgot PIN: can an owner reset a cashier's PIN from user management?
+2. [Stage 1] Can an owner reset another owner's PIN or recovery code?
+3. [Stage 2] Can cashiers edit product data and cost prices with no control, or does that need owner PIN? (Product edits are audit-logged either way.)
+4. [Stage 3] Are old held sales ever cleaned up, or kept indefinitely?
+5. [Stage 5] Should failed PIN attempts be logged?
+6. [Stage 5] Approval token lifetime, and the scope of menu-access tokens (e.g. one Laporan visit vs. a time window).
+7. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
+8. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
+9. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
+10. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
