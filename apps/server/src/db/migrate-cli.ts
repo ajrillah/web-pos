@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { DB_FILE, resolveDataDir } from '../config';
 import { migrationsDir } from '../paths';
@@ -10,6 +11,7 @@ const dataDir = resolveDataDir({
   searchFrom: import.meta.dirname,
   cwd: process.cwd(),
 });
+fs.mkdirSync(dataDir, { recursive: true });
 const file = path.join(dataDir, DB_FILE);
 const { db, sqlite } = openDatabase(file);
 runMigrations(db, migrationsDir);
