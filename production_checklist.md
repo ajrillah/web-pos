@@ -6,7 +6,8 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 
 - [ ] pnpm workspace: `apps/server`, `apps/web`, `packages/shared`
 - [ ] Node 26 pinned (`.nvmrc`, `engines`)
-- [ ] Shared TypeScript, Biome, and Vitest config
+- [ ] Shared TypeScript and Biome config
+- [ ] Vitest runs in all packages
 - [ ] Root scripts: `dev`, `build`, `start`, `test`, `typecheck`, `check`, `db:generate`, `db:migrate`
 - [ ] Fastify server binds `127.0.0.1` only, default port 4747 from config file
 - [ ] Busy port -> clear Indonesian error and exit

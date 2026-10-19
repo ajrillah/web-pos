@@ -83,6 +83,7 @@ installer/        Inno Setup scripts (output/ is ignored)
 - Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`), English, imperative.
 - Branch per stage: `stage-N-<name>`. `main` holds merged stages. Local git only, no remote.
 - Never merge to `main` or create tags without asking.
+- Never add pnpm release-age exceptions (`minimumReleaseAgeExclude`). If a version is too new, pin an older release instead.
 - Rupiah in UI: `Rp 12.345` (dot thousands, no decimals).
 
 ## Commands (planned, defined in Stage 0)

@@ -52,6 +52,7 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - Server serves the built web app and `/api` on the same port.
 - Server layering: `routes -> services -> repositories`.
 - Versioned SQL migrations via drizzle-kit from Stage 0.
+- Build: esbuild bundles the server (including `packages/shared`) into `apps/server/dist/main.js`; only native `better-sqlite3` stays external. `dist/drizzle/` (migrations) and `dist/public/` (built web app) are copied next to it, so `dist/` plus `node_modules/better-sqlite3` is the deployable server.
 - Node 26 rationale: better-sqlite3 13.x ships Node-API (v10) prebuilds inside the npm package, including `win32-x64`, so it needs no compiler and works on any Node >= 22. Verified on Node v26.12.0 on 2026-10-19 with install scripts disabled. Node 26 is scheduled for LTS promotion in late October 2026, before the pilot (Stage 6).
 
 ## 4. Data rules
@@ -81,7 +82,8 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - All ids are UUIDs.
 - No hard deletes: `active` flag or void status.
 - `created_at` on every table; `updated_at` on mutable tables.
-- Timestamps stored in UTC. "Today" and the TRX number date use the PC's local time zone.
+- Timestamps stored in UTC as ISO 8601 text with a fixed format: `YYYY-MM-DDTHH:mm:ss.sssZ` (always milliseconds and `Z`, e.g. `2026-10-19T08:30:00.000Z`), produced by `Date.prototype.toISOString()`. The fixed format keeps text comparison and sorting correct.
+- "Today" and the TRX number date use the PC's local time zone.
 - Product `code` is unique across all products, including inactive ones.
 
 ### 4.3 Sales snapshots
@@ -100,6 +102,7 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - Client generates UUIDs for sales, purchases, and payments. Server rejects duplicates.
 - Server recomputes all totals. Client numbers are never trusted.
 - Error format: `{ "error": { "code": "...", "message": "..." } }`; `message` in Indonesian.
+- Host header check: every request whose Host hostname is not `127.0.0.1` or `localhost` (any port) is rejected with 403 `FORBIDDEN_HOST`. This blocks DNS-rebinding access from web pages.
 
 ### 4.7 Audit log
 `audit_logs` is written only for:
@@ -313,6 +316,9 @@ Port is not a setting; it lives in the config file.
 ## 10. API
 
 Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier needs `X-Approval-Token`.
+
+### Health
+- `GET health` -> `{ status: "ok", version }`. No auth. Used by the web app and, later, the launcher to detect a running server.
 
 ### Setup and auth
 - `GET setup/status`, `POST setup`
