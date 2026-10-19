@@ -5,6 +5,7 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 ## Stage 0 — Foundation
 
 - [ ] pnpm workspace: `apps/server`, `apps/web`, `packages/shared`
+- [ ] Node 26 pinned (`.nvmrc`, `engines`)
 - [ ] Shared TypeScript, Biome, and Vitest config
 - [ ] Root scripts: `dev`, `build`, `start`, `test`, `typecheck`, `check`, `db:generate`, `db:migrate`
 - [ ] Fastify server binds `127.0.0.1` only, default port 4747 from config file
@@ -12,7 +13,7 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 - [ ] Server serves built web app and `/api` on one port (SPA fallback for client routes)
 - [ ] SQLite via better-sqlite3 with `foreign_keys = ON` and WAL
 - [ ] Drizzle schema + drizzle-kit versioned SQL migrations; migrations applied on startup
-- [ ] Configurable data directory (dev: local folder; prod: `C:\ProgramData\TokoPodomoro\`)
+- [ ] Data directory resolution (`TOKO_PODOMORO_DATA_DIR` > prod `C:\ProgramData\TokoPodomoro\` > dev `./data/`); `config.json` created with `{ "port": 4747 }`
 - [ ] Error format `{ error: { code, message } }` with Indonesian messages; Zod errors mapped
 - [ ] Shared math: line subtotal, cost_total, half-up rounding, total rounding (none/100/500, ties up, negative `rounding_amount`) with Vitest tests
 - [ ] React + Vite + React Router + Tailwind shell renders
