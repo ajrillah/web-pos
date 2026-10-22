@@ -84,7 +84,7 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - `created_at` on every table; `updated_at` on mutable tables.
 - Timestamps stored in UTC as ISO 8601 text with a fixed format: `YYYY-MM-DDTHH:mm:ss.sssZ` (always milliseconds and `Z`, e.g. `2026-10-19T08:30:00.000Z`), produced by `Date.prototype.toISOString()`. The fixed format keeps text comparison and sorting correct.
 - "Today" and the TRX number date use the PC's local time zone.
-- Product `code` is unique across all products, including inactive ones.
+- Product `code` is unique across all products, including inactive ones, ignoring case (`COLLATE NOCASE` index). Category names are unique the same way.
 
 ### 4.3 Sales snapshots
 - Sale items snapshot: product code, product name, unit name, sell price, cost price (and factors), computed `subtotal` and `cost_total`.
