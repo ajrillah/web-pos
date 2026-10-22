@@ -64,7 +64,7 @@ Driver prints `READY`, then `ok <cmd>[: output]` or `error <cmd>: ...` per line;
 | `type <text>` | insert text into the focused element |
 | `press <key>` | `Enter`, `Escape`, `Tab`, arrows, `F1`-`F12`, letters/digits, with `Control+`/`Alt+`/`Shift+`/`Meta+` (e.g. `Control+l`, `Alt+1`) |
 | `text [css]` / `url` / `eval <js>` | read innerText / location / evaluate JS (JSON result) |
-| `screenshot [name]` | full viewport PNG, 1280x800 |
+| `screenshot [name]` | full viewport PNG, 1366x768 (`WINDOW_SIZE=W,H` overrides) |
 | `console` | console errors, uncaught exceptions, failed requests since start (the anonymous `auth/me` check logs an expected 401) |
 | `sh <command>` | run a bash command between steps, e.g. restart the server; the browser keeps its cookies |
 
