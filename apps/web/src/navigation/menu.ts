@@ -42,6 +42,13 @@ const productTabs: MenuEntry[] = [
   { label: 'Impor', path: '/barang/impor' },
 ];
 
+// Sub-pages of Pelanggan.
+const customerTabs: MenuEntry[] = [
+  { label: 'Daftar', path: '/pelanggan' },
+  { label: 'Kartu Piutang', path: '/pelanggan/kartu' },
+  { label: 'Daftar Piutang', path: '/pelanggan/piutang' },
+];
+
 function forRole(entries: MenuEntry[], role: Role): MenuItem[] {
   return entries.map(({ ownerPin = false, ...entry }) => ({
     ...entry,
@@ -62,6 +69,11 @@ export function settingsTabsFor(role: Role): MenuItem[] {
 /** Barang tabs for a role. */
 export function productTabsFor(role: Role): MenuItem[] {
   return forRole(productTabs, role);
+}
+
+/** Pelanggan tabs (open to every role). */
+export function customerTabsFor(role: Role): MenuItem[] {
+  return forRole(customerTabs, role);
 }
 
 /** First Pengaturan tab a role can open without approval. */

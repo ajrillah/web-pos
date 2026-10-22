@@ -1,9 +1,11 @@
 import {
   type CreateSaleResponse,
+  type Customer,
   formatRupiah,
   quickCashAmounts,
   type SaleLineInput,
 } from '@toko-podomoro/shared';
+import { ArrowLeft } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
 import { ApiRequestError, errorMessage } from '../../api/client';
 import { api } from '../../api/endpoints';
@@ -20,10 +22,12 @@ import {
 import { Kbd } from '../../components/ui/kbd';
 import { Label } from '../../components/ui/label';
 import { cn } from '../../lib/utils';
+import { CustomerPicker } from '../customers/CustomerPicker';
 
 /**
- * Bayar (F8): cash and/or QRIS against the rounded total. Enter pays when the amount is enough.
- * `saleId` stays the same for retries, so a lost response never books the sale twice.
+ * Bayar (F8): cash and/or QRIS against the rounded total. Enter pays when the amount is enough;
+ * with less, Enter moves to the kasbon step (pick or quick-add a customer, Enter confirms,
+ * Esc goes back). `saleId` stays the same for retries, so a lost response never books twice.
  */
 export function PayDialog({
   open,
@@ -47,6 +51,8 @@ export function PayDialog({
 }) {
   const [cash, setCash] = useState<number | null>(null);
   const [qris, setQris] = useState<number | null>(null);
+  const [step, setStep] = useState<'pay' | 'kasbon'>('pay');
+  const [customer, setCustomer] = useState<Customer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -54,21 +60,18 @@ export function PayDialog({
     if (open) {
       setCash(null);
       setQris(null);
+      setStep('pay');
+      setCustomer(null);
       setError(null);
     }
   }, [open]);
 
   const paid = (cash ?? 0) + (qris ?? 0);
   const change = paid - total;
+  const shortfall = Math.max(0, total - paid);
   const qrisTooHigh = (qris ?? 0) > total;
-  const canPay = paid >= total && !qrisTooHigh && !busy;
 
-  async function pay(e: FormEvent) {
-    e.preventDefault();
-    if (!canPay) {
-      setError(qrisTooHigh ? 'QRIS tidak boleh melebihi total.' : 'Uang yang dibayar kurang.');
-      return;
-    }
+  async function submitSale(kasbonCustomer: Customer | null) {
     setBusy(true);
     setError(null);
     try {
@@ -79,6 +82,7 @@ export function PayDialog({
           cash: cash ?? 0,
           qris: qris ?? 0,
           expectedTotal: total,
+          ...(kasbonCustomer ? { customerId: kasbonCustomer.id } : {}),
         }),
       );
     } catch (err) {
@@ -94,100 +98,189 @@ export function PayDialog({
     }
   }
 
+  function pay(e: FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    if (qrisTooHigh) {
+      setError('QRIS tidak boleh melebihi total.');
+      return;
+    }
+    if (shortfall > 0) {
+      setError(null);
+      setStep('kasbon');
+      return;
+    }
+    void submitSale(null);
+  }
+
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent
         className="max-w-xl"
+        onEscapeKeyDown={(e) => {
+          // Esc in the kasbon step goes back to the amounts instead of closing.
+          if (step === 'kasbon') {
+            e.preventDefault();
+            setStep('pay');
+            setCustomer(null);
+          }
+        }}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
           onClosed();
         }}
       >
         <DialogHeader>
-          <DialogTitle>Bayar</DialogTitle>
-          <DialogDescription>Tunai dan/atau QRIS. Kembalian hanya dari tunai.</DialogDescription>
+          <DialogTitle>{step === 'pay' ? 'Bayar' : 'Catat kasbon'}</DialogTitle>
+          <DialogDescription>
+            {step === 'pay'
+              ? 'Tunai dan/atau QRIS. Kembalian hanya dari tunai.'
+              : 'Kekurangan dicatat sebagai kasbon pelanggan.'}
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={pay} className="space-y-5" noValidate>
+
+        <div className="grid grid-cols-2 gap-3">
           <div className="rounded-[20px] bg-muted px-5 py-4">
             <div className="label-caps">Total</div>
             <div
-              className="text-[44px] leading-tight font-bold tracking-[-0.03em] tabular-nums"
+              className="text-[36px] leading-tight font-bold tracking-[-0.03em] tabular-nums"
               data-testid="pay-total"
             >
               {formatRupiah(total)}
             </div>
           </div>
+          {step === 'kasbon' && (
+            <div className="rounded-[20px] border border-warning-border bg-warning-soft px-5 py-4 text-warning-foreground">
+              <div className="label-caps text-current">Kasbon</div>
+              <div
+                className="text-[36px] leading-tight font-bold tracking-[-0.03em] tabular-nums"
+                data-testid="kasbon-amount"
+              >
+                {formatRupiah(shortfall)}
+              </div>
+            </div>
+          )}
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="pay-cash">Tunai</Label>
-            <NumberInput
-              id="pay-cash"
-              value={cash}
-              onValueChange={setCash}
-              prefix="Rp"
-              autoFocus
-              className="[&_input]:h-14 [&_input]:text-2xl"
-            />
-            <div className="flex flex-wrap gap-2">
-              {quickCashAmounts(total).map((amount, i) => (
+        {step === 'kasbon' ? (
+          <div className="space-y-4">
+            {customer ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between rounded-[20px] bg-selected px-5 py-4">
+                  <div>
+                    <div className="text-lg font-semibold" data-testid="kasbon-customer">
+                      {customer.name}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Kasbon sekarang {formatRupiah(customer.balance)} → menjadi{' '}
+                      <span className="font-semibold text-warning-foreground">
+                        {formatRupiah(customer.balance + shortfall)}
+                      </span>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setCustomer(null)}>
+                    Ganti
+                  </Button>
+                </div>
+                <ErrorAlert message={error} />
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setStep('pay');
+                      setCustomer(null);
+                    }}
+                  >
+                    <ArrowLeft className="size-4" aria-hidden />
+                    Kembali <Kbd>Esc</Kbd>
+                  </Button>
+                  <Button
+                    onClick={() => void submitSale(customer)}
+                    disabled={busy}
+                    autoFocus
+                    className="min-w-48"
+                  >
+                    {busy ? 'Menyimpan…' : 'Catat kasbon'} <Kbd>Enter</Kbd>
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <CustomerPicker onPick={setCustomer} autoFocus />
+            )}
+          </div>
+        ) : (
+          <form onSubmit={pay} className="space-y-5" noValidate>
+            <div className="space-y-2">
+              <Label htmlFor="pay-cash">Tunai</Label>
+              <NumberInput
+                id="pay-cash"
+                value={cash}
+                onValueChange={setCash}
+                prefix="Rp"
+                autoFocus
+                className="[&_input]:h-14 [&_input]:text-2xl"
+              />
+              <div className="flex flex-wrap gap-2">
+                {quickCashAmounts(total).map((amount, i) => (
+                  <Button
+                    key={amount}
+                    variant="secondary"
+                    size="sm"
+                    className="tabular-nums"
+                    onClick={() => {
+                      setCash(amount);
+                      setQris(null);
+                    }}
+                  >
+                    {i === 0 ? 'Uang pas' : formatRupiah(amount)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="pay-qris">QRIS</Label>
                 <Button
-                  key={amount}
-                  variant="secondary"
+                  variant="link"
                   size="sm"
-                  className="tabular-nums"
+                  className="h-auto p-0"
                   onClick={() => {
-                    setCash(amount);
-                    setQris(null);
+                    setQris(total);
+                    setCash(null);
                   }}
                 >
-                  {i === 0 ? 'Uang pas' : formatRupiah(amount)}
+                  QRIS penuh
                 </Button>
-              ))}
+              </div>
+              <NumberInput id="pay-qris" value={qris} onValueChange={setQris} prefix="Rp" />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="pay-qris">QRIS</Label>
-              <Button
-                variant="link"
-                size="sm"
-                className="h-auto p-0"
-                onClick={() => {
-                  setQris(total);
-                  setCash(null);
-                }}
+            <div className="flex items-baseline justify-between border-t border-border pt-4">
+              <span className="label-caps">{change >= 0 ? 'Kembalian' : 'Kurang'}</span>
+              <span
+                data-testid="pay-change"
+                className={cn(
+                  'text-[32px] font-bold tabular-nums',
+                  change >= 0 ? 'text-success' : 'text-destructive',
+                )}
               >
-                QRIS penuh
+                {formatRupiah(Math.abs(change))}
+              </span>
+            </div>
+
+            <ErrorAlert message={error} />
+
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={onClose}>
+                Kembali <Kbd>Esc</Kbd>
+              </Button>
+              <Button type="submit" size="lg" disabled={busy || qrisTooHigh} className="min-w-48">
+                {busy ? 'Menyimpan…' : shortfall > 0 ? 'Kasbon…' : 'Selesai'} <Kbd>Enter</Kbd>
               </Button>
             </div>
-            <NumberInput id="pay-qris" value={qris} onValueChange={setQris} prefix="Rp" />
-          </div>
-
-          <div className="flex items-baseline justify-between border-t border-border pt-4">
-            <span className="label-caps">{change >= 0 ? 'Kembalian' : 'Kurang'}</span>
-            <span
-              data-testid="pay-change"
-              className={cn(
-                'text-[32px] font-bold tabular-nums',
-                change >= 0 ? 'text-success' : 'text-destructive',
-              )}
-            >
-              {formatRupiah(Math.abs(change))}
-            </span>
-          </div>
-
-          <ErrorAlert message={error} />
-
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={onClose}>
-              Kembali <Kbd>Esc</Kbd>
-            </Button>
-            <Button type="submit" size="lg" disabled={!canPay} className="min-w-48">
-              {busy ? 'Menyimpan…' : 'Selesai'} <Kbd>Enter</Kbd>
-            </Button>
-          </div>
-        </form>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

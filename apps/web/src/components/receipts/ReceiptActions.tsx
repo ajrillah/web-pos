@@ -1,18 +1,20 @@
 import { Download, FileText, FolderOpen } from 'lucide-react';
 import { useState } from 'react';
 import { errorMessage } from '../../api/client';
-import { api, receiptDownloadUrl } from '../../api/endpoints';
-import { ErrorAlert } from '../../components/forms';
-import { Button } from '../../components/ui/button';
-import { Kbd } from '../../components/ui/kbd';
+import { api, type ReceiptKind, receipts } from '../../api/endpoints';
+import { ErrorAlert } from '../forms';
+import { Button } from '../ui/button';
+import { Kbd } from '../ui/kbd';
 
 /** Buka (default PDF viewer), Buka folder (Explorer), Unduh (browser download), Tutup. */
 export function ReceiptActions({
-  saleId,
+  kind,
+  id,
   onClose,
   autoFocusClose = false,
 }: {
-  saleId: string;
+  kind: ReceiptKind;
+  id: string;
   onClose?: () => void;
   autoFocusClose?: boolean;
 }) {
@@ -24,7 +26,7 @@ export function ReceiptActions({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={() => run(() => api.openReceipt(saleId))}>
+        <Button variant="outline" onClick={() => run(() => receipts.open(kind, id))}>
           <FileText className="size-[18px]" aria-hidden />
           Buka
         </Button>
@@ -33,7 +35,7 @@ export function ReceiptActions({
           Buka folder
         </Button>
         <Button variant="outline" asChild>
-          <a href={receiptDownloadUrl(saleId)} download>
+          <a href={receipts.downloadUrl(kind, id)} download>
             <Download className="size-[18px]" aria-hidden />
             Unduh
           </a>
