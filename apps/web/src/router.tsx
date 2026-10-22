@@ -28,6 +28,17 @@ import { ChangePinPage } from './pages/settings/ChangePinPage';
 import { SettingsIndex, SettingsLayout } from './pages/settings/SettingsLayout';
 import { StoreSettingsPage } from './pages/settings/StoreSettingsPage';
 import { UsersPage } from './pages/settings/UsersPage';
+import { AdjustmentsPage } from './pages/stock/AdjustmentsPage';
+import { MovementsPage } from './pages/stock/MovementsPage';
+import { OpnameListPage } from './pages/stock/OpnameListPage';
+import { OpnameSessionPage } from './pages/stock/OpnameSessionPage';
+import { PurchaseFormPage } from './pages/stock/PurchaseFormPage';
+import { PurchasesPage } from './pages/stock/PurchasesPage';
+import { StockLayout } from './pages/stock/StockLayout';
+import { PayablesPage } from './pages/suppliers/PayablesPage';
+import { SupplierLedgerPage } from './pages/suppliers/SupplierLedgerPage';
+import { SuppliersLayout } from './pages/suppliers/SuppliersLayout';
+import { SuppliersPage } from './pages/suppliers/SuppliersPage';
 
 export const router = createBrowserRouter([
   { element: <RequireSetup />, children: [{ path: '/setup', element: <SetupPage /> }] },
@@ -66,7 +77,18 @@ export const router = createBrowserRouter([
               },
               { path: '/barang/baru', element: <ProductFormPage /> },
               { path: '/barang/:id', element: <ProductFormPage /> },
-              { path: '/stok', element: <ComingSoonPage title="Stok" stage={7} /> },
+              {
+                path: '/stok',
+                element: <StockLayout />,
+                children: [
+                  { index: true, element: <PurchasesPage /> },
+                  { path: 'penyesuaian', element: <AdjustmentsPage /> },
+                  { path: 'opname', element: <OpnameListPage /> },
+                  { path: 'riwayat', element: <MovementsPage /> },
+                ],
+              },
+              { path: '/stok/masuk/baru', element: <PurchaseFormPage /> },
+              { path: '/stok/opname/:id', element: <OpnameSessionPage /> },
               {
                 path: '/pelanggan',
                 element: <CustomersLayout />,
@@ -76,7 +98,15 @@ export const router = createBrowserRouter([
                   { path: 'piutang', element: <ReceivablesPage /> },
                 ],
               },
-              { path: '/pemasok', element: <ComingSoonPage title="Pemasok" stage={7} /> },
+              {
+                path: '/pemasok',
+                element: <SuppliersLayout />,
+                children: [
+                  { index: true, element: <SuppliersPage /> },
+                  { path: 'kartu', element: <SupplierLedgerPage /> },
+                  { path: 'hutang', element: <PayablesPage /> },
+                ],
+              },
               {
                 path: '/laporan',
                 element: (

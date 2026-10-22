@@ -80,3 +80,63 @@ export function roundSaleTotal(subtotalSum: number, mode: RoundingMode): Rounded
   assertSafeInteger('total', total);
   return { total, roundingAmount: total - subtotalSum };
 }
+
+// --- Purchase cost math (docs/design.md 6.6) ---
+
+/** Buy price for `unitFactor` base units as a cost per `pricingFactor` base units, half up. */
+export function costFromBuyPrice(
+  buyPrice: number,
+  unitFactor: number,
+  pricingFactor: number,
+): number {
+  return mulDivRoundHalfUp(buyPrice, pricingFactor, unitFactor);
+}
+
+export interface WeightedAverageInput {
+  /** Current stock in base units; negative stock counts as 0. */
+  stock: number;
+  /** Current cost per `pricingFactor` base units. */
+  costPrice: number;
+  pricingFactor: number;
+  /** Purchased quantity in base units and what it cost in total. */
+  qtyBase: number;
+  subtotal: number;
+}
+
+/**
+ * Moving-average cost after a purchase, per `pricingFactor` base units:
+ * round((stock * cost + subtotal * pricing_factor) / (stock + qty)), half up.
+ */
+export function weightedAverageCost({
+  stock,
+  costPrice,
+  pricingFactor,
+  qtyBase,
+  subtotal,
+}: WeightedAverageInput): number {
+  assertSafeInteger('stock', stock);
+  const onHand = Math.max(0, stock);
+  const qty = onHand + qtyBase;
+  if (qty <= 0) return costPrice;
+  const value =
+    mulDivRoundHalfUp(onHand, costPrice, 1) + mulDivRoundHalfUp(subtotal, pricingFactor, 1);
+  assertSafeInteger('value', value);
+  return mulDivRoundHalfUp(value, 1, qty);
+}
+
+/**
+ * Margin of a sell unit over its cost in basis points (1850 = 18.50%), half away from zero.
+ * Null when the sell price is 0.
+ */
+export function marginBasisPoints(
+  sellPrice: number,
+  unitFactor: number,
+  costPrice: number,
+  pricingFactor: number,
+): number | null {
+  if (sellPrice <= 0) return null;
+  const unitCost = mulDivRoundHalfUp(unitFactor, costPrice, pricingFactor);
+  const profit = sellPrice - unitCost;
+  const bp = mulDivRoundHalfUp(Math.abs(profit), 10_000, sellPrice);
+  return profit < 0 ? -bp : bp;
+}

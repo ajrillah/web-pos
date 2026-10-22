@@ -1,17 +1,26 @@
 import {
+  type AdjustmentsQuery,
   type ApproveRequest,
+  adjustmentsResponseSchema,
   approveResponseSchema,
   type ChangePinRequest,
+  type CreateAdjustmentRequest,
   type CreateCategoryRequest,
   type CreateCustomerPaymentRequest,
   type CreateCustomerRequest,
   type CreateProductRequest,
+  type CreatePurchaseRequest,
   type CreateSaleRequest,
+  type CreateSupplierPaymentRequest,
+  type CreateSupplierRequest,
   type CreateUserRequest,
   type CustomersQuery,
   categoriesResponseSchema,
   categoryResponseSchema,
   changePinResponseSchema,
+  completeOpnameResponseSchema,
+  costSuggestionResponseSchema,
+  createAdjustmentResponseSchema,
   createSaleResponseSchema,
   customerLedgerResponseSchema,
   customerPaymentResponseSchema,
@@ -22,10 +31,20 @@ import {
   heldSalesResponseSchema,
   type LoginRequest,
   loginUsersResponseSchema,
+  type MovementsQuery,
   meResponseSchema,
+  movementsResponseSchema,
+  type OpnamesQuery,
+  opnameResponseSchema,
+  opnamesResponseSchema,
+  type PayablesQuery,
   type ProductsQuery,
+  type PurchasesQuery,
+  payablesResponseSchema,
   productResponseSchema,
   productsResponseSchema,
+  purchaseResponseSchema,
+  purchasesResponseSchema,
   type ReceivablesQuery,
   type RecoverRequest,
   receiptSavedResponseSchema,
@@ -34,19 +53,28 @@ import {
   resumeHeldSaleResponseSchema,
   type SalesQuery,
   type SetupRequest,
+  type SuppliersQuery,
+  type SupplierVoidRequest,
   saleResponseSchema,
   salesResponseSchema,
   settingsResponseSchema,
   setupStatusResponseSchema,
+  supplierLedgerResponseSchema,
+  supplierPaymentResponseSchema,
+  supplierResponseSchema,
+  suppliersResponseSchema,
   type UnlockRequest,
   type UpdateCategoryRequest,
   type UpdateCustomerRequest,
+  type UpdateOpnameItemsRequest,
   type UpdateProductRequest,
   type UpdateSettingsRequest,
+  type UpdateSupplierRequest,
   type UpdateUserRequest,
   userResponseSchema,
   usersResponseSchema,
   type VoidRequest,
+  voidPurchaseResponseSchema,
 } from '@toko-podomoro/shared';
 import { apiRequest } from './client';
 
@@ -160,6 +188,76 @@ export const api = {
       `/customer-payments/${encodeURIComponent(id)}`,
       customerPaymentResponseSchema,
     ),
+
+  listSuppliers: (query: SuppliersQuery) =>
+    apiRequest('GET', `/suppliers?${toSearchParams(query)}`, suppliersResponseSchema),
+  createSupplier: (body: CreateSupplierRequest) =>
+    apiRequest('POST', '/suppliers', supplierResponseSchema, body),
+  updateSupplier: (id: string, body: UpdateSupplierRequest) =>
+    apiRequest('PUT', `/suppliers/${encodeURIComponent(id)}`, supplierResponseSchema, body),
+  supplierLedger: (id: string) =>
+    apiRequest('GET', `/suppliers/${encodeURIComponent(id)}/ledger`, supplierLedgerResponseSchema),
+  listPayables: (query: PayablesQuery) =>
+    apiRequest('GET', `/payables?${toSearchParams(query)}`, payablesResponseSchema),
+  listPurchases: (query: PurchasesQuery) =>
+    apiRequest('GET', `/purchases?${toSearchParams(query)}`, purchasesResponseSchema),
+  getPurchase: (id: string) =>
+    apiRequest('GET', `/purchases/${encodeURIComponent(id)}`, purchaseResponseSchema),
+  createPurchase: (body: CreatePurchaseRequest, approvalToken?: string) =>
+    apiRequest('POST', '/purchases', purchaseResponseSchema, body, { approvalToken }),
+  voidPurchase: (id: string, body: SupplierVoidRequest, approvalToken?: string) =>
+    apiRequest(
+      'POST',
+      `/purchases/${encodeURIComponent(id)}/void`,
+      voidPurchaseResponseSchema,
+      body,
+      { approvalToken },
+    ),
+  costSuggestion: (productId: string) =>
+    apiRequest(
+      'GET',
+      `/purchases/cost-suggestion?${toSearchParams({ productId })}`,
+      costSuggestionResponseSchema,
+    ),
+  createSupplierPayment: (body: CreateSupplierPaymentRequest) =>
+    apiRequest('POST', '/supplier-payments', supplierPaymentResponseSchema, body),
+  getSupplierPayment: (id: string) =>
+    apiRequest(
+      'GET',
+      `/supplier-payments/${encodeURIComponent(id)}`,
+      supplierPaymentResponseSchema,
+    ),
+  voidSupplierPayment: (id: string, body: SupplierVoidRequest, approvalToken?: string) =>
+    apiRequest(
+      'POST',
+      `/supplier-payments/${encodeURIComponent(id)}/void`,
+      supplierPaymentResponseSchema,
+      body,
+      { approvalToken },
+    ),
+
+  listAdjustments: (query: AdjustmentsQuery) =>
+    apiRequest('GET', `/stock-adjustments?${toSearchParams(query)}`, adjustmentsResponseSchema),
+  createAdjustment: (body: CreateAdjustmentRequest) =>
+    apiRequest('POST', '/stock-adjustments', createAdjustmentResponseSchema, body),
+  listOpnames: (query: OpnamesQuery) =>
+    apiRequest('GET', `/stock-opname?${toSearchParams(query)}`, opnamesResponseSchema),
+  getOpname: (id: string) =>
+    apiRequest('GET', `/stock-opname/${encodeURIComponent(id)}`, opnameResponseSchema),
+  startOpname: (categoryId: string) =>
+    apiRequest('POST', '/stock-opname', opnameResponseSchema, { categoryId }),
+  updateOpnameItems: (id: string, body: UpdateOpnameItemsRequest) =>
+    apiRequest('PUT', `/stock-opname/${encodeURIComponent(id)}/items`, opnameResponseSchema, body),
+  completeOpname: (id: string) =>
+    apiRequest(
+      'POST',
+      `/stock-opname/${encodeURIComponent(id)}/complete`,
+      completeOpnameResponseSchema,
+    ),
+  cancelOpname: (id: string) =>
+    apiRequest('POST', `/stock-opname/${encodeURIComponent(id)}/cancel`, opnameResponseSchema),
+  listMovements: (query: MovementsQuery) =>
+    apiRequest('GET', `/stock-movements?${toSearchParams(query)}`, movementsResponseSchema),
 };
 
 export type ReceiptKind = 'sale' | 'payment';

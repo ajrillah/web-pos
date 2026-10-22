@@ -50,6 +50,13 @@
       "when": 1792666458036,
       "tag": "0006_fuzzy_betty_brant",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1792679191703,
+      "tag": "0007_slippery_psynapse",
+      "breakpoints": true
     }
   ]
 }

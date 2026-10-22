@@ -2,6 +2,8 @@
 
 Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typecheck, tests), and committed.
 
+Order: stages run 0-5, 7, 8, 9, 6, 10. Stage numbers are kept; Distribution (6) moved after Import (9).
+
 ## Stage 0 — Foundation
 
 - [x] pnpm workspace: `apps/server`, `apps/web`, `packages/shared`
@@ -92,32 +94,18 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 
 **Done when:** MVP complete; tag `v0.1.0-mvp` (ask before tagging).
 
-## Stage 6 — Distribution
-
-- [ ] Inno Setup installer with bundled portable `node.exe`
-- [ ] Launcher runs server under the logged-in user; prevents duplicate server; opens Edge `--app=http://127.0.0.1:<port>`
-- [ ] Autostart on login
-- [ ] Port configurable in config file; busy-port error shown to user
-- [ ] Data in `C:\ProgramData\TokoPodomoro\`; uninstall keeps data
-- [ ] Default receipt folder `%USERPROFILE%\Documents\TokoPodomoro\Nota` created on first save
-- [ ] Manual backup (and documented restore)
-- [ ] F-key capture verified manually in Edge `--app` mode on Windows; switch on the Alt+number fallback for any key that fails
-- [ ] Revisit web bundle size: code-split routes (Vite warns the main chunk is > 500 kB)
-
-**Done when:** runs on a clean PC; deployed to pilot store; tag `v0.2.0-pilot` (ask before tagging).
-
 ## Stage 7 — Stock & suppliers
 
-- [ ] Suppliers: list, add, edit, deactivate; audit logged
-- [ ] Stok Masuk: purchases, no edit; cost suggestions (last buy, weighted average) and margin
-- [ ] Initial paid amount creates supplier payment + allocation
-- [ ] Supplier debt payments allocated to ticked purchases (oldest pre-ticked)
-- [ ] Purchase void (PIN) only if no active payments besides the initial one; voids initial payment + allocations; `purchase_void` movements; cost-price review reminder for owner
-- [ ] Supplier payment void (PIN): allocations reversed, purchase remaining restored
-- [ ] Kartu Hutang and Daftar Hutang
-- [ ] Stock adjustments with reason (rusak, kedaluwarsa, hilang, opname, lainnya)
-- [ ] Stock opname sessions: start, enter counts, complete (delta vs `system_qty_at_start` applied to current stock), cancel
-- [ ] Stock movement history
+- [x] Suppliers: list, add, edit, deactivate; audit logged
+- [x] Stok Masuk: purchases, no edit; cost suggestions (last buy, weighted average) and margin
+- [x] Initial paid amount creates supplier payment + allocation
+- [x] Supplier debt payments allocated to ticked purchases (oldest pre-ticked)
+- [x] Purchase void (PIN) only if no active payments besides the initial one; voids initial payment + allocations; `purchase_void` movements; cost-price review reminder for owner
+- [x] Supplier payment void (PIN): allocations reversed, purchase remaining restored
+- [x] Kartu Hutang and Daftar Hutang
+- [x] Stock adjustments with reason (rusak, kedaluwarsa, hilang, opname, lainnya)
+- [x] Stock opname sessions: start, enter counts, complete (delta vs `system_qty_at_start` applied to current stock), cancel
+- [x] Stock movement history
 
 **Done when:** stock and payables reconcile with movements/allocations.
 
@@ -146,6 +134,20 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 - [ ] Commit import in one transaction; audit logged
 
 **Done when:** a 500-row file imports; invalid rows reported, none saved partially.
+
+## Stage 6 — Distribution
+
+- [ ] Inno Setup installer with bundled portable `node.exe`
+- [ ] Launcher runs server under the logged-in user; prevents duplicate server; opens Edge `--app=http://127.0.0.1:<port>`
+- [ ] Autostart on login
+- [ ] Port configurable in config file; busy-port error shown to user
+- [ ] Data in `C:\ProgramData\TokoPodomoro\`; uninstall keeps data
+- [ ] Default receipt folder `%USERPROFILE%\Documents\TokoPodomoro\Nota` created on first save
+- [ ] Manual backup (and documented restore)
+- [ ] F-key capture verified manually in Edge `--app` mode on Windows; switch on the Alt+number fallback for any key that fails
+- [ ] Revisit web bundle size: code-split routes (Vite warns the main chunk is > 500 kB)
+
+**Done when:** runs on a clean PC; deployed to pilot store; tag `v0.2.0-pilot` (ask before tagging).
 
 ## Stage 10 — Deferred
 

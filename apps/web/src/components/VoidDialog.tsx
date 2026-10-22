@@ -1,30 +1,33 @@
-import { VOID_REASON_LABELS, type VoidReason, type VoidRequest } from '@toko-podomoro/shared';
+import { VOID_REASON_LABELS, type VoidReason } from '@toko-podomoro/shared';
 import { useState } from 'react';
 import { errorMessage } from '../api/client';
 import { cn } from '../lib/utils';
 import { FormDialog } from './FormDialog';
 import { TextField } from './forms';
 
-const REASONS = Object.keys(VOID_REASON_LABELS) as VoidReason[];
+const ALL_REASONS = Object.keys(VOID_REASON_LABELS) as VoidReason[];
 
 /**
  * Confirms a void. A reason is required: "Salah input", "Pembeli batal", or "Lainnya"
- * with a note. `onVoid` runs it (with owner approval if needed).
+ * with a note (purchases and supplier payments offer only `reasons` given). `onVoid` runs it
+ * (with owner approval if needed).
  */
-export function VoidDialog({
+export function VoidDialog<R extends VoidReason = VoidReason>({
   open,
   title,
   description,
+  reasons = ALL_REASONS as R[],
   onClose,
   onVoid,
 }: {
   open: boolean;
   title: string;
   description: string;
+  reasons?: R[];
   onClose: () => void;
-  onVoid: (input: VoidRequest) => Promise<void>;
+  onVoid: (input: { reason: R; note?: string }) => Promise<void>;
 }) {
-  const [reason, setReason] = useState<VoidReason | null>(null);
+  const [reason, setReason] = useState<R | null>(null);
   const [note, setNote] = useState('');
 
   function reset() {
@@ -59,7 +62,7 @@ export function VoidDialog({
       <fieldset className="space-y-2">
         <legend className="mb-2 text-sm font-semibold text-muted-foreground">Alasan</legend>
         <div className="flex gap-2">
-          {REASONS.map((value, index) => (
+          {reasons.map((value, index) => (
             <label
               key={value}
               className={cn(

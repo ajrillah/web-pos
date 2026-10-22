@@ -146,6 +146,70 @@ export const appErrors = {
       'RECEIPT_SAVE_FAILED',
       `Nota tidak dapat disimpan ke folder ${folder}. Periksa folder nota di Pengaturan.`,
     ),
+  supplierNotFound: () => new AppError(404, 'SUPPLIER_NOT_FOUND', 'Pemasok tidak ditemukan.'),
+  supplierInactive: () =>
+    new AppError(400, 'SUPPLIER_INACTIVE', 'Pemasok nonaktif tidak dapat dipilih.'),
+  supplierHasDebt: (amount: string) =>
+    new AppError(
+      409,
+      'SUPPLIER_HAS_DEBT',
+      `Masih ada hutang ${amount} ke pemasok ini. Lunasi dulu sebelum menonaktifkan.`,
+    ),
+  duplicatePurchase: () =>
+    new AppError(409, 'DUPLICATE_PURCHASE', 'Stok masuk ini sudah tersimpan.'),
+  purchaseNotFound: () => new AppError(404, 'PURCHASE_NOT_FOUND', 'Stok masuk tidak ditemukan.'),
+  purchaseNotVoidable: () =>
+    new AppError(409, 'PURCHASE_NOT_VOIDABLE', 'Stok masuk ini sudah dibatalkan.'),
+  purchaseHasPayments: () =>
+    new AppError(
+      409,
+      'PURCHASE_HAS_PAYMENTS',
+      'Hutang stok masuk ini sudah ada pembayaran. Batalkan pembayaran hutangnya dulu.',
+    ),
+  purchaseProductInactive: (name: string) =>
+    new AppError(409, 'PRODUCT_UNAVAILABLE', `${name} nonaktif atau satuannya tidak tersedia.`),
+  purchaseInvalidQuantity: (name: string) =>
+    new AppError(
+      400,
+      'INVALID_QUANTITY',
+      `Jumlah ${name} tidak valid: barang satuan dicatat dalam jumlah bulat.`,
+    ),
+  duplicatePurchaseLine: (name: string) =>
+    new AppError(400, 'DUPLICATE_LINE', `${name} tercatat lebih dari sekali. Gabungkan barisnya.`),
+  purchaseDateInFuture: () =>
+    new AppError(400, 'DATE_IN_FUTURE', 'Tanggal stok masuk tidak boleh setelah hari ini.'),
+  paidExceedsTotal: () =>
+    new AppError(400, 'PAID_EXCEEDS_TOTAL', 'Jumlah dibayar tidak boleh melebihi total.'),
+  duplicateSupplierPayment: () =>
+    new AppError(409, 'DUPLICATE_PAYMENT', 'Pembayaran ini sudah tersimpan.'),
+  supplierPaymentNotFound: () =>
+    new AppError(404, 'SUPPLIER_PAYMENT_NOT_FOUND', 'Pembayaran hutang tidak ditemukan.'),
+  supplierPaymentNotVoidable: () =>
+    new AppError(409, 'PAYMENT_NOT_VOIDABLE', 'Pembayaran ini sudah dibatalkan.'),
+  invalidPayables: () =>
+    new AppError(
+      400,
+      'INVALID_PAYABLES',
+      'Hutang yang dipilih tidak valid atau sudah lunas. Muat ulang daftar hutang.',
+    ),
+  amountExceedsDebt: () =>
+    new AppError(
+      400,
+      'AMOUNT_EXCEEDS_DEBT',
+      'Jumlah bayar tidak boleh melebihi total hutang yang dipilih.',
+    ),
+  opnameNotFound: () => new AppError(404, 'OPNAME_NOT_FOUND', 'Sesi opname tidak ditemukan.'),
+  opnameNotOpen: () =>
+    new AppError(409, 'OPNAME_NOT_OPEN', 'Sesi opname ini sudah selesai atau dibatalkan.'),
+  opnameEmpty: () => new AppError(400, 'OPNAME_EMPTY', 'Tidak ada barang aktif di kategori ini.'),
+  opnameProductBusy: (name: string) =>
+    new AppError(
+      409,
+      'OPNAME_PRODUCT_BUSY',
+      `${name} sedang dihitung di sesi opname lain. Selesaikan atau batalkan sesi itu dulu.`,
+    ),
+  opnameUnknownItem: () =>
+    new AppError(400, 'OPNAME_UNKNOWN_ITEM', 'Barang tidak termasuk dalam sesi opname ini.'),
   /** Unit rows break a rule; `message` says which. */
   invalidUnits: (message: string) => new AppError(400, 'INVALID_UNITS', message),
 };

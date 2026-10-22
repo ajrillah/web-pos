@@ -211,9 +211,11 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 
 ### 6.6 Stock (Stok) and suppliers (Pemasok)
 - Purchases from suppliers (Stok Masuk):
-  - No edit.
-  - New cost price entered manually, with suggestions (last buy price, weighted average) and margin shown.
+  - No edit. A supplier is required; purchases are numbered `BLI-YYYYMMDD-NNNN`, supplier payments `BYH-YYYYMMDD-NNNN` (same rules as TRX).
+  - Lines use the product's active unit rows; `buy_price` is per unit row (bulk: per kg/liter, quantity in g/ml). A product appears at most once per purchase.
+  - New cost price entered manually, with suggestions (last buy price, weighted average) and margin shown. Changing a cost price this way needs owner approval for cashiers (same rule as product price changes) and is audit-logged on the product.
   - Initial paid amount creates a `supplier_payments` row + `supplier_allocations` row.
+  - Purchase and supplier payment voids take a reason: "Salah input" or "Lainnya" (with a note).
 - Purchase void (owner PIN):
   - Allowed only if the purchase has no active payments besides the initial one.
   - Voids the initial payment and its allocations.
@@ -221,11 +223,13 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
   - `cost_price` is not reverted; the owner sees a reminder to review the cost price of affected products.
 - Supplier debt payments are allocated to ticked purchases (oldest pre-ticked).
 - Supplier payment void (owner PIN): allocations reversed, purchase `remaining` restored.
+  - A purchase's initial payment can be voided on its own the same way; its amount becomes debt again and the purchase stays completed.
 - Adjustments with reason: `rusak`, `kedaluwarsa`, `hilang`, `opname`, `lainnya`.
-- Stock opname is a session:
+- Stock opname is a session, one per category:
   - Start: creates `stock_opnames` (status `open`); `system_qty_at_start` is recorded for each product counted.
+  - A product can be in only one open session. Sessions for other categories may run in parallel; starting a session that would include a product already in an open session is refused (409).
   - Enter counted quantities (`counted_qty`); sales continue during the session.
-  - Complete: per item, `delta = counted_qty - system_qty_at_start`, applied as an adjustment (reason `opname`) to current stock.
+  - Complete: per item, `delta = counted_qty - system_qty_at_start`, applied as an adjustment (reason `opname`) to current stock. The adjustment is valued at the product's `cost_price` at completion time (`stock_adjustments.cost_price`).
   - Cancel: status `cancelled`, no stock change.
 - Movement history.
 
@@ -329,16 +333,16 @@ All tables have `id` (UUID) and `created_at`; mutable tables also have `updated_
 
 ### 9.5 Suppliers and purchases
 - `suppliers`(name, phone, note, active)
-- `purchases`(supplier_id, date, total, paid_amount, remaining, status, voided_at, voided_by, user_id, note) — `status`: `completed` | `voided`
-- `purchase_items`(purchase_id, product_id, unit_id, qty_base, unit_factor, buy_price, subtotal, new_cost_price)
-- `supplier_payments`(supplier_id, method, amount, user_id, status, voided_at, voided_by) — `status`: `active` | `voided`
+- `purchases`(number, supplier_id, date, total, paid_amount, remaining, status, voided_at, voided_by, void_reason, user_id, note) — `id` is the client UUID; `number` `BLI-YYYYMMDD-NNNN` (local date of recording, same rules as TRX); `date` is the purchase (invoice) local day; `status`: `completed` | `voided`; `remaining = total - sum(allocations of active payments)`, `paid_amount = total - remaining`
+- `purchase_items`(purchase_id, line_no, product_id, unit_id, product_code, product_name, unit_name, qty_base, unit_factor, buy_price, subtotal, pricing_factor, old_cost_price, new_cost_price) — `buy_price` is for `unit_factor` base units; `subtotal = round(qty_base * buy_price / unit_factor)`; cost prices per `pricing_factor` base units
+- `supplier_payments`(number, supplier_id, method, amount, initial_purchase_id, user_id, status, voided_at, voided_by, void_reason) — `id` is the client UUID (server UUID for an initial payment); `number` `BYH-YYYYMMDD-NNNN`; `initial_purchase_id` set on a purchase's initial payment; `status`: `active` | `voided`
 - `supplier_allocations`(payment_id, purchase_id, amount)
 
 ### 9.6 Stock
 - `stock_adjustments`(product_id, qty_change, reason, note, cost_price, user_id)
 - `stock_movements`(product_id, qty_change, type, ref_id, user_id) — `type`: `sale` | `void` | `purchase` | `purchase_void` | `adjustment`
-- `stock_opnames`(status, started_at, completed_at, user_id) — `status`: `open` | `completed` | `cancelled`
-- `stock_opname_items`(opname_id, product_id, system_qty_at_start, counted_qty)
+- `stock_opnames`(category_id, status, started_at, closed_at, user_id, closed_by) — `status`: `open` | `completed` | `cancelled`; `closed_at`/`closed_by` set on complete or cancel
+- `stock_opname_items`(opname_id, product_id, system_qty_at_start, counted_qty, adjustment_id) — `counted_qty` null until counted (uncounted items are skipped on completion); `adjustment_id` is the `opname` adjustment written on completion when the delta is not 0
 
 ### 9.7 Settings keys
 - `store_name`, `store_address`, `store_phone`, `receipt_footer`
@@ -362,7 +366,7 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `POST auth/login` `{ userId, pin }`, `POST auth/logout`, `POST auth/recover` (username + recovery code)
 - `GET auth/me` -> `{ user, locked }`, `PUT auth/me/pin`
 - `POST auth/lock`, `POST auth/unlock` `{ pin }` (same user)
-- `POST auth/approve` `{ pin, scope, targetId?, ownerId? }` -> `{ token, expiresAt, ownerName }` (`ownerId` required when several owners are active); scopes: actions `sale.void`, `payment.void`, `product.price`, `product.deactivate`, `category.manage`; menus `laporan`, `pengguna`, `profil-toko`
+- `POST auth/approve` `{ pin, scope, targetId?, ownerId? }` -> `{ token, expiresAt, ownerName }` (`ownerId` required when several owners are active); scopes: actions `sale.void`, `payment.void`, `product.price`, `product.deactivate`, `category.manage`, `purchase.void`, `purchase.cost`, `supplier-payment.void`; menus `laporan`, `pengguna`, `profil-toko`
 - `POST auth/approve/release` `{ token }` (leaving a PIN menu)
 
 ### Users (PIN)
@@ -396,12 +400,16 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `POST sales` takes an optional `customerId`; with it, an underpayment becomes kasbon (one receivable, `debt_amount`). Without it, underpayment is refused.
 
 ### Suppliers and stock
-- `GET suppliers`, `POST suppliers`, `PUT suppliers/:id`, `GET suppliers/:id/ledger`
-- `GET purchases`, `GET purchases/:id`, `POST purchases`, `POST purchases/:id/void` (PIN), `GET purchases/cost-suggestion`
-- `POST supplier-payments`, `POST supplier-payments/:id/void` (PIN)
-- `POST stock-adjustments`
-- `POST stock-opname` (start), `PUT stock-opname/:id/items`, `POST stock-opname/:id/complete`, `POST stock-opname/:id/cancel`
-- `GET stock-movements`
+- `GET suppliers` (q, status, withBalance, page, limit; each with `balance` = remaining debt), `GET suppliers/:id`, `POST suppliers`, `PUT suppliers/:id` (name, phone, note, active), `GET suppliers/:id/ledger` (Kartu Hutang)
+- `GET payables` (supplierId; completed purchases with remaining debt, oldest first) (Daftar Hutang)
+- `GET purchases` (from, to = local days of recording, supplierId, q = number or supplier name, status `completed|voided|all`, page, limit), `GET purchases/:id`
+- `POST purchases` `{ id (client UUID), supplierId, date?, note?, lines: [{ productId, unitId, qtyBase, buyPrice, newCostPrice }], paidAmount, paidMethod }` -> `{ purchase }`. Changing any product's cost price needs approval for cashiers (action `purchase.cost` on this purchase id).
+- `POST purchases/:id/void` (PIN, action `purchase.void`) `{ reason: salah_input|lainnya, note? }` -> `{ purchase, costReview }` (products whose cost price this purchase changed, for the owner to review)
+- `GET purchases/cost-suggestion?productId=` -> `{ costPrice, pricingFactor, stock, lastBuyCost, lastBuyDate }`; the weighted average is computed per line with the shared `weightedAverageCost`
+- `POST supplier-payments` `{ id (client UUID), supplierId, purchaseIds, method, amount }` (amount <= ticked total), `GET supplier-payments/:id`, `POST supplier-payments/:id/void` (PIN, action `supplier-payment.void`) `{ reason: salah_input|lainnya, note? }`
+- `GET stock-adjustments` (productId, reason, page, limit), `POST stock-adjustments` `{ productId, qtyChange, reason, note? }` (note required for `lainnya`) -> `{ adjustment, warnings }`
+- `GET stock-opname` (status), `POST stock-opname` `{ categoryId }` (start), `GET stock-opname/:id`, `PUT stock-opname/:id/items` `{ items: [{ productId, countedQty | null }] }`, `POST stock-opname/:id/complete` -> `{ opname, warnings }`, `POST stock-opname/:id/cancel`
+- `GET stock-movements` (productId, type, from, to, page, limit; newest first, each with the product's `balanceAfter`)
 
 ### Reports (PIN)
 - `GET reports/summary`, `reports/categories`, `reports/products`, `reports/stock-value`, `reports/cash`, `reports/debts`, `reports/losses`, `reports/activity`
@@ -413,7 +421,7 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 
 ## 11. Roadmap
 
-Tracked with checkboxes in `../production_checklist.md`.
+Tracked with checkboxes in `../production_checklist.md`. Stages run in table order (0-5, 7, 8, 9, 6, 10); numbers are kept.
 
 | Stage | Scope | Done when |
 |---|---|---|
@@ -423,10 +431,10 @@ Tracked with checkboxes in `../production_checklist.md`.
 | 3 Cashier | Search, units, cash/QRIS, rounding, atomic save, idempotency, hold, receipt PDF (folder + download), transaction history, keyboard UX | 50 test sales, stock matches movements, receipts correct |
 | 4 Kasbon | Customers, auto kasbon, payments with allocation, ledger | Balances always reconcile |
 | 5 PIN & void | Approval tokens, sale void, customer payment void, auto-lock, switch user | MVP; tag `v0.1.0-mvp` |
-| 6 Distribution | Installer, portable Node, launcher, autostart, port config, manual backup | Runs on clean PC; pilot store; tag `v0.2.0-pilot` |
 | 7 Stock & suppliers | Purchases, cost suggestions, supplier debt, purchase and supplier payment void, adjustments, opname sessions, movement history | Stock and payables reconcile with movements/allocations |
 | 8 Reports | All reports + PDF/Excel export | Totals match raw data on a seeded dataset |
 | 9 Import | CSV/Excel product import (may move earlier) | 500-row file imports; invalid rows reported, none saved partially |
+| 6 Distribution | Installer, portable Node, launcher, autostart, port config, manual backup | Runs on clean PC; pilot store; tag `v0.2.0-pilot` |
 | 10 Deferred | See below | — |
 
 ## 12. Deferred (Stage 10)
@@ -447,7 +455,4 @@ Tracked with checkboxes in `../production_checklist.md`.
 
 Not decided. Do not implement a choice without asking. Tagged with the stage that needs the answer.
 
-1. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
-2. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
-3. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
-4. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
+1. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
