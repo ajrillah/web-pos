@@ -119,6 +119,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - First-run setup creates the first owner and a one-time recovery code.
 - Multiple owners allowed. Each owner has their own recovery code, stored as `users.recovery_code_hash`. After a recovery code is used, a new one is issued for that owner.
 - Login: username + 6-digit PIN. Roles: `owner`, `cashier`.
+  - From Stage 5, login shows a tile per active user plus a PIN pad (`ui-style.md` section 5). Tiles come from an unauthenticated endpoint returning only `id`, display name, and role: no usernames, no inactive users. Login then sends the chosen user's `id` + PIN.
 - Sessions stored in DB (survive server restart); httpOnly cookie. A session ends on logout or after 12 h of inactivity.
 - The last active owner cannot be deactivated. Owners cannot deactivate themselves.
 - PIN resets:
@@ -334,6 +335,7 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `GET setup/status`, `POST setup`
 - `POST auth/login`, `POST auth/logout`, `POST auth/unlock`, `POST auth/approve`, `POST auth/recover`
 - `GET auth/me`, `PUT auth/me/pin`
+- `GET auth/users` (Stage 5): no auth; active users only, `{ users: [{ id, name, role }] }`. Never usernames or inactive users.
 
 ### Users (PIN)
 - `GET users`, `POST users`, `PUT users/:id`
@@ -418,5 +420,4 @@ Not decided. Do not implement a choice without asking. Tagged with the stage tha
 5. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
 6. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
 7. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
-8. [Stage 5] Login user tiles (`docs/ui-style.md` section 5) need an unauthenticated list of active users (names, roles). Is exposing that list before login acceptable, or does login stay username + PIN?
 8. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?

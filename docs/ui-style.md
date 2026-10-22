@@ -99,7 +99,7 @@ Target: desktop only, minimum 1366x768. Nothing may require horizontal scrolling
 
 ### Login and lock (Stage 5 for tiles, pad, and lock)
 - Login: user tiles + 6-digit PIN pad; the keyboard also types digits.
-  - Tiles need an unauthenticated list of active users. That endpoint is not built yet, and the spec says "username + PIN" (open question in `docs/design.md`). Until it is decided, login is a username field + PIN field in the same card.
+  - Tiles come from `GET auth/users` (id, display name, role of active users only; no usernames). Built in Stage 5; until then login is a username field + PIN field.
 - Lock screen: same user only, with a "Ganti pengguna" link to login.
 
 ### Dialogs
