@@ -8,9 +8,9 @@ export function AppLayout() {
   const { logout } = useAuth();
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900">
-      <aside className="flex w-60 shrink-0 flex-col bg-slate-900 text-slate-100">
+      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-slate-900 text-slate-100">
         <div className="px-4 py-5 text-lg font-bold tracking-wide">TOKO PODOMORO</div>
-        <nav className="flex-1 space-y-4" aria-label="Menu utama">
+        <nav className="flex-1 space-y-4 overflow-y-auto" aria-label="Menu utama">
           {menuFor(user.role).map((section) => (
             <div key={section.title ?? 'main'}>
               {section.title && (
