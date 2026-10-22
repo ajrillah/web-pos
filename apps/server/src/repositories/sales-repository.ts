@@ -26,7 +26,8 @@ export type SaleWithCashier = SaleRow & {
   itemCount: number;
 };
 
-const itemCount = sql<number>`(select count(*) from ${saleItems} where ${saleItems.saleId} = ${sales.id})`;
+// Explicit names: Drizzle leaves columns unqualified in single-table queries.
+const itemCount = sql<number>`(select count(*) from sale_items i where i.sale_id = "sales"."id")`;
 
 const withCashier = {
   sale: sales,

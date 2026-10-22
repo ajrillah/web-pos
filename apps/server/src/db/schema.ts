@@ -339,6 +339,8 @@ export const paymentAllocations = sqliteTable(
       .notNull()
       .references(() => receivables.id),
     amount: integer('amount').notNull(),
+    // Receivable's remaining right after this allocation; printed on the payment receipt.
+    remainingAfter: integer('remaining_after').notNull().default(0),
     createdAt: createdAt(),
   },
   (t) => [

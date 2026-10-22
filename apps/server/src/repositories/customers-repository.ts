@@ -1,14 +1,18 @@
 import { and, asc, count, eq, type SQL, sql } from 'drizzle-orm';
 import type { Executor } from '../db/client';
-import { customers, receivables } from '../db/schema';
+import { customers } from '../db/schema';
 
 export type CustomerRow = typeof customers.$inferSelect;
 export type CustomerPatch = Partial<Pick<CustomerRow, 'name' | 'phone' | 'note' | 'active'>>;
 export type CustomerWithBalance = CustomerRow & { balance: number };
 
-/** Remaining kasbon: open receivables only (paid ones have 0, voided ones do not count). */
-const balance = sql<number>`coalesce((select sum(${receivables.remaining}) from ${receivables}
-  where ${receivables.customerId} = ${customers.id} and ${receivables.status} = 'open'), 0)`;
+/**
+ * Remaining kasbon: open receivables only (paid ones have 0, voided ones do not count).
+ * Written with explicit aliases: Drizzle leaves columns unqualified in single-table queries,
+ * which would make `customer_id = id` compare the receivable with itself.
+ */
+const balance = sql<number>`coalesce((select sum(r.remaining) from receivables r
+  where r.customer_id = "customers"."id" and r.status = 'open'), 0)`;
 
 const withBalance = { customer: customers, balance };
 const flatten = (r: { customer: CustomerRow; balance: number }): CustomerWithBalance => ({

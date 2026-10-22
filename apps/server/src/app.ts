@@ -9,6 +9,7 @@ import type { AppDatabase } from './db/client';
 import { AppError, errorMessages, validationMessage } from './errors';
 import { authRoutes } from './routes/auth';
 import { categoryRoutes } from './routes/categories';
+import { customerRoutes } from './routes/customers';
 import { healthRoutes } from './routes/health';
 import { productRoutes } from './routes/products';
 import { saleRoutes } from './routes/sales';
@@ -84,6 +85,7 @@ export async function buildApp({
   await app.register(categoryRoutes, { prefix: '/api', ctx });
   await app.register(productRoutes, { prefix: '/api', ctx });
   await app.register(saleRoutes, { prefix: '/api', ctx });
+  await app.register(customerRoutes, { prefix: '/api', ctx });
   await app.register(settingsRoutes, { prefix: '/api', ctx });
 
   const hasWeb = webDir !== undefined && fs.existsSync(path.join(webDir, 'index.html'));

@@ -32,6 +32,7 @@ export const createCustomerRequestSchema = z.object({
   note: optionalText(200).optional(),
 });
 export type CreateCustomerRequest = z.input<typeof createCustomerRequestSchema>;
+export type CreateCustomerInput = z.output<typeof createCustomerRequestSchema>;
 
 export const updateCustomerRequestSchema = z
   .object({
@@ -42,6 +43,7 @@ export const updateCustomerRequestSchema = z
   })
   .refine((v) => Object.keys(v).length > 0);
 export type UpdateCustomerRequest = z.input<typeof updateCustomerRequestSchema>;
+export type UpdateCustomerInput = z.output<typeof updateCustomerRequestSchema>;
 
 export const customersQuerySchema = z.object({
   q: z.string().trim().max(100).optional(),
@@ -52,6 +54,7 @@ export const customersQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 export type CustomersQuery = z.input<typeof customersQuerySchema>;
+export type CustomersQueryInput = z.output<typeof customersQuerySchema>;
 
 export const customersResponseSchema = z.object({
   customers: z.array(customerSchema),

@@ -1,0 +1,1 @@
+ALTER TABLE `payment_allocations` ADD `remaining_after` integer DEFAULT 0 NOT NULL;
