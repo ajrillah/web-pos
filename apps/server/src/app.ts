@@ -4,15 +4,22 @@ import fastifyStatic from '@fastify/static';
 import type { ApiError } from '@toko-podomoro/shared';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import { ZodError } from 'zod';
+import { registerSession } from './auth/session';
 import type { AppDatabase } from './db/client';
 import { AppError, errorMessages, validationMessage } from './errors';
+import { authRoutes } from './routes/auth';
 import { healthRoutes } from './routes/health';
+import { setupRoutes } from './routes/setup';
+import { userRoutes } from './routes/users';
+import type { ServiceContext } from './services/context';
 
 export interface AppOptions {
   db: AppDatabase;
   /** Built web app directory; served with SPA fallback when it contains index.html. */
   webDir?: string | undefined;
   logger?: FastifyServerOptions['logger'];
+  /** Clock for session expiry; tests inject a controllable one. */
+  now?: () => Date;
 }
 
 // Blocks DNS-rebinding: browsers send the attacker's hostname, not one of these.
@@ -22,8 +29,14 @@ export function errorBody(code: string, message: string): ApiError {
   return { error: { code, message } };
 }
 
-export async function buildApp({ webDir, logger = false }: AppOptions): Promise<FastifyInstance> {
+export async function buildApp({
+  db,
+  webDir,
+  logger = false,
+  now = () => new Date(),
+}: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger });
+  const ctx: ServiceContext = { db, now };
 
   app.addHook('onRequest', async (request, reply) => {
     if (!allowedHostnames.has(request.hostname)) {
@@ -55,7 +68,11 @@ export async function buildApp({ webDir, logger = false }: AppOptions): Promise<
     return reply.status(500).send(errorBody('INTERNAL_ERROR', errorMessages.internal));
   });
 
+  await registerSession(app, ctx);
   await app.register(healthRoutes, { prefix: '/api' });
+  await app.register(setupRoutes, { prefix: '/api', ctx });
+  await app.register(authRoutes, { prefix: '/api', ctx });
+  await app.register(userRoutes, { prefix: '/api', ctx });
 
   const hasWeb = webDir !== undefined && fs.existsSync(path.join(webDir, 'index.html'));
   if (hasWeb) {
