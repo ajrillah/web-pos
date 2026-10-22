@@ -12,6 +12,7 @@ export function PageTabs({ items, label }: { items: MenuItem[]; label: string })
         <NavLink
           key={item.path}
           to={item.path}
+          end
           className={({ isActive }) => cn(tabsTriggerClass, isActive && tabsTriggerActiveClass)}
         >
           {item.label}
