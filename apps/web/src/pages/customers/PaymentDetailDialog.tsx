@@ -138,9 +138,9 @@ export function PaymentDetailDialog({
           title={`Batalkan ${payment.number}?`}
           description="Kasbon yang dibayar kembali terbuka sebesar pembayaran ini."
           onClose={() => setVoiding(false)}
-          onVoid={async (reason) => {
+          onVoid={async (input) => {
             const { payment: voided } = await withApproval('payment.void', payment.id, (token) =>
-              api.voidCustomerPayment(payment.id, reason ? { reason } : {}, token),
+              api.voidCustomerPayment(payment.id, input, token),
             );
             setPayment(voided);
             setVoiding(false);

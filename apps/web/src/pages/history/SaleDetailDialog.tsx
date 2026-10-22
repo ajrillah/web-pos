@@ -167,9 +167,9 @@ export function SaleDetailDialog({
               : 'Stok dikembalikan. Transaksi tetap tercatat sebagai dibatalkan.'
           }
           onClose={() => setVoiding(false)}
-          onVoid={async (reason) => {
+          onVoid={async (input) => {
             const { sale: voided } = await withApproval('sale.void', sale.id, (token) =>
-              api.voidSale(sale.id, reason ? { reason } : {}, token),
+              api.voidSale(sale.id, input, token),
             );
             setSale(voided);
             setVoiding(false);

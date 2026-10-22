@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 import { ErrorAlert } from './forms';
 import { Button } from './ui/button';
 import {
@@ -17,6 +17,7 @@ export function FormDialog({
   description,
   submitLabel,
   destructive = false,
+  resetErrorOn,
   onClose,
   onSubmit,
   children,
@@ -27,6 +28,8 @@ export function FormDialog({
   submitLabel: string;
   /** Red submit button (void, cancel). */
   destructive?: boolean;
+  /** Clears the shown error when this value changes (e.g. the user fixed the field). */
+  resetErrorOn?: unknown;
   onClose: () => void;
   /** Returns an error message to show, or null on success. */
   onSubmit: () => Promise<string | null>;
@@ -34,6 +37,11 @@ export function FormDialog({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resetErrorOn is the trigger, not read.
+  useEffect(() => {
+    setError(null);
+  }, [resetErrorOn]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
