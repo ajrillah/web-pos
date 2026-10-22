@@ -346,11 +346,12 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `PUT users/:id` accepts `name`, `active`, and `pin` (temporary PIN; cashier targets only).
 
 ### Products and categories
-- `GET products` (q, category_id, page, limit)
-- `GET products/by-code/:code`, `GET products/:id`
-- `POST products`, `PUT products/:id`, `PATCH products/:id/active`
+- `GET products` (q, categoryId, status `active|inactive|all` default active, page, limit <= 100) -> `{ products, total, page, limit }`. Every word of `q` must appear in the code or name; exact code match first.
+- `GET products/by-code/:code` (active only, ignoring case), `GET products/:id`
+- `POST products` (optional `initialStock` -> stock adjustment `lainnya`, note "Stok awal"), `PUT products/:id` (full field set; `units` is the full set of active rows: rows with `id` update, without `id` are added, left-out rows are deactivated), `PATCH products/:id/active`
+- Cashier approval rules for products: see 6.5.
 - `POST products/import/preview`, `POST products/import`, `GET products/import/template`
-- `GET categories`, `POST categories`, `PUT categories/:id`
+- `GET categories`, `POST categories` (PIN), `PUT categories/:id` (PIN; default categories cannot be deactivated)
 
 ### Sales
 - `POST sales`
