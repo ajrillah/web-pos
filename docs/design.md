@@ -111,6 +111,7 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - Settings changes.
 - All voids (sales, purchases, customer payments, supplier payments).
 - Every owner PIN approval.
+- Held sale deletions (manual, bulk, and automatic; see 6.1).
 
 Sales, payments, purchases, adjustments, and opname are not audit-logged; their own tables are the record.
 
@@ -155,6 +156,9 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Hold sale (Tahan):
   - Stored in DB with status `held`, no TRX number, no stock reservation.
   - On resume, prices are refreshed from current product data. Lines with deactivated products are removed and the user sees a notice.
+  - Held sales are drafts, so they are deleted (the one exception to "no hard deletes"); every deletion is audit-logged (entity `held_sale`).
+  - Held sales from previous local days are labeled "kemarin" and can be bulk-deleted.
+  - On server start, held sales older than 7 days are deleted automatically (audit action `auto_delete`, no user).
 - TRX number `TRX-YYYYMMDD-NNNN` assigned on completion. `NNNN` resets daily from `0001` (local date); after `9999` it grows to 5+ digits.
 - Cancel sale before payment.
 - Void after payment:
@@ -175,7 +179,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 ### 6.3 Keyboard UX
 - Fully keyboard-driven. Focus always returns to search. Large fonts.
 - App captures F1-F10 over Edge defaults. F11 and F12 are not used.
-- F-key capture is tested in Edge `--app` mode on Windows in Stage 3. If a key cannot be captured, its action falls back to `Alt+<number>` (e.g. `Alt+1` for F1).
+- F-key capture is tested manually in Edge `--app` mode on Windows (Stage 6 checklist). If a key cannot be captured, its action falls back to `Alt+<number>` (e.g. `Alt+1` for F1).
 
 ### 6.4 Transaction history (Riwayat Transaksi)
 - Defaults to today. Filters: date, text, status.
@@ -276,7 +280,7 @@ Sidebar layout on all pages except Kasir. Visual design and locked layouts: `ui-
 | Esc | | Batal / tutup |
 | Ctrl+L | | Kunci |
 
-Fallbacks are enabled only for keys that fail the Stage 3 capture test. F11 and F12 are never used.
+Fallbacks are enabled only for keys that fail the Windows capture test (Stage 6 checklist). F11 and F12 are never used.
 
 ## 9. Database tables
 
@@ -419,10 +423,9 @@ Tracked with checkboxes in `../production_checklist.md`.
 
 Not decided. Do not implement a choice without asking. Tagged with the stage that needs the answer.
 
-1. [Stage 3] Are old held sales ever cleaned up, or kept indefinitely?
-2. [Stage 5] Should failed PIN attempts be logged?
-3. [Stage 5] Approval token lifetime, and the scope of menu-access tokens (e.g. one Laporan visit vs. a time window).
-4. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
-5. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
-6. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
-7. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
+1. [Stage 5] Should failed PIN attempts be logged?
+2. [Stage 5] Approval token lifetime, and the scope of menu-access tokens (e.g. one Laporan visit vs. a time window).
+3. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
+4. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
+5. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
+6. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
