@@ -15,6 +15,8 @@ import { productRoutes } from './routes/products';
 import { saleRoutes } from './routes/sales';
 import { settingsRoutes } from './routes/settings';
 import { setupRoutes } from './routes/setup';
+import { stockRoutes } from './routes/stock';
+import { supplierRoutes } from './routes/suppliers';
 import { userRoutes } from './routes/users';
 import { ApprovalStore } from './security/approvals';
 import type { ServiceContext } from './services/context';
@@ -87,6 +89,8 @@ export async function buildApp({
   await app.register(productRoutes, { prefix: '/api', ctx });
   await app.register(saleRoutes, { prefix: '/api', ctx });
   await app.register(customerRoutes, { prefix: '/api', ctx });
+  await app.register(supplierRoutes, { prefix: '/api', ctx });
+  await app.register(stockRoutes, { prefix: '/api', ctx });
   await app.register(settingsRoutes, { prefix: '/api', ctx });
 
   const hasWeb = webDir !== undefined && fs.existsSync(path.join(webDir, 'index.html'));
