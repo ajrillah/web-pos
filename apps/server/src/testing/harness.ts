@@ -1,12 +1,15 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import type { Product } from '@toko-podomoro/shared';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { buildApp } from '../app';
 import { SESSION_COOKIE } from '../auth/session';
 import { type DatabaseHandle, openDatabase } from '../db/client';
 import { runMigrations } from '../db/migrate';
 import { migrationsDir } from '../paths';
+import { writeSetting } from '../repositories/settings-repository';
+import type { ServiceContext } from '../services/context';
 
 /** A test app on a migrated SQLite file in a temp dir, with a clock tests can move. */
 export interface Harness {
@@ -14,6 +17,10 @@ export interface Harness {
   handle: DatabaseHandle;
   dbFile: string;
   clock: { now: Date; advance(ms: number): void };
+  /** Paths the app asked the OS to open (receipts, receipt folder), instead of opening them. */
+  opened: string[];
+  /** Directory the receipt_folder setting points at. */
+  receiptDir: string;
   /** Rebuilds the app on the same DB file, like a server restart. */
   restart(): Promise<void>;
   close(): Promise<void>;
@@ -28,16 +35,25 @@ export async function createHarness(): Promise<Harness> {
       clock.now = new Date(clock.now.getTime() + ms);
     },
   };
+  const opened: string[] = [];
+  const receiptDir = path.join(dir, 'Nota');
   const open = async () => {
     const handle = openDatabase(dbFile);
     runMigrations(handle.db, migrationsDir);
-    const app = await buildApp({ db: handle.db, now: () => clock.now });
+    writeSetting(handle.db, 'receipt_folder', receiptDir);
+    const app = await buildApp({
+      db: handle.db,
+      now: () => clock.now,
+      openPath: (target) => opened.push(target),
+    });
     return { app, handle };
   };
   const harness: Harness = {
     ...(await open()),
     dbFile,
     clock,
+    opened,
+    receiptDir,
     async restart() {
       await harness.app.close();
       harness.handle.sqlite.close();
@@ -143,4 +159,36 @@ export function auditRows(h: Harness, entity: string) {
         newValue: row.new_value ? JSON.parse(row.new_value) : null,
       };
     });
+}
+
+/** Service context on the harness DB and clock, for calling services directly. */
+export function serviceContext(h: Harness): ServiceContext {
+  return { db: h.handle.db, now: () => h.clock.now, openPath: (t) => h.opened.push(t) };
+}
+
+/** Creates a product as the given user and returns it (`category` is a category name). */
+export async function createProductAs(
+  h: Harness,
+  token: string,
+  product: Record<string, unknown> & { category: string },
+): Promise<Product> {
+  const categories = await h.app.inject({
+    method: 'GET',
+    url: '/api/categories',
+    headers: withSession(token),
+  });
+  const { category, ...rest } = product;
+  const categoryId = categories
+    .json()
+    .categories.find((c: { name: string }) => c.name === category)?.id;
+  const res = await h.app.inject({
+    method: 'POST',
+    url: '/api/products',
+    headers: withSession(token),
+    payload: { ...rest, categoryId },
+  });
+  if (res.statusCode !== 201) {
+    throw new Error(`create product failed: ${res.statusCode} ${res.body}`);
+  }
+  return res.json().product;
 }

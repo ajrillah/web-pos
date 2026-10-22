@@ -11,9 +11,12 @@ import { authRoutes } from './routes/auth';
 import { categoryRoutes } from './routes/categories';
 import { healthRoutes } from './routes/health';
 import { productRoutes } from './routes/products';
+import { saleRoutes } from './routes/sales';
+import { settingsRoutes } from './routes/settings';
 import { setupRoutes } from './routes/setup';
 import { userRoutes } from './routes/users';
 import type { ServiceContext } from './services/context';
+import { openWithSystem } from './system/open-path';
 
 export interface AppOptions {
   db: AppDatabase;
@@ -22,6 +25,8 @@ export interface AppOptions {
   logger?: FastifyServerOptions['logger'];
   /** Clock for session expiry; tests inject a controllable one. */
   now?: () => Date;
+  /** Opens receipts and the receipt folder; tests inject a fake. */
+  openPath?: (target: string) => void;
 }
 
 // Blocks DNS-rebinding: browsers send the attacker's hostname, not one of these.
@@ -36,9 +41,10 @@ export async function buildApp({
   webDir,
   logger = false,
   now = () => new Date(),
+  openPath = openWithSystem,
 }: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger });
-  const ctx: ServiceContext = { db, now };
+  const ctx: ServiceContext = { db, now, openPath };
 
   app.addHook('onRequest', async (request, reply) => {
     if (!allowedHostnames.has(request.hostname)) {
@@ -77,6 +83,8 @@ export async function buildApp({
   await app.register(userRoutes, { prefix: '/api', ctx });
   await app.register(categoryRoutes, { prefix: '/api', ctx });
   await app.register(productRoutes, { prefix: '/api', ctx });
+  await app.register(saleRoutes, { prefix: '/api', ctx });
+  await app.register(settingsRoutes, { prefix: '/api', ctx });
 
   const hasWeb = webDir !== undefined && fs.existsSync(path.join(webDir, 'index.html'));
   if (hasWeb) {
