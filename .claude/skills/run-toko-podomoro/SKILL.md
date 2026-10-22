@@ -90,6 +90,8 @@ Stok and Pemasok: Stok Masuk form `/stok/masuk/baru` (supplier picker `#supplier
 
 Laporan: `/laporan?tab=<summary|categories|products|stock-value|cash|debts|losses|activity>` with `dari`, `sampai`, `kategori` params; tabs `[data-report-tab=<type>]`; buttons "Simpan PDF" / "Simpan Excel" download through `fetch` (toast "Laporan disimpan: <file>"). Cashiers get "Persetujuan pemilik" on entry. Exports by curl: `GET /api/reports/<type>/export?format=pdf|xlsx`; render a PDF with `pdftoppm -r 70 -png file.pdf out` to look at it.
 
+Impor barang: `/barang/impor` (cashiers get "Persetujuan pemilik" on entry). The driver cannot open a file chooser; set the hidden input from JS: `eval (()=>{const dt=new DataTransfer();dt.items.add(new File(['kode,nama,...\n...'],'barang.csv'));const i=document.querySelector('[data-testid=import-file]');i.files=dt.files;i.dispatchEvent(new Event('change',{bubbles:true}))})()`. Then `wait-for [data-testid=import-valid]`; rows `[data-import-row=<n>]` (`data-invalid` when it has errors), `[data-testid=import-invalid]` count, `click [data-testid=import-commit]`, `press Enter` in the confirm dialog, `wait-for [data-testid=import-done]`. Template by curl: `GET /api/products/import/template`.
+
 API smoke (server running):
 
 ```bash

@@ -111,4 +111,5 @@ Target: desktop only, minimum 1366x768. Nothing may require horizontal scrolling
 
 ### Other locked decisions
 - Opname runs per category session (Stage 7).
+- Barang > Impor (Stage 9): PIN menu for cashiers (gold hint bar until approved). Header actions "Unduh template" and "Pilih file" (teal until a file is loaded; then "Impor N barang" is the teal action, disabled while any row has an error, and confirmed in a dialog). Preview: file name, row count, "siap" / "bermasalah" badges, Semua / Bermasalah tabs, and one table row per file row (Baris, Kode, Nama, Kategori + jenis, Harga pokok, Satuan jual, Stok awal, Status) with errors listed in red in the Status cell. No horizontal scroll at 1366px.
 - Laporan: 8 tabs, one per report endpoint (summary, categories, products, stock value, cash, debts, losses, activity). Each tab has Simpan PDF / Simpan Excel.

@@ -140,7 +140,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
   - With exactly one active owner, the dialog asks only for the PIN. With more than one, it first shows owner tiles; the PIN is then checked against the chosen owner only (`ownerId` in the request; required when several owners are active). The approving owner is recorded as `approved_by`.
   - Tokens are bound to the cashier's session and to one scope; lost on server restart.
   - Action tokens (voids, product price changes, product deactivation, category changes) are single-use, tied to their target (sale, payment, product) when there is one, and expire after 5 minutes if unused. A token is spent only when the action succeeds.
-  - Menu-access tokens (Laporan, Pengguna, Profil Toko) last while the cashier stays in that menu, at most 15 minutes. Leaving the menu (the page releases the token), locking the screen, or logging out invalidates them.
+  - Menu-access tokens (Laporan, Pengguna, Profil Toko, Impor barang) last while the cashier stays in that menu, at most 15 minutes. Leaving the menu (the page releases the token), locking the screen, or logging out invalidates them.
   - Every granted approval is audit-logged (entity `approval`), and the approved action's own audit row carries `approved_by`.
 - Failed PIN attempts (login, unlock, approval) are audit-logged with the user, time, and intended action (entity `auth`, action `failed_pin`). No lockout. They appear in the activity report (Stage 8).
 - Auto-lock after idle (`auto_lock_minutes`, default 5) and quick lock with `Ctrl+L`.
@@ -148,7 +148,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
   - Lock screen unlocks only for the same user.
   - "Ganti pengguna" ends the session and goes to the login page.
 - No lockout on wrong PIN.
-- Cashier needs owner PIN for: all voids, reports, user management, store settings, product price changes and product deactivation (6.5), category management. Everything else is open.
+- Cashier needs owner PIN for: all voids, reports, user management, store settings, product price changes and product deactivation (6.5), category management, product import (6.5). Everything else is open.
 
 ## 6. Features
 
@@ -208,7 +208,22 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Unit rows: name, factor, sell price; exactly one `is_base` (primary sell) row. Unit rows also serve as wholesale pricing (normal products only).
 - Bulk products: single `kg`/`liter` row, factor 1000 (see 4.1).
 - Deactivate, never delete.
-- CSV/Excel import with downloadable template and validation preview.
+- CSV/Excel import with downloadable template and validation preview (see Import below).
+
+#### Import (Stage 9)
+- Creates new products only. A code that already exists (ignoring case, including inactive products) is a row error, never an update. A code repeated within the file is also a row error.
+- Needs owner approval: menu token `impor` (like `laporan`), entered when a cashier opens the Impor tab; it covers template download, preview, and commit (max 15 minutes). The tab shows the PIN hint for cashiers.
+- Category must already exist (name ignoring case) and be active; otherwise a row error.
+- Template columns, in order: `kode`, `nama`, `kategori`, `jenis` (`satuan` / `curah`), `satuan_stok`, `harga_pokok`, `satuan_jual` (primary unit name), `harga_jual`, `satuan2_nama`, `satuan2_isi`, `satuan2_harga`, `satuan3_nama`, `satuan3_isi`, `satuan3_harga`, `stok_awal`.
+  - The extra-unit and `stok_awal` columns are optional (the columns may be left out). Columns are matched by header name in row 1; unknown columns are ignored.
+  - Normal products: the primary unit has factor 1; `harga_pokok` is per stock unit. An extra unit needs name, `isi` (factor), and price together; unit names must differ.
+  - Bulk (`curah`): `satuan_stok` is `gram` (also `g`, `gr`) or `ml`, `pricing_factor` 1000, `harga_pokok` and `harga_jual` per kg / liter. One unit row (`kg` / `liter`, factor 1000, primary) is created automatically, as in manual creation; `satuan_jual` may be blank or must match it; extra units are refused.
+  - Money and quantities are whole numbers: plain digits or dot thousands (`12.500`).
+  - `stok_awal` (stock unit; grams / ml for bulk) is recorded as a stock adjustment, reason `lainnya`, note "Stok awal (impor)".
+- Template is an .xlsx: sheet "Barang" (header row with a note per column) and sheet "Petunjuk" (column notes and example rows). Import reads .xlsx (sheet "Barang", else the first sheet) and UTF-8 .csv (`,` or `;` delimiter).
+- Limits: 5 MB per file, 2000 data rows per file. Empty rows are skipped.
+- All-or-nothing per file: if any row has an error, nothing is saved. The preview lists every row (valid rows too) with its errors. The commit re-checks every row in the same transaction that creates the products.
+- Audit: each imported product and unit row is audit-logged (`create`) like manual creation, with the approving owner as `approved_by` for cashiers.
 
 ### 6.6 Stock (Stok) and suppliers (Pemasok)
 - Purchases from suppliers (Stok Masuk):
@@ -371,7 +386,7 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `POST auth/login` `{ userId, pin }`, `POST auth/logout`, `POST auth/recover` (username + recovery code)
 - `GET auth/me` -> `{ user, locked }`, `PUT auth/me/pin`
 - `POST auth/lock`, `POST auth/unlock` `{ pin }` (same user)
-- `POST auth/approve` `{ pin, scope, targetId?, ownerId? }` -> `{ token, expiresAt, ownerName }` (`ownerId` required when several owners are active); scopes: actions `sale.void`, `payment.void`, `product.price`, `product.deactivate`, `category.manage`, `purchase.void`, `purchase.cost`, `supplier-payment.void`; menus `laporan`, `pengguna`, `profil-toko`
+- `POST auth/approve` `{ pin, scope, targetId?, ownerId? }` -> `{ token, expiresAt, ownerName }` (`ownerId` required when several owners are active); scopes: actions `sale.void`, `payment.void`, `product.price`, `product.deactivate`, `category.manage`, `purchase.void`, `purchase.cost`, `supplier-payment.void`; menus `laporan`, `pengguna`, `profil-toko`, `impor`
 - `POST auth/approve/release` `{ token }` (leaving a PIN menu)
 
 ### Users (PIN)
@@ -383,7 +398,11 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `GET products/by-code/:code` (active only, ignoring case), `GET products/:id`
 - `POST products` (optional `initialStock` -> stock adjustment `lainnya`, note "Stok awal"), `PUT products/:id` (full field set; `units` is the full set of active rows: rows with `id` update, without `id` are added, left-out rows are deactivated), `PATCH products/:id/active`
 - Cashier approval rules for products: see 6.5.
-- `POST products/import/preview`, `POST products/import`, `GET products/import/template`
+- Import (PIN menu `impor`; rules in 6.5 "Import"):
+  - `GET products/import/template` -> `Template-Impor-Barang.xlsx`
+  - `POST products/import/preview` `{ fileName, contentBase64 }` (.xlsx or .csv) -> `{ rows: [{ row, values, product | null, errors }], total, valid, invalid }`; saves nothing
+  - `POST products/import` (same body) -> 201 `{ imported }`; 400 `IMPORT_HAS_ERRORS` if any row has an error (nothing saved)
+  - An unreadable file, a missing required column, no data rows, or too many rows -> 400 `IMPORT_FILE_INVALID`
 - `GET categories`, `POST categories` (PIN), `PUT categories/:id` (PIN; default categories cannot be deactivated)
 
 ### Sales
