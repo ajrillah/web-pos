@@ -152,7 +152,7 @@ export function ProductsView({ report }: { report: ProductsReport }) {
       </p>
       <ReportTable
         title="Terlaris"
-        rowKey={(p) => p.productId}
+        rowKey={(p) => `${p.productId}-${p.categoryName}`}
         rows={report.top}
         columns={productColumns}
       />
