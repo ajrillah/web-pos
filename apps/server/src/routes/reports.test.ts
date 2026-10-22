@@ -433,6 +433,62 @@ describe('Done when: totals match raw data on a seeded dataset', () => {
   });
 });
 
+describe('category snapshot', () => {
+  it('keeps past reports when a product changes category or a category is renamed', async () => {
+    const before = {
+      categories: await report(`categories?${PERIOD}`),
+      products: await report(`products?${PERIOD}`),
+      sembako: await report(`products?${PERIOD}&categoryId=${await categoryId('Sembako')}`),
+    };
+    const lainLain = await categoryId('Lain-lain');
+    const update = await h.app.inject({
+      method: 'PUT',
+      url: `/api/products/${indomie.id}`,
+      headers: withSession(ownerToken),
+      payload: {
+        code: 'IDM',
+        name: 'Indomie Goreng',
+        categoryId: lainLain,
+        type: 'unit',
+        baseUnit: 'pcs',
+        costPrice: 2500,
+        units: [
+          { id: indomie.units[0]?.id, name: 'pcs', factor: 1, sellPrice: 3500, isBase: true },
+        ],
+      },
+    });
+    expect(update.statusCode).toBe(200);
+    const rename = await h.app.inject({
+      method: 'PUT',
+      url: `/api/categories/${await categoryId('Rokok')}`,
+      headers: withSession(ownerToken),
+      payload: { name: 'Rokok & Tembakau' },
+    });
+    expect(rename.statusCode).toBe(200);
+
+    expect(await report(`categories?${PERIOD}`)).toEqual(before.categories);
+    expect(await report(`products?${PERIOD}`)).toEqual({
+      ...before.products,
+      // Slow movers are the catalog as it is now.
+      slow: expect.any(Array),
+    });
+    const sembako = await report(`products?${PERIOD}&categoryId=${await categoryId('Sembako')}`);
+    expect(sembako.top).toEqual(before.sembako.top);
+
+    // A new sale counts under the product's new category.
+    await sell(indomie, 2, 7000, 0);
+    const today = await report('categories');
+    expect(
+      today.rows.map((c: { categoryName: string; revenue: number }) => [c.categoryName, c.revenue]),
+    ).toEqual(
+      [
+        ['Sembako', 10500],
+        ['Lain-lain', 11000],
+      ].sort((a, b) => Number(b[1]) - Number(a[1])),
+    );
+  });
+});
+
 describe('report access and queries', () => {
   it('needs the owner PIN (laporan menu) for cashiers', async () => {
     const { token } = await activeCashier(h, ownerToken);

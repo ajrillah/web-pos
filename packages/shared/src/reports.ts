@@ -159,9 +159,9 @@ export type ProductSalesRow = z.infer<typeof productSalesRowSchema>;
 export const productsReportSchema = z.object({
   ...period,
   categoryId: z.string().nullable(),
-  /** Highest revenue first. */
+  /** Highest revenue first; per product and category at sale time. */
   top: z.array(productSalesRowSchema),
-  /** Active products, lowest quantity sold first (including none). */
+  /** Active products in their current category, lowest quantity sold first (including none). */
   slow: z.array(productSalesRowSchema),
   soldProducts: int,
 });

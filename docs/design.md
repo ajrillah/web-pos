@@ -264,6 +264,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Stock losses.
 - Activity log (includes voided records).
 - Category filter only on product-based reports: category sales, top/slow products, stock value, stock losses.
+- Category sales and top products use the category at sale time (sale line snapshot); slow movers, stock value, and stock losses use the product's current category.
 - Voided sales, purchases, and payments are excluded from all totals. How a void on a later day is dated depends on the report:
   - Sales and profit, category, and product reports: a voided sale is removed from its original sale date, even when voided on a later day. These reports only ever show valid sales.
   - Cash reports (cash vs QRIS, daily cash flow) follow the date money moved: a sale's money in stays on the sale date and the refund is money out on the void date. Voided customer and supplier payments work the same way (payment on its date, reversal on the void date). This keeps each day's drawer count correct.
