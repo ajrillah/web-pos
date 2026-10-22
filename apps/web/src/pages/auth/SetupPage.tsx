@@ -60,10 +60,10 @@ export function SetupPage() {
   }
 
   return (
-    <AuthCard title="Pengaturan awal">
-      <p className="text-slate-600">
-        Buat akun pemilik toko. Akun ini dapat mengelola pengguna lain.
-      </p>
+    <AuthCard
+      title="Pengaturan awal"
+      description="Buat akun pemilik toko. Akun ini dapat mengelola pengguna lain."
+    >
       <form onSubmit={submit} className="space-y-4" noValidate>
         <TextField
           id="name"

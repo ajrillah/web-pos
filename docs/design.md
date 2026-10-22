@@ -119,6 +119,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - First-run setup creates the first owner and a one-time recovery code.
 - Multiple owners allowed. Each owner has their own recovery code, stored as `users.recovery_code_hash`. After a recovery code is used, a new one is issued for that owner.
 - Login: username + 6-digit PIN. Roles: `owner`, `cashier`.
+  - From Stage 5, login shows a tile per active user plus a PIN pad (`ui-style.md` section 5). Tiles come from an unauthenticated endpoint returning only `id`, display name, and role: no usernames, no inactive users. Login then sends the chosen user's `id` + PIN.
 - Sessions stored in DB (survive server restart); httpOnly cookie. A session ends on logout or after 12 h of inactivity.
 - The last active owner cannot be deactivated. Owners cannot deactivate themselves.
 - PIN resets:
@@ -241,7 +242,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 
 ## 7. Pages
 
-Sidebar layout on all pages except Kasir.
+Sidebar layout on all pages except Kasir. Visual design and locked layouts: `ui-style.md`.
 
 | Area | Pages / dialogs |
 |---|---|
@@ -334,6 +335,7 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `GET setup/status`, `POST setup`
 - `POST auth/login`, `POST auth/logout`, `POST auth/unlock`, `POST auth/approve`, `POST auth/recover`
 - `GET auth/me`, `PUT auth/me/pin`
+- `GET auth/users` (Stage 5): no auth; active users only, `{ users: [{ id, name, role }] }`. Never usernames or inactive users.
 
 ### Users (PIN)
 - `GET users`, `POST users`, `PUT users/:id`

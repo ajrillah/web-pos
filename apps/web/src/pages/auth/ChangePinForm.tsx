@@ -1,5 +1,6 @@
 import type { User } from '@toko-podomoro/shared';
 import { type FormEvent, useState } from 'react';
+import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import { api } from '../../api/endpoints';
 import { checkPin, ErrorAlert, PinField, PrimaryButton } from '../../components/forms';
@@ -14,7 +15,6 @@ export function ChangePinForm({ onDone }: { onDone: (user: User) => void }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [issued, setIssued] = useState<{ user: User; code: string } | null>(null);
-  const [saved, setSaved] = useState(false);
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [key]: e.target.value });
@@ -37,7 +37,7 @@ export function ChangePinForm({ onDone }: { onDone: (user: User) => void }) {
       if (result.recoveryCode) {
         setIssued({ user: result.user, code: result.recoveryCode });
       } else {
-        setSaved(true);
+        toast.success('PIN berhasil diubah.');
         onDone(result.user);
       }
     } catch (err) {
@@ -79,14 +79,6 @@ export function ChangePinForm({ onDone }: { onDone: (user: User) => void }) {
         onChange={set('confirm')}
       />
       <ErrorAlert message={error} />
-      {saved && !error && (
-        <p
-          role="status"
-          className="rounded border border-green-300 bg-green-50 px-3 py-2 text-green-800"
-        >
-          PIN berhasil diubah.
-        </p>
-      )}
       <PrimaryButton busy={busy}>Simpan PIN baru</PrimaryButton>
     </form>
   );

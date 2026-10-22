@@ -3,60 +3,65 @@ import type { Role } from '@toko-podomoro/shared';
 export interface MenuItem {
   label: string;
   path: string;
+  /** Function-key hint shown next to the item (wired in Stage 3; see docs/design.md section 8). */
+  shortcut?: string;
   /** Cashiers need owner approval (PIN) to open this page. */
   requiresOwnerPin: boolean;
-}
-
-export interface MenuSection {
-  title?: string;
-  items: MenuItem[];
 }
 
 interface MenuEntry {
   label: string;
   path: string;
+  shortcut?: string;
   ownerPin?: boolean;
 }
 
-// Pages per docs/design.md section 7. Kasir moves to its own full-screen layout in Stage 3.
-const sections: { title?: string; entries: MenuEntry[] }[] = [
-  {
-    entries: [
-      { label: 'Beranda', path: '/' },
-      { label: 'Kasir', path: '/kasir' },
-      { label: 'Riwayat Transaksi', path: '/riwayat' },
-      { label: 'Barang', path: '/barang' },
-      { label: 'Stok', path: '/stok' },
-      { label: 'Pelanggan', path: '/pelanggan' },
-      { label: 'Pemasok', path: '/pemasok' },
-      { label: 'Laporan', path: '/laporan', ownerPin: true },
-    ],
-  },
-  {
-    title: 'Pengaturan',
-    entries: [
-      { label: 'Pengguna', path: '/pengaturan/pengguna', ownerPin: true },
-      { label: 'Profil Toko', path: '/pengaturan/toko', ownerPin: true },
-      { label: 'Ubah PIN', path: '/pengaturan/ubah-pin' },
-    ],
-  },
+// Sidebar per docs/ui-style.md section 5 (8 items). Kasir moves to its own full-screen layout in Stage 3.
+const sidebar: MenuEntry[] = [
+  { label: 'Kasir', path: '/kasir', shortcut: 'F1' },
+  { label: 'Riwayat', path: '/riwayat', shortcut: 'F6' },
+  { label: 'Barang', path: '/barang', shortcut: 'F3' },
+  { label: 'Stok', path: '/stok', shortcut: 'F4' },
+  { label: 'Pelanggan', path: '/pelanggan', shortcut: 'F5' },
+  { label: 'Pemasok', path: '/pemasok' },
+  { label: 'Laporan', path: '/laporan', ownerPin: true },
+  { label: 'Pengaturan', path: '/pengaturan' },
 ];
 
-/** Sidebar menu for a role: owners open everything directly; cashiers see PIN-gated items marked. */
-export function menuFor(role: Role): MenuSection[] {
-  return sections.map(({ title, entries }) => ({
-    ...(title ? { title } : {}),
-    items: entries.map(({ label, path, ownerPin = false }) => ({
-      label,
-      path,
-      requiresOwnerPin: ownerPin && role === 'cashier',
-    })),
+// Sub-pages of Pengaturan, shown as tabs above the content.
+const settingsTabs: MenuEntry[] = [
+  { label: 'Pengguna', path: '/pengaturan/pengguna', ownerPin: true },
+  { label: 'Profil Toko', path: '/pengaturan/toko', ownerPin: true },
+  { label: 'Ubah PIN', path: '/pengaturan/ubah-pin' },
+];
+
+function forRole(entries: MenuEntry[], role: Role): MenuItem[] {
+  return entries.map(({ ownerPin = false, ...entry }) => ({
+    ...entry,
+    requiresOwnerPin: ownerPin && role === 'cashier',
   }));
+}
+
+/** Sidebar menu for a role: owners open everything directly; cashiers see PIN-gated items marked. */
+export function menuFor(role: Role): MenuItem[] {
+  return forRole(sidebar, role);
+}
+
+/** Pengaturan tabs for a role, marked like the sidebar. */
+export function settingsTabsFor(role: Role): MenuItem[] {
+  return forRole(settingsTabs, role);
+}
+
+/** First Pengaturan tab a role can open without approval. */
+export function settingsHomeFor(role: Role): string {
+  return settingsTabsFor(role).find((tab) => !tab.requiresOwnerPin)?.path ?? '/pengaturan/ubah-pin';
 }
 
 /** Whether this role needs owner approval for the page at `path`. */
 export function requiresOwnerPin(role: Role, path: string): boolean {
-  return menuFor(role).some((s) => s.items.some((i) => i.path === path && i.requiresOwnerPin));
+  return [...menuFor(role), ...settingsTabsFor(role)].some(
+    (item) => item.path === path && item.requiresOwnerPin,
+  );
 }
 
 export const roleLabels: Record<Role, string> = { owner: 'Pemilik', cashier: 'Kasir' };

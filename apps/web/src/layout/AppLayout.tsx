@@ -1,65 +1,98 @@
+import {
+  Boxes,
+  ChartColumn,
+  LogOut,
+  type LucideIcon,
+  Package,
+  ReceiptText,
+  Settings,
+  ShoppingCart,
+  Truck,
+  Users,
+} from 'lucide-react';
 import { NavLink, Outlet } from 'react-router';
 import { useAuth, useCurrentUser } from '../auth/AuthProvider';
+import { BrandMark } from '../components/BrandMark';
+import { PinHint } from '../components/PinHint';
+import { Button } from '../components/ui/button';
+import { Kbd } from '../components/ui/kbd';
+import { cn } from '../lib/utils';
 import { menuFor, roleLabels } from '../navigation/menu';
 
-/** Sidebar layout used by every page except Kasir. The menu depends on the user's role. */
+const icons: Record<string, LucideIcon> = {
+  '/kasir': ShoppingCart,
+  '/riwayat': ReceiptText,
+  '/barang': Package,
+  '/stok': Boxes,
+  '/pelanggan': Users,
+  '/pemasok': Truck,
+  '/laporan': ChartColumn,
+  '/pengaturan': Settings,
+};
+
+/** Sidebar layout (232px) used by every page except Kasir. The menu depends on the user's role. */
 export function AppLayout() {
   const user = useCurrentUser();
   const { logout } = useAuth();
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-900">
-      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-slate-900 text-slate-100">
-        <div className="px-4 py-5 text-lg font-bold tracking-wide">TOKO PODOMORO</div>
-        <nav className="flex-1 space-y-4 overflow-y-auto" aria-label="Menu utama">
-          {menuFor(user.role).map((section) => (
-            <div key={section.title ?? 'main'}>
-              {section.title && (
-                <div className="px-4 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  {section.title}
-                </div>
-              )}
-              {section.items.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  end
-                  className={({ isActive }) =>
-                    `flex items-center justify-between px-4 py-2 ${
-                      isActive ? 'bg-slate-700 font-semibold' : 'hover:bg-slate-800'
-                    }`
-                  }
-                >
-                  <span>{item.label}</span>
-                  {item.requiresOwnerPin && (
-                    <span
-                      title="Perlu PIN pemilik"
-                      className="rounded bg-amber-500 px-1.5 text-xs font-bold text-slate-900"
-                    >
-                      PIN
-                    </span>
-                  )}
-                </NavLink>
-              ))}
-            </div>
-          ))}
+    <div className="flex min-h-screen bg-background text-foreground">
+      <aside className="sticky top-0 flex h-screen w-[232px] shrink-0 flex-col gap-6 px-4 py-6">
+        <NavLink
+          to="/"
+          className="rounded-control px-2 outline-none focus-visible:ring-[3px] focus-visible:ring-primary-soft"
+        >
+          <BrandMark compact />
+        </NavLink>
+        <nav className="flex-1 space-y-1 overflow-y-auto" aria-label="Menu utama">
+          {menuFor(user.role).map((item) => {
+            const Icon = icons[item.path] ?? Settings;
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) =>
+                  cn(
+                    'flex h-11 items-center gap-3 rounded-row px-3 font-semibold outline-none transition-colors',
+                    'focus-visible:ring-[3px] focus-visible:ring-primary-soft',
+                    isActive
+                      ? 'bg-primary-soft text-primary'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )
+                }
+              >
+                <Icon className="size-[19px]" aria-hidden />
+                <span className="flex-1">{item.label}</span>
+                {item.requiresOwnerPin ? (
+                  <PinHint />
+                ) : (
+                  item.shortcut && <Kbd className="text-muted-foreground">{item.shortcut}</Kbd>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
-        <div className="space-y-2 border-t border-slate-700 px-4 py-4">
-          <div data-testid="current-user">
-            <div className="font-semibold">{user.name}</div>
-            <div className="text-sm text-slate-400">
-              {roleLabels[user.role]} · {user.username}
+        <div className="space-y-3 rounded-card bg-card p-4 shadow-card">
+          <div data-testid="current-user" className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-soft font-bold text-primary"
+            >
+              {user.name.trim().charAt(0).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <div className="truncate font-semibold">{user.name}</div>
+              <div className="truncate text-sm text-muted-foreground">
+                {roleLabels[user.role]} · <span className="font-mono">{user.username}</span>
+              </div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="w-full rounded bg-slate-700 px-3 py-1.5 text-left hover:bg-slate-600"
-          >
+          <Button variant="secondary" size="sm" className="w-full" onClick={() => void logout()}>
+            <LogOut className="size-4" aria-hidden />
             Keluar
-          </button>
+          </Button>
         </div>
       </aside>
-      <main className="flex-1 p-6">
+      <main className="min-w-0 flex-1 px-8 py-7">
         <Outlet />
       </main>
     </div>

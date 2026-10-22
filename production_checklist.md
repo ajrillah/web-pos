@@ -87,6 +87,7 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 - [ ] Void customer payment (PIN): allocations reversed, receivable remaining restored
 - [ ] Voided receipts marked "DIBATALKAN"; all voids audit-logged
 - [ ] Auto-lock (default 5 min) and quick lock (Ctrl+L); unlock same user only; "Ganti pengguna" -> login
+- [ ] Login with user tiles + 6-digit PIN pad (keyboard also types digits); `GET auth/users` returns only id, name, role of active users (no usernames); login by user id + PIN
 - [ ] Settings page (PIN): store name/address/phone, receipt footer, rounding, receipt width, receipt folder, auto-lock; audit logged
 
 **Done when:** MVP complete; tag `v0.1.0-mvp` (ask before tagging).
@@ -100,6 +101,7 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 - [ ] Data in `C:\ProgramData\TokoPodomoro\`; uninstall keeps data
 - [ ] Default receipt folder `%USERPROFILE%\Documents\TokoPodomoro\Nota` created on first save
 - [ ] Manual backup (and documented restore)
+- [ ] Revisit web bundle size: code-split routes (Vite warns the main chunk is > 500 kB)
 
 **Done when:** runs on a clean PC; deployed to pilot store; tag `v0.2.0-pilot` (ask before tagging).
 

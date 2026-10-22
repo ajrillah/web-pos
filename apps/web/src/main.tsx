@@ -1,7 +1,11 @@
+import '@fontsource-variable/jetbrains-mono';
+import '@fontsource-variable/plus-jakarta-sans';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router';
 import { AuthProvider } from './auth/AuthProvider';
+import { Toaster } from './components/ui/sonner';
+import { TooltipProvider } from './components/ui/tooltip';
 import { router } from './router';
 import './index.css';
 
@@ -13,7 +17,10 @@ if (!root) {
 createRoot(root).render(
   <StrictMode>
     <AuthProvider>
-      <RouterProvider router={router} />
+      <TooltipProvider delayDuration={300}>
+        <RouterProvider router={router} />
+        <Toaster />
+      </TooltipProvider>
     </AuthProvider>
   </StrictMode>,
 );
