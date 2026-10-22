@@ -241,7 +241,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 
 ## 7. Pages
 
-Sidebar layout on all pages except Kasir.
+Sidebar layout on all pages except Kasir. Visual design and locked layouts: `ui-style.md`.
 
 | Area | Pages / dialogs |
 |---|---|
@@ -418,4 +418,5 @@ Not decided. Do not implement a choice without asking. Tagged with the stage tha
 5. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
 6. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
 7. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
+8. [Stage 5] Login user tiles (`docs/ui-style.md` section 5) need an unauthenticated list of active users (names, roles). Is exposing that list before login acceptable, or does login stay username + PIN?
 8. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?

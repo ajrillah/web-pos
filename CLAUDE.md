@@ -3,8 +3,9 @@
 TOKO PODOMORO (slug `toko-podomoro`): offline POS web app for Indonesian grocery stores (toko kelontong). Sold commercially.
 
 - Full spec (source of truth): `docs/design.md`.
+- UI look and locked layouts: `docs/ui-style.md` (theme "Teal Elegan").
 - Roadmap and progress: `production_checklist.md` (stages 0-10 + production readiness).
-- Procedures live in `.claude/skills/`: money-rules, db-change, api-endpoint, cashier-ui, verify, stage-done.
+- Procedures live in `.claude/skills/`: money-rules, db-change, api-endpoint, cashier-ui, ui-style, verify, stage-done.
 - Items under "Open questions" in `docs/design.md` are undecided. Ask; do not pick one.
 
 ## Language
@@ -25,7 +26,7 @@ TOKO PODOMORO (slug `toko-podomoro`): offline POS web app for Indonesian grocery
 
 - TypeScript, Node 26 (`.nvmrc`, `engines`), pnpm workspaces.
 - `apps/server`: Fastify, better-sqlite3, Drizzle ORM + drizzle-kit (versioned SQL migrations).
-- `apps/web`: React, Vite, React Router, Tailwind.
+- `apps/web`: React, Vite, React Router, Tailwind, shadcn/ui (Radix), lucide-react, sonner, TanStack Table.
 - `packages/shared`: Zod schemas, shared types, money/unit math.
 - Vitest, Biome, pdfkit (PDF), exceljs (Excel).
 - One port: server serves built web assets and `/api`.
@@ -37,6 +38,7 @@ apps/server/      Fastify API + static web hosting
 apps/web/         React SPA
 packages/shared/  Zod schemas, types, money/unit math
 docs/design.md    Full specification
+docs/ui-style.md  UI design system and locked layouts
 installer/        Inno Setup scripts (output/ is ignored)
 ```
 
