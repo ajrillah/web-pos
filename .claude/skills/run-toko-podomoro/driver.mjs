@@ -8,6 +8,7 @@
 //
 // Env: CHROME_BIN    browser binary (default: newest chrome-headless-shell in ~/.cache/ms-playwright)
 //      SHOTS_DIR     screenshot directory (default: /tmp/toko-shots)
+//      WINDOW_SIZE   browser window as W,H (default: 1366,768, the minimum target size)
 //      BASE_URL      prefix for relative nav paths (default: http://127.0.0.1:4747)
 
 import { execSync, spawn } from 'node:child_process';
@@ -48,7 +49,7 @@ async function launch() {
       '--disable-gpu',
       '--remote-debugging-port=0',
       `--user-data-dir=${userDataDir}`,
-      '--window-size=1280,800',
+      `--window-size=${process.env.WINDOW_SIZE ?? '1366,768'}`,
       'about:blank',
     ],
     { stdio: ['ignore', 'ignore', 'pipe'] },
