@@ -50,21 +50,21 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 
 ## Stage 3 — Cashier
 
-- [ ] Full-screen Kasir: search by code or name; "Barang tidak ditemukan"
-- [ ] Unit selection, quantity edit (bulk: integer g/ml; normal: whole numbers), remove line
-- [ ] Cash and/or QRIS against rounded total; QRIS <= total; change from cash only
-- [ ] Total rounding per setting; `total` stored after rounding; `rounding_amount` stored
-- [ ] Atomic sale save (sale, items, payments, movements, stock cache) in one transaction
-- [ ] Idempotency: client UUID, duplicate rejected
-- [ ] Server recomputes all totals
-- [ ] Negative stock allowed with warning
-- [ ] Hold (DB, no number, no reservation) / resume with refreshed prices and removal notice for deactivated products / delete; cancel before payment
-- [ ] Sale number `TRX-YYYYMMDD-NNNN` on completion; daily reset from 0001 (local date); 5+ digits after 9999
-- [ ] Receipt PDF (58/80 mm) saved to receipt folder; "Nota tersimpan" with Buka, Buka folder, Unduh
-- [ ] "Simpan nota PDF?" prompt (Enter = yes, Esc = skip); "SALINAN" on reprint
-- [ ] Riwayat Transaksi: default today; filter date/text/status; detail with Buka/Buka folder/Unduh
-- [ ] Keyboard UX: shortcuts, focus returns to search, large fonts
-- [ ] F1-F10 captured with `preventDefault` (no F11/F12); Alt+number fallback can be switched on per key (manual Windows test: Stage 6)
+- [x] Full-screen Kasir: search by code or name; "Barang tidak ditemukan"
+- [x] Unit selection, quantity edit (bulk: integer g/ml; normal: whole numbers), remove line
+- [x] Cash and/or QRIS against rounded total; QRIS <= total; change from cash only
+- [x] Total rounding per setting; `total` stored after rounding; `rounding_amount` stored
+- [x] Atomic sale save (sale, items, payments, movements, stock cache) in one transaction
+- [x] Idempotency: client UUID, duplicate rejected
+- [x] Server recomputes all totals
+- [x] Negative stock allowed with warning
+- [x] Hold (DB, no number, no reservation) / resume with refreshed prices and removal notice for deactivated products / delete; cancel before payment
+- [x] Sale number `TRX-YYYYMMDD-NNNN` on completion; daily reset from 0001 (local date); 5+ digits after 9999
+- [x] Receipt PDF (58/80 mm) saved to receipt folder; "Nota tersimpan" with Buka, Buka folder, Unduh
+- [x] "Simpan nota PDF?" prompt (Enter = yes, Esc = skip); "SALINAN" on reprint
+- [x] Riwayat Transaksi: default today; filter date/text/status; detail with Buka/Buka folder/Unduh
+- [x] Keyboard UX: shortcuts, focus returns to search, large fonts
+- [x] F1-F10 captured with `preventDefault` (no F11/F12); Alt+number fallback can be switched on per key (manual Windows test: Stage 6)
 
 **Done when:** 50 test sales completed; stock matches movements; receipts correct.
 
