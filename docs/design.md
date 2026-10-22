@@ -110,7 +110,7 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - User changes.
 - Settings changes.
 - All voids (sales, purchases, customer payments, supplier payments).
-- Every owner PIN approval.
+- Every owner PIN approval, and every failed PIN attempt (login, unlock, approval).
 - Held sale deletions (manual, bulk, and automatic; see 6.1).
 
 Sales, payments, purchases, adjustments, and opname are not audit-logged; their own tables are the record.
@@ -119,7 +119,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 
 - First-run setup creates the first owner and a one-time recovery code.
 - Multiple owners allowed. Each owner has their own recovery code, stored as `users.recovery_code_hash`. After a recovery code is used, a new one is issued for that owner.
-- Login: username + 6-digit PIN. Roles: `owner`, `cashier`.
+- Login: user tile + 6-digit PIN (by user id). Roles: `owner`, `cashier`. PIN recovery still uses the username.
   - From Stage 5, login shows a tile per active user plus a PIN pad (`ui-style.md` section 5). Tiles come from an unauthenticated endpoint returning only `id`, display name, and role: no usernames, no inactive users. Login then sends the chosen user's `id` + PIN.
 - Sessions stored in DB (survive server restart); httpOnly cookie. A session ends on logout or after 12 h of inactivity.
 - The last active owner cannot be deactivated. Owners cannot deactivate themselves.
@@ -131,15 +131,21 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
   - A new owner's recovery code is issued when they set their own PIN (response of `PUT auth/me/pin`), so the creating owner never sees it. Until then that owner has no recovery code.
 - Username and role are fixed at creation. Name, active flag, and (cashiers only) PIN are editable.
 - Deactivating a user or resetting their PIN ends their open sessions.
-- Until approval tokens exist (Stage 5), PIN endpoints return 403 `OWNER_APPROVAL_REQUIRED` for cashiers.
+- Cashiers without a valid approval token get 403 `OWNER_APPROVAL_REQUIRED`; the UI then opens the owner PIN dialog and retries.
 - Hashing: PINs and recovery codes are stored as salted scrypt hashes; session tokens (256-bit random) as SHA-256 hashes. Cookie `toko_session`: httpOnly, `SameSite=Strict`, path `/`.
 - Owner approval:
   - Owner logged in directly needs no approval token.
   - Cashier obtains owner approval by entering an owner PIN (`POST auth/approve`) -> short-lived token kept in server memory, sent as `X-Approval-Token`.
-  - Action tokens (e.g. void) are single-use.
+  - The PIN is checked against every active owner; the matching owner is recorded as `approved_by`.
+  - Tokens are bound to the cashier's session and to one scope; lost on server restart.
+  - Action tokens (voids, product price changes, product deactivation, category changes) are single-use, tied to their target (sale, payment, product) when there is one, and expire after 5 minutes if unused. A token is spent only when the action succeeds.
+  - Menu-access tokens (Laporan, Pengguna, Profil Toko) last while the cashier stays in that menu, at most 15 minutes. Leaving the menu (the page releases the token), locking the screen, or logging out invalidates them.
+  - Every granted approval is audit-logged (entity `approval`), and the approved action's own audit row carries `approved_by`.
+- Failed PIN attempts (login, unlock, approval) are audit-logged with the user, time, and intended action (entity `auth`, action `failed_pin`). No lockout. They appear in the activity report (Stage 8).
 - Auto-lock after idle (`auto_lock_minutes`, default 5) and quick lock with `Ctrl+L`.
+  - The lock is stored on the session (`sessions.locked_at`), so a reload stays locked. While locked only `auth/me`, `auth/unlock`, `auth/logout`, and `auth/users` work (403 `SESSION_LOCKED`).
   - Lock screen unlocks only for the same user.
-  - "Ganti pengguna" goes to the login page.
+  - "Ganti pengguna" ends the session and goes to the login page.
 - No lockout on wrong PIN.
 - Cashier needs owner PIN for: all voids, reports, user management, store settings, product price changes and product deactivation (6.5), category management. Everything else is open.
 
@@ -437,9 +443,7 @@ Tracked with checkboxes in `../production_checklist.md`.
 
 Not decided. Do not implement a choice without asking. Tagged with the stage that needs the answer.
 
-1. [Stage 5] Should failed PIN attempts be logged?
-2. [Stage 5] Approval token lifetime, and the scope of menu-access tokens (e.g. one Laporan visit vs. a time window).
-3. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
-4. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
-5. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
-6. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
+1. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
+2. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
+3. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
+4. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?

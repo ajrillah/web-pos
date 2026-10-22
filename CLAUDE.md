@@ -48,7 +48,7 @@ installer/        Inno Setup scripts (output/ is ignored)
 - Error body: `{ "error": { "code": "UPPER_SNAKE", "message": "<Indonesian>" } }`.
 - Sessions stored in DB, httpOnly cookie; survive restart; end on logout or 12 h inactivity.
 - Multiple owners; each has own recovery code (`users.recovery_code_hash`). Last active owner cannot be deactivated; owners cannot deactivate themselves.
-- Owner-only actions: owner session passes directly; cashier sends `X-Approval-Token` (in-memory, short-lived; action tokens single-use).
+- Owner-only actions: owner session passes directly; cashier sends `X-Approval-Token` (in-memory; action tokens single-use, 5 min; menu tokens until leaving the menu, max 15 min).
 - Server recomputes every total. Client numbers are ignored.
 - Client generates UUIDs for sales, purchases, payments; server rejects duplicates.
 
@@ -68,7 +68,7 @@ installer/        Inno Setup scripts (output/ is ignored)
 - `stock_movements` is the stock source of truth; `products.stock` is a cache updated in the same transaction.
 - SQLite: `foreign_keys = ON`, WAL. Multi-table writes in one transaction.
 - Product code unique across all products, including inactive.
-- `audit_logs` only for: master data (products, units, categories, customers, suppliers), users, settings, all voids, every PIN approval, held-sale deletions. Not sales or payments.
+- `audit_logs` only for: master data (products, units, categories, customers, suppliers), users, settings, all voids, every PIN approval, failed PIN attempts, held-sale deletions. Not sales or payments.
 - Voided records are excluded from all report totals.
 - Never edit an applied migration; add a new one.
 
