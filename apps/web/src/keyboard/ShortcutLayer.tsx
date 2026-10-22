@@ -3,37 +3,8 @@ import { Outlet, useNavigate } from 'react-router';
 import { api } from '../api/endpoints';
 import { ApprovalProvider } from '../approval/ApprovalProvider';
 import { useAuth } from '../auth/AuthProvider';
+import { startIdleLock } from './idle-lock';
 import { matchShortcut } from './shortcuts';
-
-const ACTIVITY_EVENTS = ['mousedown', 'mousemove', 'keydown', 'wheel', 'touchstart'] as const;
-const IDLE_CHECK_MS = 15_000;
-
-/** Locks the screen after `auto_lock_minutes` without keyboard or mouse activity. */
-function useIdleLock(lock: () => Promise<void>): void {
-  useEffect(() => {
-    let minutes = 5;
-    let lastActivity = Date.now();
-    let current = true;
-    api
-      .settings()
-      .then((r) => {
-        if (current) minutes = r.settings.autoLockMinutes;
-      })
-      .catch(() => undefined);
-    const touch = () => {
-      lastActivity = Date.now();
-    };
-    for (const name of ACTIVITY_EVENTS) window.addEventListener(name, touch, { passive: true });
-    const timer = setInterval(() => {
-      if (Date.now() - lastActivity >= minutes * 60_000) void lock();
-    }, IDLE_CHECK_MS);
-    return () => {
-      current = false;
-      clearInterval(timer);
-      for (const name of ACTIVITY_EVENTS) window.removeEventListener(name, touch);
-    };
-  }, [lock]);
-}
 
 type Handler = () => void;
 
@@ -43,6 +14,29 @@ interface Handlers {
 }
 
 const HandlersContext = createContext<{ current: Handlers } | null>(null);
+
+/** Locks the screen after `auto_lock_minutes` without keyboard or mouse activity. */
+function useIdleLock(lock: () => Promise<void>): void {
+  useEffect(() => {
+    let minutes = 5;
+    let current = true;
+    api
+      .settings()
+      .then((r) => {
+        if (current) minutes = r.settings.autoLockMinutes;
+      })
+      .catch(() => undefined);
+    const stop = startIdleLock({
+      target: window,
+      minutes: () => minutes,
+      onIdle: () => void lock(),
+    });
+    return () => {
+      current = false;
+      stop();
+    };
+  }, [lock]);
+}
 
 /** Focuses the page's main search box (`data-search-input`); on other pages, opens Kasir. */
 function focusSearch(navigate: (path: string) => void): void {
