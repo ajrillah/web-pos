@@ -22,10 +22,11 @@ Visual style (colors, fonts, radius, components, locked layouts): `ui-style` ski
 
 ## Keyboard
 - Register shortcuts in one global handler: F1 Kasir, F2 Cari, F3 Barang, F4 Stok, F5 Pelanggan, F6 Riwayat, F8 Bayar, F9 Tahan, Esc batal/tutup, Ctrl+L kunci.
+  - The handler is `src/keyboard/ShortcutLayer.tsx` (key table in `shortcuts.ts`). Pages register F8/F9 with `useShortcutHandlers`; F2 focuses the element marked `data-search-input`.
 - Capture F1-F10 with `preventDefault()` so Edge defaults (help, reload, find) do not fire. Never bind F11/F12.
 - Wire `Alt+<number>` fallbacks only for keys that fail the manual Windows capture test (Stage 6; see `docs/design.md` section 8).
 - Esc closes the topmost dialog; with no dialog in Kasir, it cancels the current action.
-- Every dialog: autofocus primary field, Enter confirms, Esc cancels, focus trapped.
+- Every dialog: autofocus primary field (`data-autofocus` on a button), Enter confirms, Esc cancels, focus trapped. In Kasir, `onCloseAutoFocus` returns focus to the search box.
 - "Simpan nota PDF?": Enter = save, Esc = skip. Then "Nota tersimpan" with Buka, Buka folder, Unduh.
 - Resuming a held sale: show refreshed prices; notify which deactivated items were removed.
 - After every action (add, remove, pay, hold, close dialog, error) return focus to the Kasir search input.
