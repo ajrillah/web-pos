@@ -127,6 +127,8 @@ export const createProductRequestSchema = z.object({
   initialStock: z.number().int().min(0).max(MAX_QTY).default(0),
 });
 export type CreateProductRequest = z.input<typeof createProductRequestSchema>;
+/** Parsed request (defaults applied), as services receive it. */
+export type CreateProductInput = z.output<typeof createProductRequestSchema>;
 
 export const updateProductRequestSchema = z.object(productFields);
 export type UpdateProductRequest = z.infer<typeof updateProductRequestSchema>;
