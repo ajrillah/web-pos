@@ -31,6 +31,7 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 - [ ] User management (create, edit, deactivate); multiple owners allowed
 - [ ] Last active owner cannot be deactivated; owners cannot deactivate themselves
 - [ ] PIN recovery via the owner's recovery code; new code issued after use
+- [ ] Owner resets a cashier's PIN to a temporary PIN; `must_change_pin` forces a change at next login
 - [ ] Audit log for user changes
 
 **Done when:** owner and cashier see the correct menus; session survives restart.

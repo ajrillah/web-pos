@@ -121,6 +121,16 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Login: username + 6-digit PIN. Roles: `owner`, `cashier`.
 - Sessions stored in DB (survive server restart); httpOnly cookie. A session ends on logout or after 12 h of inactivity.
 - The last active owner cannot be deactivated. Owners cannot deactivate themselves.
+- PIN resets:
+  - An owner can reset a cashier's PIN to a temporary PIN; the cashier must change it at next login (`users.must_change_pin`).
+  - An owner's PIN can only be reset by that owner, via their own recovery code. No owner can reset another owner's PIN.
+- New users: a PIN chosen by someone else is temporary, so every user created in user management starts with `must_change_pin = true`.
+  - While `must_change_pin` is set, only `GET auth/me`, `PUT auth/me/pin`, and `POST auth/logout` are allowed (403 `PIN_CHANGE_REQUIRED`).
+  - A new owner's recovery code is issued when they set their own PIN (response of `PUT auth/me/pin`), so the creating owner never sees it. Until then that owner has no recovery code.
+- Username and role are fixed at creation. Name, active flag, and (cashiers only) PIN are editable.
+- Deactivating a user or resetting their PIN ends their open sessions.
+- Until approval tokens exist (Stage 5), PIN endpoints return 403 `OWNER_APPROVAL_REQUIRED` for cashiers.
+- Hashing: PINs and recovery codes are stored as salted scrypt hashes; session tokens (256-bit random) as SHA-256 hashes. Cookie `toko_session`: httpOnly, `SameSite=Strict`, path `/`.
 - Owner approval:
   - Owner logged in directly needs no approval token.
   - Cashier obtains owner approval by entering an owner PIN (`POST auth/approve`) -> short-lived token kept in server memory, sent as `X-Approval-Token`.
@@ -267,7 +277,7 @@ Fallbacks are enabled only for keys that fail the Stage 3 capture test. F11 and 
 All tables have `id` (UUID) and `created_at`; mutable tables also have `updated_at`.
 
 ### 9.1 System
-- `users`(username, name, role, pin_hash, recovery_code_hash, active) — `recovery_code_hash` for owners only
+- `users`(username, name, role, pin_hash, recovery_code_hash, must_change_pin, active) — `recovery_code_hash` for owners only; `username` unique, lowercase
 - `sessions`(user_id, token_hash, expires_at, last_seen_at) — expires after 12 h of inactivity
 - `settings`(key, value)
 - `audit_logs`(user_id, approved_by, entity, entity_id, action, old_value, new_value)
@@ -327,6 +337,7 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 
 ### Users (PIN)
 - `GET users`, `POST users`, `PUT users/:id`
+- `PUT users/:id` accepts `name`, `active`, and `pin` (temporary PIN; cashier targets only).
 
 ### Products and categories
 - `GET products` (q, category_id, page, limit)
@@ -400,13 +411,11 @@ Tracked with checkboxes in `../production_checklist.md`.
 
 Not decided. Do not implement a choice without asking. Tagged with the stage that needs the answer.
 
-1. [Stage 1] Cashier forgot PIN: can an owner reset a cashier's PIN from user management?
-2. [Stage 1] Can an owner reset another owner's PIN or recovery code?
-3. [Stage 2] Can cashiers edit product data and cost prices with no control, or does that need owner PIN? (Product edits are audit-logged either way.)
-4. [Stage 3] Are old held sales ever cleaned up, or kept indefinitely?
-5. [Stage 5] Should failed PIN attempts be logged?
-6. [Stage 5] Approval token lifetime, and the scope of menu-access tokens (e.g. one Laporan visit vs. a time window).
-7. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
-8. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
-9. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
-10. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
+1. [Stage 2] Can cashiers edit product data and cost prices with no control, or does that need owner PIN? (Product edits are audit-logged either way.)
+2. [Stage 3] Are old held sales ever cleaned up, or kept indefinitely?
+3. [Stage 5] Should failed PIN attempts be logged?
+4. [Stage 5] Approval token lifetime, and the scope of menu-access tokens (e.g. one Laporan visit vs. a time window).
+5. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
+6. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
+7. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
+8. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
