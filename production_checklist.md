@@ -96,16 +96,16 @@ Order: stages run 0-5, 7, 8, 9, 6, 10. Stage numbers are kept; Distribution (6) 
 
 ## Stage 7 — Stock & suppliers
 
-- [ ] Suppliers: list, add, edit, deactivate; audit logged
-- [ ] Stok Masuk: purchases, no edit; cost suggestions (last buy, weighted average) and margin
-- [ ] Initial paid amount creates supplier payment + allocation
-- [ ] Supplier debt payments allocated to ticked purchases (oldest pre-ticked)
-- [ ] Purchase void (PIN) only if no active payments besides the initial one; voids initial payment + allocations; `purchase_void` movements; cost-price review reminder for owner
-- [ ] Supplier payment void (PIN): allocations reversed, purchase remaining restored
-- [ ] Kartu Hutang and Daftar Hutang
-- [ ] Stock adjustments with reason (rusak, kedaluwarsa, hilang, opname, lainnya)
-- [ ] Stock opname sessions: start, enter counts, complete (delta vs `system_qty_at_start` applied to current stock), cancel
-- [ ] Stock movement history
+- [x] Suppliers: list, add, edit, deactivate; audit logged
+- [x] Stok Masuk: purchases, no edit; cost suggestions (last buy, weighted average) and margin
+- [x] Initial paid amount creates supplier payment + allocation
+- [x] Supplier debt payments allocated to ticked purchases (oldest pre-ticked)
+- [x] Purchase void (PIN) only if no active payments besides the initial one; voids initial payment + allocations; `purchase_void` movements; cost-price review reminder for owner
+- [x] Supplier payment void (PIN): allocations reversed, purchase remaining restored
+- [x] Kartu Hutang and Daftar Hutang
+- [x] Stock adjustments with reason (rusak, kedaluwarsa, hilang, opname, lainnya)
+- [x] Stock opname sessions: start, enter counts, complete (delta vs `system_qty_at_start` applied to current stock), cancel
+- [x] Stock movement history
 
 **Done when:** stock and payables reconcile with movements/allocations.
 
