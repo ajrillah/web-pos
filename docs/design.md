@@ -357,9 +357,12 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 
 ### Setup and auth
 - `GET setup/status`, `POST setup`
-- `POST auth/login`, `POST auth/logout`, `POST auth/unlock`, `POST auth/approve`, `POST auth/recover`
-- `GET auth/me`, `PUT auth/me/pin`
-- `GET auth/users` (Stage 5): no auth; active users only, `{ users: [{ id, name, role }] }`. Never usernames or inactive users.
+- `GET auth/users`: no auth; login tiles: active users only, `{ users: [{ id, name, role }] }`. Never usernames or inactive users.
+- `POST auth/login` `{ userId, pin }`, `POST auth/logout`, `POST auth/recover` (username + recovery code)
+- `GET auth/me` -> `{ user, locked }`, `PUT auth/me/pin`
+- `POST auth/lock`, `POST auth/unlock` `{ pin }` (same user)
+- `POST auth/approve` `{ pin, scope, targetId? }` -> `{ token, expiresAt, ownerName }`; scopes: actions `sale.void`, `payment.void`, `product.price`, `product.deactivate`, `category.manage`; menus `laporan`, `pengguna`, `profil-toko`
+- `POST auth/approve/release` `{ token }` (leaving a PIN menu)
 
 ### Users (PIN)
 - `GET users`, `POST users`, `PUT users/:id`
@@ -381,14 +384,14 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `POST sales/:id/receipt` (save PDF to receipt folder as `<TRX>.pdf`; later receipts `<TRX>-SALINAN.pdf`)
 - `POST sales/:id/receipt/open` (open saved PDF in default viewer), `POST receipts/open-folder`
 - `GET sales/:id/receipt.pdf` (download)
-- `POST sales/:id/void` (PIN)
+- `POST sales/:id/void` (PIN, action `sale.void` on this sale) `{ reason? }`
 
 ### Customers and kasbon
 - `GET customers` (q, status, page, limit; each with `balance`), `GET customers/:id`, `POST customers`, `PUT customers/:id` (name, phone, note, active), `GET customers/:id/ledger`
 - `GET receivables` (customerId, status `open|all`; oldest first)
 - `POST customer-payments` `{ id (client UUID), customerId, receivableIds, method, amount }` (`amount` = cash received or QRIS amount), `GET customer-payments/:id`
 - `POST customer-payments/:id/receipt`, `POST customer-payments/:id/receipt/open`, `GET customer-payments/:id/receipt.pdf`
-- `POST customer-payments/:id/void` (PIN; Stage 5)
+- `POST customer-payments/:id/void` (PIN, action `payment.void` on this payment) `{ reason? }`
 - `POST sales` takes an optional `customerId`; with it, an underpayment becomes kasbon (one receivable, `debt_amount`). Without it, underpayment is refused.
 
 ### Suppliers and stock
@@ -404,7 +407,7 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `GET reports/:type/export?format=pdf|xlsx`
 
 ### Settings
-- `GET settings` (any user; Stage 3), `PUT settings` (PIN; Stage 5)
+- `GET settings` (any user), `PUT settings` (PIN menu `profil-toko`; only sent fields change; each changed key audit-logged)
 - Defaults until set: `store_name` "TOKO PODOMORO", `rounding` `none`, `receipt_width` `58`, `receipt_footer` "Terima kasih atas kunjungan Anda", `auto_lock_minutes` 5.
 
 ## 11. Roadmap
