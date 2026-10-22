@@ -26,7 +26,7 @@ pnpm build          # web -> apps/web/dist, server bundle -> apps/server/dist (i
 
 ## Run (agent path)
 
-Start the built app on an isolated data dir, wait for health, drive, stop by port:
+Start the built app on an isolated data dir, wait for health, drive, stop by port. A fresh data dir redirects every page to `/setup`; this script creates the owner (`pemilik` / PIN `111111`) and lands on the owner home:
 
 ```bash
 export TOKO_PODOMORO_DATA_DIR=/tmp/toko-data && rm -rf /tmp/toko-data
@@ -35,13 +35,18 @@ timeout 30 bash -c 'until curl -sf http://127.0.0.1:4747/api/health >/dev/null; 
 
 node .claude/skills/run-toko-podomoro/driver.mjs <<'EOF'
 nav /
-wait-for text=Server aktif
-screenshot home
-nav /kasir
-wait-for text=Halaman tidak ditemukan
-click main a[href="/"]
-wait-for text=Selamat datang
-url
+wait-for text=Pengaturan awal
+fill #name Bu Sari
+fill #username pemilik
+fill #pin 111111
+fill #confirm 111111
+click button[type=submit]
+wait-for [data-testid=recovery-code]
+click input[type=checkbox]
+click button:not([disabled])
+wait-for text=Selamat datang, Bu Sari
+text nav
+screenshot owner-home
 console
 EOF
 
@@ -60,12 +65,17 @@ Driver prints `READY`, then `ok <cmd>[: output]` or `error <cmd>: ...` per line;
 | `press <key>` | `Enter`, `Escape`, `Tab`, arrows, `F1`-`F12`, letters/digits, with `Control+`/`Alt+`/`Shift+`/`Meta+` (e.g. `Control+l`, `Alt+1`) |
 | `text [css]` / `url` / `eval <js>` | read innerText / location / evaluate JS (JSON result) |
 | `screenshot [name]` | full viewport PNG, 1280x800 |
-| `console` | console errors, uncaught exceptions, failed requests since start |
+| `console` | console errors, uncaught exceptions, failed requests since start (the anonymous `auth/me` check logs an expected 401) |
+| `sh <command>` | run a bash command between steps, e.g. restart the server; the browser keeps its cookies |
+
+Later runs on the same data dir: log in instead (`nav /login`, `fill #username pemilik`, `fill #pin 111111`, `press Enter`, `wait-for text=Selamat datang`). Users created in Pengaturan > Pengguna have a temporary PIN and land on `/ubah-pin` (`#currentPin`, `#newPin`, `#confirm`) at first login.
 
 API smoke (server running):
 
 ```bash
 curl -s 127.0.0.1:4747/api/health                                  # {"status":"ok","version":"0.0.0"}
+curl -s -c /tmp/toko-cookies -H 'content-type: application/json' -d '{"username":"pemilik","pin":"111111"}' 127.0.0.1:4747/api/auth/login
+curl -s -b /tmp/toko-cookies 127.0.0.1:4747/api/users              # {"users":[...]} with the owner session
 curl -s -w ' [%{http_code}]\n' 127.0.0.1:4747/api/nope             # NOT_FOUND [404]
 curl -s -w ' [%{http_code}]\n' -H 'Host: evil.test' 127.0.0.1:4747/api/health   # FORBIDDEN_HOST [403]
 ```
@@ -77,7 +87,8 @@ pnpm dev > /tmp/toko-dev.log 2>&1 &
 timeout 60 bash -c 'until curl -sf http://127.0.0.1:5173/api/health >/dev/null; do sleep 0.3; done'
 BASE_URL=http://127.0.0.1:5173 node .claude/skills/run-toko-podomoro/driver.mjs <<'EOF'
 nav /
-wait-for text=Server aktif
+wait-for text=TOKO PODOMORO
+url
 screenshot dev-home
 EOF
 lsof -ti:5173,4747 -sTCP:LISTEN | xargs -r kill
@@ -90,7 +101,7 @@ lsof -ti:5173,4747 -sTCP:LISTEN | xargs -r kill
 ## Test
 
 ```bash
-pnpm check && pnpm typecheck && pnpm test     # shared 28, server 25 tests; web has none yet
+pnpm check && pnpm typecheck && pnpm test     # shared 35, web 9, server 64 tests
 ```
 
 ## Direct invocation (no running server)
