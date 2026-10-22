@@ -211,9 +211,11 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 
 ### 6.6 Stock (Stok) and suppliers (Pemasok)
 - Purchases from suppliers (Stok Masuk):
-  - No edit.
-  - New cost price entered manually, with suggestions (last buy price, weighted average) and margin shown.
+  - No edit. A supplier is required; purchases are numbered `BLI-YYYYMMDD-NNNN`, supplier payments `BYH-YYYYMMDD-NNNN` (same rules as TRX).
+  - Lines use the product's active unit rows; `buy_price` is per unit row (bulk: per kg/liter, quantity in g/ml). A product appears at most once per purchase.
+  - New cost price entered manually, with suggestions (last buy price, weighted average) and margin shown. Changing a cost price this way needs owner approval for cashiers (same rule as product price changes) and is audit-logged on the product.
   - Initial paid amount creates a `supplier_payments` row + `supplier_allocations` row.
+  - Purchase and supplier payment voids take a reason: "Salah input" or "Lainnya" (with a note).
 - Purchase void (owner PIN):
   - Allowed only if the purchase has no active payments besides the initial one.
   - Voids the initial payment and its allocations.
@@ -364,7 +366,7 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `POST auth/login` `{ userId, pin }`, `POST auth/logout`, `POST auth/recover` (username + recovery code)
 - `GET auth/me` -> `{ user, locked }`, `PUT auth/me/pin`
 - `POST auth/lock`, `POST auth/unlock` `{ pin }` (same user)
-- `POST auth/approve` `{ pin, scope, targetId?, ownerId? }` -> `{ token, expiresAt, ownerName }` (`ownerId` required when several owners are active); scopes: actions `sale.void`, `payment.void`, `product.price`, `product.deactivate`, `category.manage`; menus `laporan`, `pengguna`, `profil-toko`
+- `POST auth/approve` `{ pin, scope, targetId?, ownerId? }` -> `{ token, expiresAt, ownerName }` (`ownerId` required when several owners are active); scopes: actions `sale.void`, `payment.void`, `product.price`, `product.deactivate`, `category.manage`, `purchase.void`, `purchase.cost`, `supplier-payment.void`; menus `laporan`, `pengguna`, `profil-toko`
 - `POST auth/approve/release` `{ token }` (leaving a PIN menu)
 
 ### Users (PIN)
@@ -398,12 +400,16 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `POST sales` takes an optional `customerId`; with it, an underpayment becomes kasbon (one receivable, `debt_amount`). Without it, underpayment is refused.
 
 ### Suppliers and stock
-- `GET suppliers`, `POST suppliers`, `PUT suppliers/:id`, `GET suppliers/:id/ledger`
-- `GET purchases`, `GET purchases/:id`, `POST purchases`, `POST purchases/:id/void` (PIN), `GET purchases/cost-suggestion`
-- `POST supplier-payments`, `POST supplier-payments/:id/void` (PIN)
-- `POST stock-adjustments`
-- `POST stock-opname` (start), `PUT stock-opname/:id/items`, `POST stock-opname/:id/complete`, `POST stock-opname/:id/cancel`
-- `GET stock-movements`
+- `GET suppliers` (q, status, withBalance, page, limit; each with `balance` = remaining debt), `GET suppliers/:id`, `POST suppliers`, `PUT suppliers/:id` (name, phone, note, active), `GET suppliers/:id/ledger` (Kartu Hutang)
+- `GET payables` (supplierId; completed purchases with remaining debt, oldest first) (Daftar Hutang)
+- `GET purchases` (from, to = local days of recording, supplierId, q = number or supplier name, status `completed|voided|all`, page, limit), `GET purchases/:id`
+- `POST purchases` `{ id (client UUID), supplierId, date?, note?, lines: [{ productId, unitId, qtyBase, buyPrice, newCostPrice }], paidAmount, paidMethod }` -> `{ purchase }`. Changing any product's cost price needs approval for cashiers (action `purchase.cost` on this purchase id).
+- `POST purchases/:id/void` (PIN, action `purchase.void`) `{ reason: salah_input|lainnya, note? }` -> `{ purchase, costReview }` (products whose cost price this purchase changed, for the owner to review)
+- `GET purchases/cost-suggestion?productId=` -> `{ costPrice, pricingFactor, stock, lastBuyCost, lastBuyDate }`; the weighted average is computed per line with the shared `weightedAverageCost`
+- `POST supplier-payments` `{ id (client UUID), supplierId, purchaseIds, method, amount }` (amount <= ticked total), `GET supplier-payments/:id`, `POST supplier-payments/:id/void` (PIN, action `supplier-payment.void`) `{ reason: salah_input|lainnya, note? }`
+- `GET stock-adjustments` (productId, reason, page, limit), `POST stock-adjustments` `{ productId, qtyChange, reason, note? }` (note required for `lainnya`) -> `{ adjustment, warnings }`
+- `GET stock-opname` (status), `POST stock-opname` `{ categoryId }` (start), `GET stock-opname/:id`, `PUT stock-opname/:id/items` `{ items: [{ productId, countedQty | null }] }`, `POST stock-opname/:id/complete` -> `{ opname, warnings }`, `POST stock-opname/:id/cancel`
+- `GET stock-movements` (productId, type, from, to, page, limit; newest first, each with the product's `balanceAfter`)
 
 ### Reports (PIN)
 - `GET reports/summary`, `reports/categories`, `reports/products`, `reports/stock-value`, `reports/cash`, `reports/debts`, `reports/losses`, `reports/activity`
