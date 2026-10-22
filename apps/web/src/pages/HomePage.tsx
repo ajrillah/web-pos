@@ -1,35 +1,12 @@
-import { type HealthResponse, healthResponseSchema } from '@toko-podomoro/shared';
-import { useEffect, useState } from 'react';
-
-type ServerStatus =
-  | { state: 'loading' }
-  | { state: 'ok'; health: HealthResponse }
-  | { state: 'error' };
+import { useCurrentUser } from '../auth/AuthProvider';
+import { roleLabels } from '../navigation/menu';
 
 export function HomePage() {
-  const [status, setStatus] = useState<ServerStatus>({ state: 'loading' });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch('/api/health', { signal: controller.signal })
-      .then((res) => res.json())
-      .then((body: unknown) => setStatus({ state: 'ok', health: healthResponseSchema.parse(body) }))
-      .catch(() => {
-        if (!controller.signal.aborted) {
-          setStatus({ state: 'error' });
-        }
-      });
-    return () => controller.abort();
-  }, []);
-
+  const user = useCurrentUser();
   return (
     <section className="space-y-2">
-      <h1 className="text-2xl font-bold">Selamat datang</h1>
-      {status.state === 'loading' && <p>Memeriksa server…</p>}
-      {status.state === 'ok' && (
-        <p className="text-green-700">Server aktif (versi {status.health.version}).</p>
-      )}
-      {status.state === 'error' && <p className="text-red-700">Server tidak dapat dihubungi.</p>}
+      <h1 className="text-2xl font-bold">Selamat datang, {user.name}</h1>
+      <p className="text-slate-600">Anda masuk sebagai {roleLabels[user.role]}.</p>
     </section>
   );
 }
