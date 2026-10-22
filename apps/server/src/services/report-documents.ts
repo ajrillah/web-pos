@@ -217,7 +217,8 @@ const builders: { [K in ReportType]: Builder<never> } = {
         dayLabel(d.day),
         d[`sales${kind}`],
         d[`kasbon${kind}`],
-        d[`supplier${kind}`],
+        // Money out.
+        -d[`supplier${kind}`],
         d[`void${kind}`],
         d[`net${kind}`],
       ]),
@@ -225,7 +226,7 @@ const builders: { [K in ReportType]: Builder<never> } = {
         'Total',
         t[`sales${kind}`],
         t[`kasbon${kind}`],
-        t[`supplier${kind}`],
+        -t[`supplier${kind}`],
         t[`void${kind}`],
         t[`net${kind}`],
       ],
