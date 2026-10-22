@@ -1,5 +1,6 @@
 // Bundles the server into dist/main.js and copies migrations and the built web app next to it.
-// Only native modules stay external; everything else (including @toko-podomoro/shared) is bundled.
+// Native modules and pdfkit (it loads its standard fonts through package `#imports` at runtime)
+// stay external; everything else (including @toko-podomoro/shared) is bundled.
 import fs from 'node:fs';
 import path from 'node:path';
 import { build } from 'esbuild';
@@ -17,7 +18,7 @@ await build({
   platform: 'node',
   format: 'esm',
   target: 'node26',
-  external: ['better-sqlite3'],
+  external: ['better-sqlite3', 'pdfkit'],
   define: { __BUNDLED__: 'true' },
   // CommonJS dependencies inside an ESM bundle need require/__dirname.
   banner: {
