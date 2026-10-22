@@ -84,6 +84,8 @@ wait-for text=Simpan nota PDF?
 press Escape
 ```
 
+Kasbon: in Bayar, `press Enter` with less than the total opens the kasbon step; customer picker `#customer-search` (rows `[data-customer]`, Enter picks, no match offers quick-add), then `press Enter` to record. Bayar Kasbon: Kasir footer button "Bayar kasbon" (or Pelanggan pages), receivables `[data-receivable]`, amount `#kasbon-amount`, `press Enter`; prompt "Simpan bukti bayar PDF?". Pelanggan pages: `/pelanggan`, `/pelanggan/kartu?id=<customerId>`, `/pelanggan/piutang`. After closing a dialog, give focus a moment before opening the next one.
+
 API smoke (server running):
 
 ```bash
