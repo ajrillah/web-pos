@@ -81,11 +81,18 @@ export interface AllocationWithSale {
   receivableId: string;
   saleNumber: string;
   amount: number;
+  remainingAfter: number;
 }
 
 export function insertAllocations(
   db: Executor,
-  rows: { paymentId: string; receivableId: string; amount: number; createdAt?: string }[],
+  rows: {
+    paymentId: string;
+    receivableId: string;
+    amount: number;
+    remainingAfter: number;
+    createdAt?: string;
+  }[],
 ): void {
   if (rows.length > 0) db.insert(paymentAllocations).values(rows).run();
 }
@@ -99,6 +106,7 @@ export function listAllocations(db: Executor, paymentIds: string[]): AllocationW
       receivableId: paymentAllocations.receivableId,
       saleNumber: sales.number,
       amount: paymentAllocations.amount,
+      remainingAfter: paymentAllocations.remainingAfter,
     })
     .from(paymentAllocations)
     .innerJoin(receivables, eq(receivables.id, paymentAllocations.receivableId))

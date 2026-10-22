@@ -20,6 +20,9 @@ paths:
 ## Connection
 - Set `PRAGMA foreign_keys = ON` and `PRAGMA journal_mode = WAL` on every connection.
 
+## Queries
+- Correlated subqueries in `sql\`\``: write table names and aliases explicitly (`from receivables r where r.customer_id = "customers"."id"`). Drizzle leaves columns unqualified in single-table selects, so `${receivables.customerId} = ${customers.id}` silently compares a column with itself.
+
 ## Writes
 - Wrap every multi-table write in one `db.transaction(...)`, started in the service layer.
 - Never `DELETE` business rows. Set `active = 0` or a void status.

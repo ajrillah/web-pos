@@ -317,7 +317,7 @@ All tables have `id` (UUID) and `created_at`; mutable tables also have `updated_
 - `customers`(name, phone, note, active)
 - `receivables`(customer_id, sale_id, amount, remaining, status) — `status`: `open` | `paid` | `void`; one per sale (`sale_id` unique); `remaining = amount - sum(active allocations)`
 - `customer_payments`(number, customer_id, method, amount, amount_received, change_amount, balance_after, user_id, status, voided_at, voided_by, receipt_count, receipt_file) — `id` is the client UUID; `number` `BYR-YYYYMMDD-NNNN`; `amount` is the applied amount; `status`: `active` | `voided`
-- `payment_allocations`(payment_id, receivable_id, amount)
+- `payment_allocations`(payment_id, receivable_id, amount, remaining_after) — `remaining_after` is the receipt snapshot
 - `sales` gains `customer_id` and `customer_balance_after` (customer's remaining kasbon after the sale, for the receipt).
 
 ### 9.5 Suppliers and purchases

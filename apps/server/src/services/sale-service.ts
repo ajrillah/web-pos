@@ -1,9 +1,7 @@
 import {
   type CreateSaleRequest,
   type CreateSaleResponse,
-  docNumberSequence,
   formatRupiah,
-  formatSaleNumber,
   type HoldSaleRequest,
   lineCostTotal,
   lineSubtotal,
@@ -45,6 +43,7 @@ import {
 } from '../repositories/sales-repository';
 import { addToStockCache, insertMovement } from '../repositories/stock-repository';
 import type { Actor, ServiceContext } from './context';
+import { nextDocNumber } from './numbering';
 import { productsByIds } from './product-service';
 import { getSettings } from './settings-service';
 
@@ -176,14 +175,6 @@ function loadSale(db: Executor, id: string): Sale {
   return toSales(db, [row])[0] as Sale;
 }
 
-/** Next `TRX-YYYYMMDD-NNNN` for the local day of `now`; NNNN restarts at 0001 each day. */
-function nextSaleNumber(db: Executor, now: Date): string {
-  const day = localDate(now);
-  const prefix = `TRX-${day.replaceAll('-', '')}-`;
-  const last = lastSaleNumber(db, prefix);
-  return formatSaleNumber(day, (last ? (docNumberSequence(last) ?? 0) : 0) + 1);
-}
-
 /**
  * Completes a sale in one transaction: sale, items (snapshots), payments, stock movements,
  * and the stock cache. The client UUID makes retries safe: a second request is rejected.
@@ -223,7 +214,7 @@ export function createSale(
     const now = ctx.now().toISOString();
     insertSale(tx, {
       id: input.id,
-      number: nextSaleNumber(tx, ctx.now()),
+      number: nextDocNumber('TRX', ctx.now(), (prefix) => lastSaleNumber(tx, prefix)),
       cashierId: actor.id,
       status: 'completed',
       total,
