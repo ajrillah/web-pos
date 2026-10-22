@@ -1,8 +1,12 @@
 import Database from 'better-sqlite3';
 import { type BetterSQLite3Database, drizzle } from 'drizzle-orm/better-sqlite3';
+import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from './schema';
 
 export type AppDatabase = BetterSQLite3Database<typeof schema>;
+
+/** The database or a transaction; repositories accept either. */
+export type Executor = BaseSQLiteDatabase<'sync', Database.RunResult, typeof schema>;
 
 export interface DatabaseHandle {
   db: AppDatabase;
