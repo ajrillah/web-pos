@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import type { Executor } from '../db/client';
 import { products, stockAdjustments, stockMovements } from '../db/schema';
 
@@ -31,4 +31,15 @@ export function sumMovements(db: Executor, productId: string): number {
       .where(eq(stockMovements.productId, productId))
       .get()?.total ?? 0
   );
+}
+
+/** Ids among `productIds` that have at least one stock movement. */
+export function productIdsWithMovements(db: Executor, productIds: string[]): Set<string> {
+  if (productIds.length === 0) return new Set();
+  const rows = db
+    .selectDistinct({ productId: stockMovements.productId })
+    .from(stockMovements)
+    .where(inArray(stockMovements.productId, productIds))
+    .all();
+  return new Set(rows.map((r) => r.productId));
 }

@@ -30,12 +30,17 @@ import {
   updateProduct,
   updateUnit,
 } from '../repositories/products-repository';
+import { productIdsWithMovements } from '../repositories/stock-repository';
 import type { Actor, ServiceContext } from './context';
 import { recordAdjustment } from './stock-service';
 
 // Rules: docs/design.md 4.1 and 6.5. Cashier limits: 6.5 "Cashier permissions".
 
-function toProduct(row: ProductWithCategory, units: UnitRow[]): Product {
+function toProduct(
+  row: ProductWithCategory,
+  units: UnitRow[],
+  withMovements: Set<string>,
+): Product {
   return {
     id: row.id,
     code: row.code,
@@ -47,6 +52,7 @@ function toProduct(row: ProductWithCategory, units: UnitRow[]): Product {
     pricingFactor: row.pricingFactor,
     costPrice: row.costPrice,
     stock: row.stock,
+    hasStockMovements: withMovements.has(row.id),
     active: row.active,
     units: units
       .filter((u) => u.productId === row.id && u.active)
@@ -84,12 +90,20 @@ const unitSnapshot = (row: UnitRow) => ({
   active: row.active,
 });
 
+/** API shape for product rows, loading their units and movement flags in two queries. */
+function toProducts(db: Executor, rows: ProductWithCategory[]): Product[] {
+  const ids = rows.map((r) => r.id);
+  const units = listUnits(db, ids);
+  const withMovements = productIdsWithMovements(db, ids);
+  return rows.map((row) => toProduct(row, units, withMovements));
+}
+
 function loadProduct(db: Executor, id: string): Product {
   const row = findProductById(db, id);
   if (!row) {
     throw appErrors.productNotFound();
   }
-  return toProduct(row, listUnits(db, [row.id]));
+  return toProducts(db, [row])[0] as Product;
 }
 
 /**
@@ -161,11 +175,7 @@ export function searchProducts(ctx: ServiceContext, query: ProductsQuery): Produ
     limit,
     offset: (page - 1) * limit,
   });
-  const units = listUnits(
-    ctx.db,
-    rows.map((r) => r.id),
-  );
-  return { products: rows.map((row) => toProduct(row, units)), total, page, limit };
+  return { products: toProducts(ctx.db, rows), total, page, limit };
 }
 
 export function getProduct(ctx: ServiceContext, id: string): Product {
@@ -178,7 +188,7 @@ export function getProductByCode(ctx: ServiceContext, code: string): Product {
   if (!row?.active) {
     throw appErrors.productNotFound();
   }
-  return toProduct(row, listUnits(ctx.db, [row.id]));
+  return toProducts(ctx.db, [row])[0] as Product;
 }
 
 /** Creates a product with its unit rows; initial stock becomes a stock adjustment. */
@@ -257,6 +267,12 @@ export function updateProductById(
       throw appErrors.productNotFound();
     }
     checkCategory(tx, input.categoryId, product.categoryId);
+    // Existing stock is counted in the current unit; it cannot be converted (design 6.5).
+    const unitKindChanged =
+      input.type !== product.type || (input.type === 'bulk' && baseUnit !== product.baseUnit);
+    if (unitKindChanged && productIdsWithMovements(tx, [product.id]).size > 0) {
+      throw appErrors.stockUnitLocked();
+    }
     if (input.code !== product.code) {
       checkCodeFree(tx, input.code, product.id);
     }

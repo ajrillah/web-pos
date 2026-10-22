@@ -146,6 +146,8 @@ export function ProductFormPage() {
 
   // Cashiers may edit everything except prices; price changes need owner approval (PIN).
   const pricesLocked = product !== null && user.role !== 'owner';
+  // Stock is counted in the current unit, so type and stock unit kind are fixed once it moved.
+  const unitKindLocked = product?.hasStockMovements === true;
 
   useEffect(() => {
     api
@@ -300,10 +302,18 @@ export function ProductFormPage() {
               <Label id="type-label">Jenis</Label>
               <Tabs value={draft.type} onValueChange={(v) => changeType(v as ProductType)}>
                 <TabsList aria-labelledby="type-label" className="flex w-full">
-                  <TabsTrigger value="unit" disabled={pricesLocked} className="flex-1">
+                  <TabsTrigger
+                    value="unit"
+                    disabled={pricesLocked || unitKindLocked}
+                    className="flex-1"
+                  >
                     Satuan
                   </TabsTrigger>
-                  <TabsTrigger value="bulk" disabled={pricesLocked} className="flex-1">
+                  <TabsTrigger
+                    value="bulk"
+                    disabled={pricesLocked || unitKindLocked}
+                    className="flex-1"
+                  >
                     Curah (timbang)
                   </TabsTrigger>
                 </TabsList>
@@ -313,6 +323,7 @@ export function ProductFormPage() {
               <Label htmlFor="baseUnit">Satuan stok</Label>
               {isBulk ? (
                 <Select
+                  disabled={unitKindLocked}
                   value={draft.baseUnit}
                   onValueChange={(baseUnit) =>
                     set({
@@ -339,6 +350,12 @@ export function ProductFormPage() {
                 />
               )}
             </div>
+            {unitKindLocked && (
+              <p className="col-span-2 text-sm text-muted-foreground">
+                Jenis dan satuan stok terkunci karena barang ini sudah punya riwayat stok. Untuk
+                menggantinya, nonaktifkan barang ini lalu buat barang baru.
+              </p>
+            )}
             {!product && (
               <div className="space-y-1.5">
                 <Label htmlFor="initialStock">Stok awal</Label>

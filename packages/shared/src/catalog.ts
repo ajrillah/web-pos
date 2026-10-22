@@ -92,6 +92,8 @@ export const productSchema = z.object({
   costPrice: z.number().int(),
   /** Cached stock in base units; may be negative. */
   stock: z.number().int(),
+  /** Has stock movements: type and stock unit kind are then fixed (docs/design.md 6.5). */
+  hasStockMovements: z.boolean(),
   active: z.boolean(),
   /** Active unit rows, primary first, then by factor. */
   units: z.array(productUnitSchema),

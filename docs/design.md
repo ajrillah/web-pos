@@ -190,6 +190,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
   - Open to cashiers: create products (including their initial prices) and edit code, name, category, type, base unit, and unit rows (name, factor, primary flag, deactivate) except prices.
   - Needs approval: changing any `sell_price` or `cost_price`, adding a unit row (it introduces a sell price), and deactivating a product. Reactivating is open.
   - All product, unit, and category changes are audit-logged.
+- Stock unit lock: once a product has any stock movement, its type (`unit`/`bulk`) and stock unit kind (bulk `gram` <-> `ml`) cannot change (409 `STOCK_UNIT_LOCKED`; the message suggests deactivating it and creating a new product). Stock is never converted. Renaming the stock unit label of a normal product (e.g. `pcs` -> `bks`) is allowed. `Product.hasStockMovements` tells the UI to lock these fields.
 - Type: `unit` | `bulk`.
 - Base (stock) unit; cost price.
 - Unit rows: name, factor, sell price; exactly one `is_base` (primary sell) row. Unit rows also serve as wholesale pricing (normal products only).
