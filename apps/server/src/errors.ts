@@ -67,6 +67,12 @@ export const appErrors = {
       'PRODUCT_CODE_TAKEN',
       'Kode barang sudah dipakai, termasuk oleh barang nonaktif.',
     ),
+  stockUnitLocked: () =>
+    new AppError(
+      409,
+      'STOCK_UNIT_LOCKED',
+      'Jenis barang dan satuan stok tidak dapat diubah karena barang ini sudah punya riwayat stok. Nonaktifkan barang ini, lalu buat barang baru.',
+    ),
   /** Unit rows break a rule; `message` says which. */
   invalidUnits: (message: string) => new AppError(400, 'INVALID_UNITS', message),
 };

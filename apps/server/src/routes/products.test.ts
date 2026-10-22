@@ -349,6 +349,65 @@ describe('PUT /api/products/:id', () => {
   });
 });
 
+describe('stock unit lock', () => {
+  const expectLocked = (res: {
+    statusCode: number;
+    json(): { error: { code: string; message: string } };
+  }) => {
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.code).toBe('STOCK_UNIT_LOCKED');
+    expect(res.json().error.message).toMatch(/buat barang baru/);
+  };
+
+  it('reports whether a product has stock movements', async () => {
+    expect((await created(indomie())).hasStockMovements).toBe(false);
+    expect((await created({ ...gula(), initialStock: 1000 })).hasStockMovements).toBe(true);
+  });
+
+  it('blocks changing the type once stock moved', async () => {
+    const product = await created({ ...indomie(), initialStock: 10 });
+    expectLocked(
+      await put(ownerToken, product.id, {
+        ...asInput(product),
+        type: 'bulk',
+        baseUnit: 'gram',
+        units: [{ name: 'kg', factor: 1000, sellPrice: 20000, isBase: true }],
+      }),
+    );
+  });
+
+  it('blocks switching a bulk product between gram and ml once stock moved', async () => {
+    const product = await created({ ...gula(), initialStock: 1000 });
+    const input = asInput(product);
+    expectLocked(
+      await put(ownerToken, product.id, {
+        ...input,
+        baseUnit: 'ml',
+        units: input.units.map((u) => ({ ...u, name: 'liter' })),
+      }),
+    );
+  });
+
+  it('still allows renaming the stock unit label of a normal product', async () => {
+    const product = await created({ ...indomie(), initialStock: 10 });
+    const res = await put(ownerToken, product.id, { ...asInput(product), baseUnit: 'bks' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().product).toMatchObject({ baseUnit: 'bks', stock: 10 });
+  });
+
+  it('allows changing the type while no stock has moved', async () => {
+    const product = await created(indomie());
+    const res = await put(ownerToken, product.id, {
+      ...asInput(product),
+      type: 'bulk',
+      baseUnit: 'gram',
+      units: [{ name: 'kg', factor: 1000, sellPrice: 20000, isBase: true }],
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().product).toMatchObject({ type: 'bulk', pricingFactor: 1000 });
+  });
+});
+
 describe('cashier limits', () => {
   let cashierToken: string;
   let product: Product;
