@@ -99,3 +99,48 @@ export async function createUserAs(
   }
   return res.json().user.id;
 }
+
+export const CASHIER = {
+  username: 'kasir1',
+  name: 'Rina',
+  role: 'cashier' as const,
+  pin: '555555',
+};
+
+/** Creates a cashier, logs in, and completes the forced PIN change; returns a usable session. */
+export async function activeCashier(
+  h: Harness,
+  ownerToken: string,
+): Promise<{ id: string; token: string }> {
+  const id = await createUserAs(h, ownerToken, CASHIER);
+  const token = await login(h, CASHIER.username, CASHIER.pin);
+  const res = await h.app.inject({
+    method: 'PUT',
+    url: '/api/auth/me/pin',
+    headers: withSession(token),
+    payload: { currentPin: CASHIER.pin, newPin: '565656' },
+  });
+  if (res.statusCode !== 200) {
+    throw new Error(`cashier PIN change failed: ${res.statusCode} ${res.body}`);
+  }
+  return { id, token };
+}
+
+/** Audit rows for one entity type, oldest first, with JSON values parsed. */
+export function auditRows(h: Harness, entity: string) {
+  return h.handle.sqlite
+    .prepare(
+      'select entity_id, action, user_id, old_value, new_value from audit_logs where entity = ? order by created_at, rowid',
+    )
+    .all(entity)
+    .map((r) => {
+      const row = r as Record<string, string | null>;
+      return {
+        entityId: row.entity_id,
+        action: row.action,
+        userId: row.user_id,
+        oldValue: row.old_value ? JSON.parse(row.old_value) : null,
+        newValue: row.new_value ? JSON.parse(row.new_value) : null,
+      };
+    });
+}

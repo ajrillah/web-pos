@@ -8,6 +8,7 @@ import { registerSession } from './auth/session';
 import type { AppDatabase } from './db/client';
 import { AppError, errorMessages, validationMessage } from './errors';
 import { authRoutes } from './routes/auth';
+import { categoryRoutes } from './routes/categories';
 import { healthRoutes } from './routes/health';
 import { setupRoutes } from './routes/setup';
 import { userRoutes } from './routes/users';
@@ -73,6 +74,7 @@ export async function buildApp({
   await app.register(setupRoutes, { prefix: '/api', ctx });
   await app.register(authRoutes, { prefix: '/api', ctx });
   await app.register(userRoutes, { prefix: '/api', ctx });
+  await app.register(categoryRoutes, { prefix: '/api', ctx });
 
   const hasWeb = webDir !== undefined && fs.existsSync(path.join(webDir, 'index.html'));
   if (hasWeb) {
