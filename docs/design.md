@@ -233,6 +233,12 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Customer payment void (owner PIN): allocations reversed, receivable `remaining` restored (status back to `open`).
 - No credit limit.
 - Customer ledger (Kartu Piutang) and receivables list (Daftar Piutang).
+- Customer payments are numbered `BYR-YYYYMMDD-NNNN` (local date, daily reset, same rules as TRX).
+- Payment receipt: optional PDF with the same flow as sale receipts ("Simpan bukti bayar PDF?", Enter = save, Esc = skip; then Buka, Buka folder, Unduh; later copies "SALINAN"). It lists the allocated receivables (sale number, amount applied, remaining), amount paid, change, and the customer's remaining total kasbon.
+- Sale receipts with kasbon also show the customer name, the kasbon amount, and the customer's total remaining kasbon.
+- Remaining kasbon on receipts is a snapshot taken when the sale or payment is saved (`balance_after`), so reprints match the original.
+- One payment uses one method. Cash: the amount received is entered; the applied amount is `min(received, ticked total)` and the rest is change. QRIS: the amount must not exceed the ticked total.
+- A customer with remaining kasbon cannot be deactivated.
 
 ### 6.8 Reports (Laporan, owner)
 - Sales and profit.
@@ -309,9 +315,10 @@ All tables have `id` (UUID) and `created_at`; mutable tables also have `updated_
 
 ### 9.4 Customers and receivables
 - `customers`(name, phone, note, active)
-- `receivables`(customer_id, sale_id, amount, remaining, status) — `status`: `open` | `paid` | `void`
-- `customer_payments`(customer_id, method, amount, user_id, status, voided_at, voided_by) — `status`: `active` | `voided`
-- `payment_allocations`(payment_id, receivable_id, amount)
+- `receivables`(customer_id, sale_id, amount, remaining, status) — `status`: `open` | `paid` | `void`; one per sale (`sale_id` unique); `remaining = amount - sum(active allocations)`
+- `customer_payments`(number, customer_id, method, amount, amount_received, change_amount, balance_after, user_id, status, voided_at, voided_by, receipt_count, receipt_file) — `id` is the client UUID; `number` `BYR-YYYYMMDD-NNNN`; `amount` is the applied amount; `status`: `active` | `voided`
+- `payment_allocations`(payment_id, receivable_id, amount, remaining_after) — `remaining_after` is the receipt snapshot
+- `sales` gains `customer_id` and `customer_balance_after` (customer's remaining kasbon after the sale, for the receipt).
 
 ### 9.5 Suppliers and purchases
 - `suppliers`(name, phone, note, active)
@@ -371,9 +378,12 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `POST sales/:id/void` (PIN)
 
 ### Customers and kasbon
-- `GET customers`, `POST customers`, `PUT customers/:id`, `GET customers/:id/ledger`
-- `GET receivables`
-- `POST customer-payments`, `POST customer-payments/:id/void` (PIN)
+- `GET customers` (q, status, page, limit; each with `balance`), `GET customers/:id`, `POST customers`, `PUT customers/:id` (name, phone, note, active), `GET customers/:id/ledger`
+- `GET receivables` (customerId, status `open|all`; oldest first)
+- `POST customer-payments` `{ id (client UUID), customerId, receivableIds, method, amount }` (`amount` = cash received or QRIS amount), `GET customer-payments/:id`
+- `POST customer-payments/:id/receipt`, `POST customer-payments/:id/receipt/open`, `GET customer-payments/:id/receipt.pdf`
+- `POST customer-payments/:id/void` (PIN; Stage 5)
+- `POST sales` takes an optional `customerId`; with it, an underpayment becomes kasbon (one receivable, `debt_amount`). Without it, underpayment is refused.
 
 ### Suppliers and stock
 - `GET suppliers`, `POST suppliers`, `PUT suppliers/:id`, `GET suppliers/:id/ledger`

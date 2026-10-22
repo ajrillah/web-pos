@@ -22,13 +22,21 @@ export function nextLocalDay(day: string): string {
 
 export const localDaySchemaPattern = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Sale number `TRX-YYYYMMDD-NNNN`; the sequence grows past 4 digits after 9999. */
-export function formatSaleNumber(day: string, sequence: number): string {
-  return `TRX-${day.replaceAll('-', '')}-${pad(sequence, 4)}`;
+/** Document number `<PREFIX>-YYYYMMDD-NNNN`; the sequence grows past 4 digits after 9999. */
+export function formatDocNumber(prefix: string, day: string, sequence: number): string {
+  return `${prefix}-${day.replaceAll('-', '')}-${pad(sequence, 4)}`;
 }
 
-/** Sequence part of a sale number, or null if it is not one. */
-export function saleNumberSequence(number: string): number | null {
-  const match = /^TRX-\d{8}-(\d{4,})$/.exec(number);
+/** Sequence part of a document number, or null if it is not one. */
+export function docNumberSequence(number: string): number | null {
+  const match = /^[A-Z]+-\d{8}-(\d{4,})$/.exec(number);
   return match ? Number(match[1]) : null;
 }
+
+/** Sale number `TRX-YYYYMMDD-NNNN`. */
+export const formatSaleNumber = (day: string, sequence: number) =>
+  formatDocNumber('TRX', day, sequence);
+
+/** Customer payment number `BYR-YYYYMMDD-NNNN`. */
+export const formatPaymentNumber = (day: string, sequence: number) =>
+  formatDocNumber('BYR', day, sequence);

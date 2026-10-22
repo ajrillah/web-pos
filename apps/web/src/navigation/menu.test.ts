@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  customerTabsFor,
   type MenuItem,
   menuFor,
   productTabsFor,
@@ -71,6 +72,16 @@ describe('settingsTabsFor', () => {
 describe('productTabsFor', () => {
   it('opens every Barang tab to cashiers (approval is per action)', () => {
     expect(labels(productTabsFor('cashier'))).toEqual(['Daftar', 'Kategori', 'Impor']);
+  });
+});
+
+describe('customerTabsFor', () => {
+  it('lists the Pelanggan sub-pages, open to cashiers', () => {
+    expect(labels(customerTabsFor('cashier'))).toEqual([
+      'Daftar',
+      'Kartu Piutang',
+      'Daftar Piutang',
+    ]);
   });
 });
 

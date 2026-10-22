@@ -13,26 +13,38 @@ import {
   sql,
 } from 'drizzle-orm';
 import type { Executor } from '../db/client';
-import { saleItems, salePayments, sales, users } from '../db/schema';
+import { customers, saleItems, salePayments, sales, users } from '../db/schema';
 
 export type SaleRow = typeof sales.$inferSelect;
 export type NewSaleRow = typeof sales.$inferInsert;
 export type SaleItemRow = typeof saleItems.$inferSelect;
 export type NewSaleItemRow = typeof saleItems.$inferInsert;
 export type SalePaymentRow = typeof salePayments.$inferSelect;
-export type SaleWithCashier = SaleRow & { cashierName: string; itemCount: number };
+export type SaleWithCashier = SaleRow & {
+  cashierName: string;
+  customerName: string | null;
+  itemCount: number;
+};
 
-const itemCount = sql<number>`(select count(*) from ${saleItems} where ${saleItems.saleId} = ${sales.id})`;
+// Explicit names: Drizzle leaves columns unqualified in single-table queries.
+const itemCount = sql<number>`(select count(*) from sale_items i where i.sale_id = "sales"."id")`;
 
-const withCashier = { sale: sales, cashierName: users.name, itemCount };
+const withCashier = {
+  sale: sales,
+  cashierName: users.name,
+  customerName: customers.name,
+  itemCount,
+};
 
 const flatten = (r: {
   sale: SaleRow;
   cashierName: string;
+  customerName: string | null;
   itemCount: number;
 }): SaleWithCashier => ({
   ...r.sale,
   cashierName: r.cashierName,
+  customerName: r.customerName,
   itemCount: r.itemCount,
 });
 
@@ -41,6 +53,7 @@ export function findSaleById(db: Executor, id: string): SaleWithCashier | undefi
     .select(withCashier)
     .from(sales)
     .innerJoin(users, eq(users.id, sales.cashierId))
+    .leftJoin(customers, eq(customers.id, sales.customerId))
     .where(eq(sales.id, id))
     .get();
   return row && flatten(row);
@@ -109,6 +122,7 @@ export function listHeldSales(db: Executor, before?: string): SaleWithCashier[] 
     .select(withCashier)
     .from(sales)
     .innerJoin(users, eq(users.id, sales.cashierId))
+    .leftJoin(customers, eq(customers.id, sales.customerId))
     .where(and(...conditions))
     .orderBy(desc(sales.createdAt))
     .all()
@@ -171,6 +185,7 @@ export function searchSales(
     .select(withCashier)
     .from(sales)
     .innerJoin(users, eq(users.id, sales.cashierId))
+    .leftJoin(customers, eq(customers.id, sales.customerId))
     .where(where)
     .orderBy(desc(sales.completedAt))
     .limit(search.limit)

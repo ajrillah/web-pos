@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  type CustomerPayment,
   formatInteger,
   formatRupiah,
   formatUnitQty,
@@ -10,8 +11,10 @@ import {
 } from '@toko-podomoro/shared';
 import PDFDocument from 'pdfkit';
 import { appErrors } from '../errors';
+import { findPaymentById, updatePayment } from '../repositories/customer-payments-repository';
 import { findSaleById, updateSale } from '../repositories/sales-repository';
 import type { ServiceContext } from './context';
+import { loadPayment } from './payment-service';
 import { getSale } from './sale-service';
 import { getSettings } from './settings-service';
 
@@ -85,6 +88,7 @@ export function receiptLines(sale: Sale, settings: Settings, { copy }: ReceiptOp
   lines.push(...columns('No', sale.number ?? '-', w));
   lines.push(...columns('Tanggal', localDateTime(sale.completedAt ?? sale.createdAt), w));
   lines.push(...columns('Kasir', sale.cashierName, w));
+  if (sale.customerName) lines.push(...columns('Pelanggan', sale.customerName, w));
   lines.push(rule);
   for (const item of sale.items) {
     lines.push(...wrap(item.productName, w));
@@ -104,7 +108,55 @@ export function receiptLines(sale: Sale, settings: Settings, { copy }: ReceiptOp
       ...columns(payment.method === 'cash' ? 'Tunai' : 'QRIS', formatInteger(payment.amount), w),
     );
   }
-  lines.push(...columns('Kembali', formatInteger(sale.changeAmount), w));
+  if (sale.debtAmount > 0) {
+    lines.push(...columns('Kasbon', formatInteger(sale.debtAmount), w));
+  } else {
+    lines.push(...columns('Kembali', formatInteger(sale.changeAmount), w));
+  }
+  if (sale.customerBalanceAfter !== null) {
+    lines.push(rule);
+    lines.push(...columns('Sisa kasbon', formatRupiah(sale.customerBalanceAfter), w));
+  }
+  lines.push(rule);
+  if (settings.receiptFooter) lines.push(...center(settings.receiptFooter, w));
+  return lines.map((line) => line.trimEnd());
+}
+
+/** Payment receipt ("bukti bayar kasbon") as fixed-width text lines. */
+export function paymentReceiptLines(
+  payment: CustomerPayment,
+  settings: Settings,
+  { copy }: ReceiptOptions,
+): string[] {
+  const w = LINE_CHARS[settings.receiptWidth];
+  const rule = '-'.repeat(w);
+  const lines: string[] = [];
+  lines.push(...center(settings.storeName, w));
+  if (settings.storeAddress) lines.push(...center(settings.storeAddress, w));
+  if (settings.storePhone) lines.push(...center(settings.storePhone, w));
+  lines.push(...center('BUKTI BAYAR KASBON', w));
+  if (copy) lines.push(...center('*** SALINAN ***', w));
+  if (payment.status === 'voided') lines.push(...center('*** DIBATALKAN ***', w));
+  lines.push(rule);
+  lines.push(...columns('No', payment.number, w));
+  lines.push(...columns('Tanggal', localDateTime(payment.createdAt), w));
+  lines.push(...columns('Kasir', payment.userName, w));
+  lines.push(...columns('Pelanggan', payment.customerName, w));
+  lines.push(rule);
+  for (const a of payment.allocations) {
+    lines.push(...columns(a.saleNumber, formatInteger(a.amount), w));
+    lines.push(...columns('  sisa', formatInteger(a.remainingAfter), w));
+  }
+  lines.push(rule);
+  lines.push(...columns('DIBAYAR', formatRupiah(payment.amount), w));
+  if (payment.method === 'cash') {
+    lines.push(...columns('Tunai', formatInteger(payment.amountReceived), w));
+    lines.push(...columns('Kembali', formatInteger(payment.changeAmount), w));
+  } else {
+    lines.push(...columns('QRIS', formatInteger(payment.amountReceived), w));
+  }
+  lines.push(rule);
+  lines.push(...columns('Sisa kasbon', formatRupiah(payment.balanceAfter), w));
   lines.push(rule);
   if (settings.receiptFooter) lines.push(...center(settings.receiptFooter, w));
   return lines.map((line) => line.trimEnd());
@@ -136,34 +188,63 @@ export function renderReceiptPdf(lines: string[], widthMm: 58 | 80): Promise<Buf
   return done;
 }
 
-function printableSale(ctx: ServiceContext, saleId: string): Sale {
-  const sale = getSale(ctx, saleId);
-  if (sale.status === 'held' || !sale.number) {
+/** A printable document: a completed/voided sale or a customer payment. */
+interface ReceiptDoc {
+  number: string;
+  receiptCount: number;
+  receiptFile: string | null;
+  lines: (settings: Settings, copy: boolean) => string[];
+  record: (patch: { receiptCount: number; receiptFile?: string }) => void;
+}
+
+export type ReceiptKind = 'sale' | 'payment';
+
+function receiptDoc(ctx: ServiceContext, kind: ReceiptKind, id: string): ReceiptDoc {
+  if (kind === 'payment') {
+    const payment = loadPayment(ctx.db, id);
+    const row = findPaymentById(ctx.db, id);
+    return {
+      number: payment.number,
+      receiptCount: payment.receiptCount,
+      receiptFile: row?.receiptFile ?? null,
+      lines: (settings, copy) => paymentReceiptLines(payment, settings, { copy }),
+      record: (patch) => updatePayment(ctx.db, id, patch),
+    };
+  }
+  const row = findSaleById(ctx.db, id);
+  if (!row || row.status === 'held' || !row.number) {
     throw appErrors.saleNotFound();
   }
-  return sale;
+  const sale = getSale(ctx, id);
+  return {
+    number: row.number,
+    receiptCount: row.receiptCount,
+    receiptFile: row.receiptFile,
+    lines: (settings, copy) => receiptLines(sale, settings, { copy }),
+    record: (patch) => updateSale(ctx.db, id, patch),
+  };
 }
 
-/** Builds the next receipt for a sale and counts it (the first is the original). */
-async function nextReceipt(ctx: ServiceContext, saleId: string) {
-  const sale = printableSale(ctx, saleId);
+/** Builds the next receipt and its file name (the first is the original, later ones copies). */
+async function nextReceipt(ctx: ServiceContext, kind: ReceiptKind, id: string) {
+  const doc = receiptDoc(ctx, kind, id);
   const settings = getSettings(ctx.db);
-  const copy = sale.receiptCount > 0;
+  const copy = doc.receiptCount > 0;
   const pdf = await renderReceiptPdf(
-    receiptLines(sale, settings, { copy }),
+    doc.lines(settings, copy),
     settings.receiptWidth === '80' ? 80 : 58,
   );
-  return { sale, settings, copy, pdf };
+  return { doc, settings, copy, pdf, fileName: `${doc.number}${copy ? '-SALINAN' : ''}.pdf` };
 }
 
-/** Saves the receipt PDF to the receipt folder: `<TRX>.pdf`, copies `<TRX>-SALINAN.pdf`. */
+/** Saves the receipt PDF to the receipt folder: `<NO>.pdf`, copies `<NO>-SALINAN.pdf`. */
 export async function saveReceipt(
   ctx: ServiceContext,
-  saleId: string,
+  kind: ReceiptKind,
+  id: string,
 ): Promise<ReceiptSavedResponse> {
-  const { sale, settings, copy, pdf } = await nextReceipt(ctx, saleId);
+  const { doc, settings, copy, pdf, fileName } = await nextReceipt(ctx, kind, id);
   const folder = settings.receiptFolder;
-  const fileName = `${sale.number}${copy ? '-SALINAN' : ''}.pdf`;
   const file = path.join(folder, fileName);
   try {
     fs.mkdirSync(folder, { recursive: true });
@@ -171,30 +252,28 @@ export async function saveReceipt(
   } catch {
     throw appErrors.receiptSaveFailed(folder);
   }
-  updateSale(ctx.db, sale.id, { receiptCount: sale.receiptCount + 1, receiptFile: file });
+  doc.record({ receiptCount: doc.receiptCount + 1, receiptFile: file });
   return { fileName, folder, copy };
 }
 
 /** Receipt PDF for a browser download; counted like a saved one. */
 export async function downloadReceipt(
   ctx: ServiceContext,
-  saleId: string,
+  kind: ReceiptKind,
+  id: string,
 ): Promise<{ fileName: string; pdf: Buffer }> {
-  const { sale, copy, pdf } = await nextReceipt(ctx, saleId);
-  updateSale(ctx.db, sale.id, { receiptCount: sale.receiptCount + 1 });
-  return { fileName: `${sale.number}${copy ? '-SALINAN' : ''}.pdf`, pdf };
+  const { doc, pdf, fileName } = await nextReceipt(ctx, kind, id);
+  doc.record({ receiptCount: doc.receiptCount + 1 });
+  return { fileName, pdf };
 }
 
 /** "Buka": opens the last saved receipt in the default PDF viewer. */
-export function openReceipt(ctx: ServiceContext, saleId: string): void {
-  const row = findSaleById(ctx.db, saleId);
-  if (!row || row.status === 'held') {
-    throw appErrors.saleNotFound();
-  }
-  if (!row.receiptFile || !fs.existsSync(row.receiptFile)) {
+export function openReceipt(ctx: ServiceContext, kind: ReceiptKind, id: string): void {
+  const doc = receiptDoc(ctx, kind, id);
+  if (!doc.receiptFile || !fs.existsSync(doc.receiptFile)) {
     throw appErrors.receiptNotSaved();
   }
-  ctx.openPath(row.receiptFile);
+  ctx.openPath(doc.receiptFile);
 }
 
 /** "Buka folder": opens the receipt folder, creating it first if needed. */

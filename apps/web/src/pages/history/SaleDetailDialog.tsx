@@ -9,8 +9,9 @@ import { Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
-import { api } from '../../api/endpoints';
+import { api, receipts } from '../../api/endpoints';
 import { ErrorAlert } from '../../components/forms';
+import { ReceiptActions } from '../../components/receipts/ReceiptActions';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import {
@@ -20,7 +21,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog';
-import { ReceiptActions } from '../kasir/ReceiptActions';
 
 export const dateTime = (iso: string) =>
   new Date(iso).toLocaleString('id-ID', {
@@ -56,7 +56,7 @@ export function SaleDetailDialog({
   async function save() {
     if (!sale) return;
     try {
-      const saved: ReceiptSavedResponse = await api.saveReceipt(sale.id);
+      const saved: ReceiptSavedResponse = await receipts.save('sale', sale.id);
       toast.success(`Nota disimpan: ${saved.fileName}`);
       setSale((await api.getSale(sale.id)).sale);
     } catch (err) {
@@ -106,7 +106,20 @@ export function SaleDetailDialog({
                   value={formatRupiah(p.amount)}
                 />
               ))}
-              <Row label="Kembalian" value={formatRupiah(sale.changeAmount)} />
+              {sale.debtAmount > 0 ? (
+                <>
+                  <Row
+                    label={`Kasbon · ${sale.customerName}`}
+                    value={formatRupiah(sale.debtAmount)}
+                  />
+                  <Row
+                    label="Sisa kasbon setelah transaksi"
+                    value={formatRupiah(sale.customerBalanceAfter ?? 0)}
+                  />
+                </>
+              ) : (
+                <Row label="Kembalian" value={formatRupiah(sale.changeAmount)} />
+              )}
             </dl>
             <div className="space-y-3 border-t border-border pt-4">
               <div className="flex items-center gap-3">
@@ -120,7 +133,7 @@ export function SaleDetailDialog({
                     : 'Nota belum pernah dibuat.'}
                 </span>
               </div>
-              <ReceiptActions saleId={sale.id} />
+              <ReceiptActions kind="sale" id={sale.id} />
             </div>
           </div>
         )}

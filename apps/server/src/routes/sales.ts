@@ -82,18 +82,18 @@ export const saleRoutes: FastifyPluginAsync<{ ctx: ServiceContext }> = async (ap
 
   app.post('/sales/:id/receipt', async (request): Promise<ReceiptSavedResponse> => {
     const { id } = idParamsSchema.parse(request.params);
-    return saveReceipt(ctx, id);
+    return saveReceipt(ctx, 'sale', id);
   });
 
   app.post('/sales/:id/receipt/open', async (request, reply) => {
     const { id } = idParamsSchema.parse(request.params);
-    openReceipt(ctx, id);
+    openReceipt(ctx, 'sale', id);
     return reply.status(204).send();
   });
 
   app.get('/sales/:id/receipt.pdf', async (request, reply) => {
     const { id } = idParamsSchema.parse(request.params);
-    const { fileName, pdf } = await downloadReceipt(ctx, id);
+    const { fileName, pdf } = await downloadReceipt(ctx, 'sale', id);
     return reply
       .header('content-type', 'application/pdf')
       .header('content-disposition', `attachment; filename="${fileName}"`)

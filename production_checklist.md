@@ -70,12 +70,12 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 
 ## Stage 4 — Kasbon
 
-- [ ] Customers: list, add (cashier allowed), edit, deactivate; audit logged
-- [ ] Underpayment -> kasbon dialog; pick or quick-add customer; one receivable per sale
-- [ ] Customer payments (cash/QRIS) allocated to ticked receivables (oldest pre-ticked, oldest filled first, cannot exceed ticked total)
-- [ ] Cash payment: amount received and change shown
-- [ ] Kartu Piutang (ledger) and Daftar Piutang
-- [ ] Reconciliation tests: remaining = amount - active allocations; customer balance = sum of remaining
+- [x] Customers: list, add (cashier allowed), edit, deactivate; audit logged
+- [x] Underpayment -> kasbon dialog; pick or quick-add customer; one receivable per sale
+- [x] Customer payments (cash/QRIS) allocated to ticked receivables (oldest pre-ticked, oldest filled first, cannot exceed ticked total)
+- [x] Cash payment: amount received and change shown
+- [x] Kartu Piutang (ledger) and Daftar Piutang
+- [x] Reconciliation tests: remaining = amount - active allocations; customer balance = sum of remaining
 
 **Done when:** balances always reconcile.
 

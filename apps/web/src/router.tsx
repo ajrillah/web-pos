@@ -11,6 +11,10 @@ import { ForcedChangePinPage } from './pages/auth/ForcedChangePinPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RecoverPinPage } from './pages/auth/RecoverPinPage';
 import { SetupPage } from './pages/auth/SetupPage';
+import { CustomersLayout } from './pages/customers/CustomersLayout';
+import { CustomersPage } from './pages/customers/CustomersPage';
+import { LedgerPage } from './pages/customers/LedgerPage';
+import { ReceivablesPage } from './pages/customers/ReceivablesPage';
 import { HistoryPage } from './pages/history/HistoryPage';
 import { KasirPage } from './pages/kasir/KasirPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -61,7 +65,15 @@ export const router = createBrowserRouter([
               { path: '/barang/baru', element: <ProductFormPage /> },
               { path: '/barang/:id', element: <ProductFormPage /> },
               { path: '/stok', element: <ComingSoonPage title="Stok" stage={7} /> },
-              { path: '/pelanggan', element: <ComingSoonPage title="Pelanggan" stage={4} /> },
+              {
+                path: '/pelanggan',
+                element: <CustomersLayout />,
+                children: [
+                  { index: true, element: <CustomersPage /> },
+                  { path: 'kartu', element: <LedgerPage /> },
+                  { path: 'piutang', element: <ReceivablesPage /> },
+                ],
+              },
               { path: '/pemasok', element: <ComingSoonPage title="Pemasok" stage={7} /> },
               {
                 path: '/laporan',
