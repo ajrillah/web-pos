@@ -2,6 +2,8 @@
 
 Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typecheck, tests), and committed.
 
+Order: stages run 0-5, 7, 8, 9, 6, 10. Stage numbers are kept; Distribution (6) moved after Import (9).
+
 ## Stage 0 — Foundation
 
 - [x] pnpm workspace: `apps/server`, `apps/web`, `packages/shared`
@@ -92,20 +94,6 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 
 **Done when:** MVP complete; tag `v0.1.0-mvp` (ask before tagging).
 
-## Stage 6 — Distribution
-
-- [ ] Inno Setup installer with bundled portable `node.exe`
-- [ ] Launcher runs server under the logged-in user; prevents duplicate server; opens Edge `--app=http://127.0.0.1:<port>`
-- [ ] Autostart on login
-- [ ] Port configurable in config file; busy-port error shown to user
-- [ ] Data in `C:\ProgramData\TokoPodomoro\`; uninstall keeps data
-- [ ] Default receipt folder `%USERPROFILE%\Documents\TokoPodomoro\Nota` created on first save
-- [ ] Manual backup (and documented restore)
-- [ ] F-key capture verified manually in Edge `--app` mode on Windows; switch on the Alt+number fallback for any key that fails
-- [ ] Revisit web bundle size: code-split routes (Vite warns the main chunk is > 500 kB)
-
-**Done when:** runs on a clean PC; deployed to pilot store; tag `v0.2.0-pilot` (ask before tagging).
-
 ## Stage 7 — Stock & suppliers
 
 - [ ] Suppliers: list, add, edit, deactivate; audit logged
@@ -146,6 +134,20 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 - [ ] Commit import in one transaction; audit logged
 
 **Done when:** a 500-row file imports; invalid rows reported, none saved partially.
+
+## Stage 6 — Distribution
+
+- [ ] Inno Setup installer with bundled portable `node.exe`
+- [ ] Launcher runs server under the logged-in user; prevents duplicate server; opens Edge `--app=http://127.0.0.1:<port>`
+- [ ] Autostart on login
+- [ ] Port configurable in config file; busy-port error shown to user
+- [ ] Data in `C:\ProgramData\TokoPodomoro\`; uninstall keeps data
+- [ ] Default receipt folder `%USERPROFILE%\Documents\TokoPodomoro\Nota` created on first save
+- [ ] Manual backup (and documented restore)
+- [ ] F-key capture verified manually in Edge `--app` mode on Windows; switch on the Alt+number fallback for any key that fails
+- [ ] Revisit web bundle size: code-split routes (Vite warns the main chunk is > 500 kB)
+
+**Done when:** runs on a clean PC; deployed to pilot store; tag `v0.2.0-pilot` (ask before tagging).
 
 ## Stage 10 — Deferred
 
