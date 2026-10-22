@@ -1,8 +1,14 @@
 import os from 'node:os';
 import path from 'node:path';
-import { roundingModeSchema, type Settings } from '@toko-podomoro/shared';
+import {
+  roundingModeSchema,
+  type Settings,
+  type UpdateSettingsRequest,
+} from '@toko-podomoro/shared';
 import type { Executor } from '../db/client';
-import { readSettings } from '../repositories/settings-repository';
+import { insertAudit } from '../repositories/audit-repository';
+import { readSettings, writeSetting } from '../repositories/settings-repository';
+import type { Actor, ServiceContext } from './context';
 
 // Settings keys and defaults: docs/design.md 9.7. Editing them arrives in Stage 5.
 
@@ -39,4 +45,47 @@ export function getSettings(db: Executor): Settings {
     receiptFolder: resolveReceiptFolder(text('receipt_folder', DEFAULT_RECEIPT_FOLDER)),
     autoLockMinutes: Number.isInteger(autoLock) && autoLock > 0 ? autoLock : 5,
   };
+}
+
+const SETTING_KEYS: Record<keyof UpdateSettingsRequest, string> = {
+  storeName: 'store_name',
+  storeAddress: 'store_address',
+  storePhone: 'store_phone',
+  receiptFooter: 'receipt_footer',
+  rounding: 'rounding',
+  receiptWidth: 'receipt_width',
+  receiptFolder: 'receipt_folder',
+  autoLockMinutes: 'auto_lock_minutes',
+};
+
+/** Saves the given settings; each changed key gets an audit row (docs/design.md 4.7). */
+export function updateSettings(
+  ctx: ServiceContext,
+  actor: Actor,
+  input: UpdateSettingsRequest,
+): Settings {
+  return ctx.db.transaction((tx) => {
+    const stored = readSettings(tx);
+    for (const [field, value] of Object.entries(input) as [
+      keyof UpdateSettingsRequest,
+      unknown,
+    ][]) {
+      if (value === undefined) continue;
+      const key = SETTING_KEYS[field];
+      const next = String(value);
+      const previous = stored.get(key) ?? null;
+      if (previous === next) continue;
+      writeSetting(tx, key, next);
+      insertAudit(tx, {
+        userId: actor.id,
+        approvedBy: actor.approvedBy ?? null,
+        entity: 'setting',
+        entityId: key,
+        action: 'update',
+        oldValue: previous,
+        newValue: next,
+      });
+    }
+    return getSettings(tx);
+  });
 }

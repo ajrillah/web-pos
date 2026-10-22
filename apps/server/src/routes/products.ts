@@ -8,7 +8,7 @@ import {
 } from '@toko-podomoro/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { currentUser, requireUser } from '../auth/session';
+import { approvalFor, currentActor, currentUser, requireUser } from '../auth/session';
 import type { ServiceContext } from '../services/context';
 import {
   createProduct,
@@ -52,12 +52,15 @@ export const productRoutes: FastifyPluginAsync<{ ctx: ServiceContext }> = async 
   app.put('/products/:id', async (request): Promise<ProductResponse> => {
     const { id } = idParamsSchema.parse(request.params);
     const input = updateProductRequestSchema.parse(request.body);
-    return { product: updateProductById(ctx, currentUser(request), id, input) };
+    // Price changes need approval for cashiers; the service decides whether this edit has any.
+    approvalFor(request, ctx.approvals, 'product.price', id);
+    return { product: updateProductById(ctx, currentActor(request), id, input) };
   });
 
   app.patch('/products/:id/active', async (request): Promise<ProductResponse> => {
     const { id } = idParamsSchema.parse(request.params);
     const { active } = setProductActiveRequestSchema.parse(request.body);
-    return { product: setProductActive(ctx, currentUser(request), id, active) };
+    if (!active) approvalFor(request, ctx.approvals, 'product.deactivate', id);
+    return { product: setProductActive(ctx, currentActor(request), id, active) };
   });
 };

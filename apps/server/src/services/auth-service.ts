@@ -1,7 +1,10 @@
 import type {
+  ApproveRequest,
+  ApproveResponse,
   ChangePinRequest,
   ChangePinResponse,
   LoginRequest,
+  LoginUser,
   RecoverRequest,
   RecoveryCodeResponse,
   SetupRequest,
@@ -15,6 +18,7 @@ import {
   expireUserSessions,
   findLiveSessionByTokenHash,
   insertSession,
+  setSessionLock,
   touchSession,
 } from '../repositories/sessions-repository';
 import {
@@ -22,6 +26,8 @@ import {
   findUserById,
   findUserByUsername,
   insertUser,
+  listActiveOwners,
+  listActiveUsers,
   type UserRow,
   updateUser,
 } from '../repositories/users-repository';
@@ -45,6 +51,7 @@ export const SESSION_TOUCH_INTERVAL_MS = 60 * 1000;
 export interface ResolvedSession {
   user: UserRow;
   sessionId: string;
+  locked: boolean;
 }
 
 const iso = (date: Date) => date.toISOString();
@@ -101,24 +108,128 @@ export async function setup(
   });
 }
 
+/**
+ * Failed PIN attempts are audit-logged with the user and the intended action; there is no
+ * lockout (docs/design.md 5).
+ */
+function auditFailedPin(
+  db: Executor,
+  entry: {
+    /** The logged-in user, if any (unlock, approval). */
+    userId: string | null;
+    /** The user whose PIN was tried (the tile at login; the cashier for approvals). */
+    subjectId: string;
+    context: 'login' | 'unlock' | 'approve';
+    scope?: string;
+    targetId?: string | null;
+  },
+): void {
+  insertAudit(db, {
+    userId: entry.userId,
+    entity: 'auth',
+    entityId: entry.subjectId,
+    action: 'failed_pin',
+    newValue: {
+      context: entry.context,
+      ...(entry.scope ? { scope: entry.scope } : {}),
+      ...(entry.targetId ? { targetId: entry.targetId } : {}),
+    },
+  });
+}
+
+/** Login tiles: active users only, without usernames. */
+export function listLoginUsers(ctx: ServiceContext): LoginUser[] {
+  return listActiveUsers(ctx.db).map((u) => ({ id: u.id, name: u.name, role: u.role }));
+}
+
 export async function login(
   ctx: ServiceContext,
   input: LoginRequest,
 ): Promise<{ user: User; token: string }> {
-  const row = findUserByUsername(ctx.db, input.username);
+  const row = findUserById(ctx.db, input.userId);
   if (!row?.active) {
     await verifyAgainstDummy(input.pin);
+    auditFailedPin(ctx.db, { userId: null, subjectId: input.userId, context: 'login' });
     throw appErrors.invalidCredentials();
   }
   if (!(await verifySecret(input.pin, row.pinHash))) {
+    auditFailedPin(ctx.db, { userId: null, subjectId: row.id, context: 'login' });
     throw appErrors.invalidCredentials();
   }
   const token = createSession(ctx.db, row.id, ctx.now());
   return { user: toUser(row), token };
 }
 
+/** Ctrl+L or idle: the session stays, but only its own user can unlock it. */
+export function lock(ctx: ServiceContext, sessionId: string): void {
+  setSessionLock(ctx.db, sessionId, iso(ctx.now()));
+  ctx.approvals.revokeSession(sessionId);
+}
+
+export async function unlock(ctx: ServiceContext, session: ResolvedSession, pin: string) {
+  if (!(await verifySecret(pin, session.user.pinHash))) {
+    auditFailedPin(ctx.db, {
+      userId: session.user.id,
+      subjectId: session.user.id,
+      context: 'unlock',
+    });
+    throw appErrors.wrongPin();
+  }
+  setSessionLock(ctx.db, session.sessionId, null);
+}
+
+/**
+ * A cashier asks an owner to type their PIN. The PIN is tried against every active owner;
+ * the matching owner approves. Grants are audit-logged; failures too.
+ */
+export async function approve(
+  ctx: ServiceContext,
+  session: ResolvedSession,
+  input: ApproveRequest,
+): Promise<ApproveResponse> {
+  let owner: UserRow | undefined;
+  for (const candidate of listActiveOwners(ctx.db)) {
+    if (await verifySecret(input.pin, candidate.pinHash)) {
+      owner = candidate;
+      break;
+    }
+  }
+  const targetId = input.targetId ?? null;
+  if (!owner) {
+    auditFailedPin(ctx.db, {
+      userId: session.user.id,
+      subjectId: session.user.id,
+      context: 'approve',
+      scope: input.scope,
+      targetId,
+    });
+    throw appErrors.wrongOwnerPin();
+  }
+  const approval = ctx.approvals.grant({
+    scope: input.scope,
+    targetId,
+    sessionId: session.sessionId,
+    cashierId: session.user.id,
+    ownerId: owner.id,
+  });
+  insertAudit(ctx.db, {
+    userId: session.user.id,
+    approvedBy: owner.id,
+    entity: 'approval',
+    entityId: approval.targetId ?? input.scope,
+    action: 'grant',
+    newValue: { scope: input.scope, targetId: approval.targetId, kind: approval.kind },
+  });
+  return {
+    token: approval.token,
+    expiresAt: new Date(approval.expiresAt).toISOString(),
+    ownerName: owner.name,
+  };
+}
+
 export function logout(ctx: ServiceContext, sessionId: string): void {
   expireSession(ctx.db, sessionId, iso(ctx.now()));
+  ctx.approvals.revokeSession(sessionId);
 }
 
 /** Looks up a live session for an active user and extends its idle expiry. */
@@ -135,7 +246,7 @@ export function resolveSession(ctx: ServiceContext, token: string): ResolvedSess
   if (now.getTime() - Date.parse(session.lastSeenAt) >= SESSION_TOUCH_INTERVAL_MS) {
     touchSession(ctx.db, session.id, iso(now), iso(plus(now, SESSION_IDLE_MS)));
   }
-  return { user, sessionId: session.id };
+  return { user, sessionId: session.id, locked: session.lockedAt !== null };
 }
 
 /**

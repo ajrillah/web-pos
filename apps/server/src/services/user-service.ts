@@ -40,6 +40,7 @@ export async function createUser(
     });
     insertAudit(tx, {
       userId: actor.id,
+      approvedBy: actor.approvedBy ?? null,
       entity: 'user',
       entityId: user.id,
       action: 'create',
@@ -89,6 +90,7 @@ export async function updateUserById(
     }
     insertAudit(tx, {
       userId: actor.id,
+      approvedBy: actor.approvedBy ?? null,
       entity: 'user',
       entityId: row.id,
       action: pinHash === undefined ? 'update' : 'reset_pin',

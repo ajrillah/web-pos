@@ -34,6 +34,8 @@ export const sessions = sqliteTable(
     tokenHash: text('token_hash').notNull().unique(),
     expiresAt: text('expires_at').notNull(),
     lastSeenAt: text('last_seen_at').notNull(),
+    // Set while the screen is locked (Ctrl+L or idle); only the same user can unlock.
+    lockedAt: text('locked_at'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -320,6 +322,7 @@ export const customerPayments = sqliteTable(
     status: text('status', { enum: ['active', 'voided'] }).notNull(),
     voidedAt: text('voided_at'),
     voidedBy: text('voided_by').references(() => users.id),
+    voidReason: text('void_reason'),
     receiptCount: integer('receipt_count').notNull().default(0),
     receiptFile: text('receipt_file'),
     createdAt: createdAt(),

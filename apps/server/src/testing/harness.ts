@@ -9,6 +9,7 @@ import { type DatabaseHandle, openDatabase } from '../db/client';
 import { runMigrations } from '../db/migrate';
 import { migrationsDir } from '../paths';
 import { writeSetting } from '../repositories/settings-repository';
+import { ApprovalStore } from '../security/approvals';
 import type { ServiceContext } from '../services/context';
 
 /** A test app on a migrated SQLite file in a temp dir, with a clock tests can move. */
@@ -89,11 +90,19 @@ export async function setupOwner(h: Harness): Promise<{ token: string; recoveryC
   return { token: sessionCookie(res), recoveryCode: res.json().recoveryCode };
 }
 
+/** The id of the user with this username (login tiles identify users by id). */
+export function userIdOf(h: Harness, username: string): string {
+  const row = h.handle.sqlite.prepare('select id from users where username = ?').get(username) as
+    | { id: string }
+    | undefined;
+  return row?.id ?? `unknown-${username}`;
+}
+
 export async function login(h: Harness, username: string, pin: string): Promise<string> {
   const res = await h.app.inject({
     method: 'POST',
     url: '/api/auth/login',
-    payload: { username, pin },
+    payload: { userId: userIdOf(h, username), pin },
   });
   return sessionCookie(res);
 }
@@ -163,7 +172,13 @@ export function auditRows(h: Harness, entity: string) {
 
 /** Service context on the harness DB and clock, for calling services directly. */
 export function serviceContext(h: Harness): ServiceContext {
-  return { db: h.handle.db, now: () => h.clock.now, openPath: (t) => h.opened.push(t) };
+  const now = () => h.clock.now;
+  return {
+    db: h.handle.db,
+    now,
+    openPath: (t) => h.opened.push(t),
+    approvals: new ApprovalStore(now),
+  };
 }
 
 /** Creates a product as the given user and returns it (`category` is a category name). */
