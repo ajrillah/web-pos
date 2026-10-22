@@ -7,6 +7,8 @@ import {
   requiresOwnerPin,
   settingsHomeFor,
   settingsTabsFor,
+  stockTabsFor,
+  supplierTabsFor,
 } from './menu';
 
 const labels = (items: MenuItem[]) =>
@@ -82,6 +84,19 @@ describe('customerTabsFor', () => {
       'Kartu Piutang',
       'Daftar Piutang',
     ]);
+  });
+});
+
+describe('stockTabsFor and supplierTabsFor', () => {
+  it('lists the Stok and Pemasok sub-pages, open to cashiers', () => {
+    expect(labels(stockTabsFor('cashier'))).toEqual([
+      'Stok Masuk',
+      'Penyesuaian',
+      'Opname',
+      'Riwayat',
+    ]);
+    expect(stockTabsFor('cashier').some((t) => t.requiresOwnerPin)).toBe(false);
+    expect(labels(supplierTabsFor('cashier'))).toEqual(['Daftar', 'Kartu Hutang', 'Daftar Hutang']);
   });
 });
 
