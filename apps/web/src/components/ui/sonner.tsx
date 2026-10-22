@@ -5,7 +5,7 @@ export function Toaster(props: ToasterProps) {
   return (
     <Sonner
       theme="light"
-      position="top-center"
+      position="bottom-right"
       toastOptions={{
         classNames: {
           toast:

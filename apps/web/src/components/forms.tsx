@@ -1,5 +1,12 @@
 import { pinSchema, usernameSchema } from '@toko-podomoro/shared';
-import type { InputHTMLAttributes, ReactNode } from 'react';
+import { CircleAlert } from 'lucide-react';
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
+import { cn } from '../lib/utils';
+import { BrandMark } from './BrandMark';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 
 export const fieldMessages = {
   pin: 'PIN harus 6 angka.',
@@ -23,16 +30,12 @@ interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
 }
 
-export function TextField({ label, id, ...props }: FieldProps & { id: string }) {
+export function TextField({ label, id, className, ...props }: FieldProps & { id: string }) {
   return (
-    <label htmlFor={id} className="block space-y-1">
-      <span className="text-sm font-medium text-slate-700">{label}</span>
-      <input
-        id={id}
-        className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-lg focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300"
-        {...props}
-      />
-    </label>
+    <div className={cn('space-y-1.5', className)}>
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} {...props} />
+    </div>
   );
 }
 
@@ -53,8 +56,12 @@ export function PinField(props: FieldProps & { id: string }) {
 export function ErrorAlert({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p role="alert" className="rounded border border-red-300 bg-red-50 px-3 py-2 text-red-800">
-      {message}
+    <p
+      role="alert"
+      className="flex items-start gap-2.5 rounded-control bg-destructive-soft px-4 py-3 text-destructive"
+    >
+      <CircleAlert className="mt-0.5 size-[18px] shrink-0" aria-hidden />
+      <span>{message}</span>
     </p>
   );
 }
@@ -62,30 +69,37 @@ export function ErrorAlert({ message }: { message: string | null }) {
 export function PrimaryButton({
   children,
   busy,
+  className,
   ...props
-}: { children: ReactNode; busy?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+}: { children: ReactNode; busy?: boolean } & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button
-      type="submit"
-      disabled={busy}
-      className="w-full rounded bg-slate-900 px-4 py-2 text-lg font-semibold text-white hover:bg-slate-700 disabled:opacity-60"
-      {...props}
-    >
+    <Button type="submit" size="lg" disabled={busy} className={cn('w-full', className)} {...props}>
       {busy ? 'Memproses…' : children}
-    </button>
+    </Button>
   );
 }
 
 /** Centered card used by setup, login, recovery, and the forced PIN change. */
-export function AuthCard({ title, children }: { title: string; children: ReactNode }) {
+export function AuthCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
-      <div className="w-full max-w-md space-y-6 rounded-lg bg-white p-8 shadow">
-        <div className="space-y-1 text-center">
-          <div className="text-sm font-bold tracking-widest text-slate-500">TOKO PODOMORO</div>
-          <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
-        </div>
-        {children}
+    <div className="flex min-h-screen items-center justify-center bg-background p-6">
+      <div className="w-full max-w-[440px] space-y-6">
+        <BrandMark className="justify-center" />
+        <Card className="space-y-6 p-8">
+          <div className="space-y-1.5">
+            <h1 className="text-[26px] font-semibold tracking-[-0.02em]">{title}</h1>
+            {description && <p className="text-muted-foreground">{description}</p>}
+          </div>
+          {children}
+        </Card>
       </div>
     </div>
   );

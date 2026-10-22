@@ -39,7 +39,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthCard title="Masuk">
+    <AuthCard title="Masuk" description="Masukkan nama pengguna dan PIN Anda.">
       <form onSubmit={submit} className="space-y-4" noValidate>
         <TextField
           id="username"
@@ -54,7 +54,10 @@ export function LoginPage() {
         <PrimaryButton busy={busy}>Masuk</PrimaryButton>
       </form>
       <p className="text-center text-sm">
-        <Link to="/pulihkan-pin" className="text-blue-700 underline">
+        <Link
+          to="/pulihkan-pin"
+          className="font-semibold text-primary underline-offset-4 hover:underline"
+        >
           Pemilik lupa PIN?
         </Link>
       </p>

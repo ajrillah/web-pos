@@ -1,12 +1,14 @@
 import { useCurrentUser } from '../auth/AuthProvider';
+import { PageHeader } from '../layout/PageHeader';
 import { roleLabels } from '../navigation/menu';
 
+// Placeholder home; `/` becomes the Kasir screen in Stage 3.
 export function HomePage() {
   const user = useCurrentUser();
   return (
-    <section className="space-y-2">
-      <h1 className="text-2xl font-bold">Selamat datang, {user.name}</h1>
-      <p className="text-slate-600">Anda masuk sebagai {roleLabels[user.role]}.</p>
-    </section>
+    <PageHeader
+      title={`Selamat datang, ${user.name}`}
+      description={`Anda masuk sebagai ${roleLabels[user.role]}.`}
+    />
   );
 }
