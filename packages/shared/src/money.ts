@@ -140,3 +140,12 @@ export function marginBasisPoints(
   const bp = mulDivRoundHalfUp(Math.abs(profit), 10_000, sellPrice);
   return profit < 0 ? -bp : bp;
 }
+
+/** part / whole in basis points (1850 = 18,5%), half away from zero; null when whole is 0. */
+export function ratioBasisPoints(part: number, whole: number): number | null {
+  assertSafeInteger('part', part);
+  assertSafeInteger('whole', whole);
+  if (whole === 0) return null;
+  const bp = mulDivRoundHalfUp(Math.abs(part), 10_000, Math.abs(whole));
+  return part < 0 !== whole < 0 && bp !== 0 ? -bp : bp;
+}

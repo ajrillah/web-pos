@@ -40,3 +40,10 @@ export const formatSaleNumber = (day: string, sequence: number) =>
 /** Customer payment number `BYR-YYYYMMDD-NNNN`. */
 export const formatPaymentNumber = (day: string, sequence: number) =>
   formatDocNumber('BYR', day, sequence);
+
+/** Every local day from `from` to `to`, inclusive (empty if `to` is before `from`). */
+export function localDaysBetween(from: string, to: string): string[] {
+  const days: string[] = [];
+  for (let day = from; day <= to; day = nextLocalDay(day)) days.push(day);
+  return days;
+}

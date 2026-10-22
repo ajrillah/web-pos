@@ -4,6 +4,7 @@ import {
   formatPaymentNumber,
   formatSaleNumber,
   localDate,
+  localDaysBetween,
   nextLocalDay,
   startOfLocalDay,
 } from './dates';
@@ -47,5 +48,18 @@ describe('formatSaleNumber', () => {
   it('formats customer payment numbers the same way', () => {
     expect(formatPaymentNumber('2026-10-22', 7)).toBe('BYR-20261022-0007');
     expect(docNumberSequence('BYR-20261022-0007')).toBe(7);
+  });
+});
+
+describe('localDaysBetween', () => {
+  it('lists every day inclusive, across months', () => {
+    expect(localDaysBetween('2026-10-30', '2026-11-02')).toEqual([
+      '2026-10-30',
+      '2026-10-31',
+      '2026-11-01',
+      '2026-11-02',
+    ]);
+    expect(localDaysBetween('2026-10-22', '2026-10-22')).toEqual(['2026-10-22']);
+    expect(localDaysBetween('2026-10-23', '2026-10-22')).toEqual([]);
   });
 });
