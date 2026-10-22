@@ -1,16 +1,18 @@
-import { createBrowserRouter } from 'react-router';
+import { createBrowserRouter, Navigate } from 'react-router';
 import {
   RequireAnonymous,
   RequirePendingPinChange,
   RequireSetup,
   RequireUser,
 } from './auth/guards';
+import { ShortcutLayer } from './keyboard/ShortcutLayer';
 import { AppLayout } from './layout/AppLayout';
 import { ForcedChangePinPage } from './pages/auth/ForcedChangePinPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RecoverPinPage } from './pages/auth/RecoverPinPage';
 import { SetupPage } from './pages/auth/SetupPage';
-import { HomePage } from './pages/HomePage';
+import { HistoryPage } from './pages/history/HistoryPage';
+import { KasirPage } from './pages/kasir/KasirPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ComingSoonPage, OwnerPinGate } from './pages/PlaceholderPages';
 import { CategoriesPage } from './pages/products/CategoriesPage';
@@ -38,58 +40,64 @@ export const router = createBrowserRouter([
     element: <RequireUser />,
     children: [
       {
-        element: <AppLayout />,
+        element: <ShortcutLayer />,
         children: [
-          { index: true, element: <HomePage /> },
-          { path: '/kasir', element: <ComingSoonPage title="Kasir" stage={3} /> },
-          { path: '/riwayat', element: <ComingSoonPage title="Riwayat Transaksi" stage={3} /> },
+          { index: true, element: <Navigate to="/kasir" replace /> },
+          // Kasir is full screen; every other page uses the sidebar layout.
+          { path: '/kasir', element: <KasirPage /> },
           {
-            path: '/barang',
-            element: <ProductsLayout />,
+            element: <AppLayout />,
             children: [
-              { index: true, element: <ProductListPage /> },
-              { path: 'kategori', element: <CategoriesPage /> },
-              { path: 'impor', element: <ComingSoonPage title="Impor barang" stage={9} /> },
-            ],
-          },
-          { path: '/barang/baru', element: <ProductFormPage /> },
-          { path: '/barang/:id', element: <ProductFormPage /> },
-          { path: '/stok', element: <ComingSoonPage title="Stok" stage={7} /> },
-          { path: '/pelanggan', element: <ComingSoonPage title="Pelanggan" stage={4} /> },
-          { path: '/pemasok', element: <ComingSoonPage title="Pemasok" stage={7} /> },
-          {
-            path: '/laporan',
-            element: (
-              <OwnerPinGate title="Laporan">
-                <ComingSoonPage title="Laporan" stage={8} />
-              </OwnerPinGate>
-            ),
-          },
-          {
-            path: '/pengaturan',
-            element: <SettingsLayout />,
-            children: [
-              { index: true, element: <SettingsIndex /> },
+              { path: '/riwayat', element: <HistoryPage /> },
               {
-                path: 'pengguna',
+                path: '/barang',
+                element: <ProductsLayout />,
+                children: [
+                  { index: true, element: <ProductListPage /> },
+                  { path: 'kategori', element: <CategoriesPage /> },
+                  { path: 'impor', element: <ComingSoonPage title="Impor barang" stage={9} /> },
+                ],
+              },
+              { path: '/barang/baru', element: <ProductFormPage /> },
+              { path: '/barang/:id', element: <ProductFormPage /> },
+              { path: '/stok', element: <ComingSoonPage title="Stok" stage={7} /> },
+              { path: '/pelanggan', element: <ComingSoonPage title="Pelanggan" stage={4} /> },
+              { path: '/pemasok', element: <ComingSoonPage title="Pemasok" stage={7} /> },
+              {
+                path: '/laporan',
                 element: (
-                  <OwnerPinGate title="Pengguna">
-                    <UsersPage />
+                  <OwnerPinGate title="Laporan">
+                    <ComingSoonPage title="Laporan" stage={8} />
                   </OwnerPinGate>
                 ),
               },
               {
-                path: 'toko',
-                element: (
-                  <OwnerPinGate title="Profil Toko">
-                    <ComingSoonPage title="Profil Toko" stage={5} />
-                  </OwnerPinGate>
-                ),
+                path: '/pengaturan',
+                element: <SettingsLayout />,
+                children: [
+                  { index: true, element: <SettingsIndex /> },
+                  {
+                    path: 'pengguna',
+                    element: (
+                      <OwnerPinGate title="Pengguna">
+                        <UsersPage />
+                      </OwnerPinGate>
+                    ),
+                  },
+                  {
+                    path: 'toko',
+                    element: (
+                      <OwnerPinGate title="Profil Toko">
+                        <ComingSoonPage title="Profil Toko" stage={5} />
+                      </OwnerPinGate>
+                    ),
+                  },
+                  { path: 'ubah-pin', element: <ChangePinPage /> },
+                ],
               },
-              { path: 'ubah-pin', element: <ChangePinPage /> },
+              { path: '*', element: <NotFoundPage /> },
             ],
           },
-          { path: '*', element: <NotFoundPage /> },
         ],
       },
     ],
