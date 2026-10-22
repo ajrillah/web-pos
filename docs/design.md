@@ -298,12 +298,14 @@ All tables have `id` (UUID) and `created_at`; mutable tables also have `updated_
 - `product_units`(product_id, name, factor, sell_price, is_base, active)
 
 ### 9.3 Sales
-- `sales`(number, cashier_id, customer_id, status, total, rounding_amount, paid_total, change_amount, debt_amount, completed_at, voided_at, voided_by, void_reason)
+- `sales`(number, cashier_id, customer_id, status, total, rounding_amount, paid_total, change_amount, debt_amount, completed_at, voided_at, voided_by, void_reason, receipt_count, receipt_file)
+  - `id` is the client UUID. `customer_id` is added with customers in Stage 4.
+  - `receipt_count`: receipts generated so far (every one after the first is "SALINAN"); `receipt_file`: last saved receipt PDF.
   - `number`: `TRX-YYYYMMDD-NNNN`, nullable while held.
   - `status`: `held` | `completed` | `voided`.
   - `total` is after rounding.
-- `sale_items`(sale_id, product_id, unit_id, product_code, product_name, unit_name, qty_base, unit_factor, unit_price, cost_price, pricing_factor, subtotal, cost_total)
-- `sale_payments`(sale_id, method, amount) — `method`: `cash` | `qris`
+- `sale_items`(sale_id, line_no, product_id, unit_id, product_code, product_name, unit_name, qty_base, unit_factor, unit_price, cost_price, pricing_factor, subtotal, cost_total)
+- `sale_payments`(sale_id, method, amount) — `method`: `cash` | `qris`; cash `amount` is the cash received, change is `sales.change_amount`
 
 ### 9.4 Customers and receivables
 - `customers`(name, phone, note, active)
