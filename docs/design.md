@@ -136,7 +136,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Owner approval:
   - Owner logged in directly needs no approval token.
   - Cashier obtains owner approval by entering an owner PIN (`POST auth/approve`) -> short-lived token kept in server memory, sent as `X-Approval-Token`.
-  - The PIN is checked against every active owner; the matching owner is recorded as `approved_by`.
+  - With exactly one active owner, the dialog asks only for the PIN. With more than one, it first shows owner tiles; the PIN is then checked against the chosen owner only (`ownerId` in the request; required when several owners are active). The approving owner is recorded as `approved_by`.
   - Tokens are bound to the cashier's session and to one scope; lost on server restart.
   - Action tokens (voids, product price changes, product deactivation, category changes) are single-use, tied to their target (sale, payment, product) when there is one, and expire after 5 minutes if unused. A token is spent only when the action succeeds.
   - Menu-access tokens (Laporan, Pengguna, Profil Toko) last while the cashier stays in that menu, at most 15 minutes. Leaving the menu (the page releases the token), locking the screen, or logging out invalidates them.
@@ -169,6 +169,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Cancel sale before payment.
 - Void after payment:
   - Needs owner PIN.
+  - A reason is required, picked from quick choices: "Salah input", "Pembeli batal", or "Lainnya" (then a note is required). Stored as `void_reason` ("Lainnya: <note>" for the last). The same applies to customer payment voids.
   - Rejected if the sale's receivable has any active payments.
   - Returns stock (movements of type `void`) and voids the receivable.
 
@@ -361,7 +362,7 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `POST auth/login` `{ userId, pin }`, `POST auth/logout`, `POST auth/recover` (username + recovery code)
 - `GET auth/me` -> `{ user, locked }`, `PUT auth/me/pin`
 - `POST auth/lock`, `POST auth/unlock` `{ pin }` (same user)
-- `POST auth/approve` `{ pin, scope, targetId? }` -> `{ token, expiresAt, ownerName }`; scopes: actions `sale.void`, `payment.void`, `product.price`, `product.deactivate`, `category.manage`; menus `laporan`, `pengguna`, `profil-toko`
+- `POST auth/approve` `{ pin, scope, targetId?, ownerId? }` -> `{ token, expiresAt, ownerName }` (`ownerId` required when several owners are active); scopes: actions `sale.void`, `payment.void`, `product.price`, `product.deactivate`, `category.manage`; menus `laporan`, `pengguna`, `profil-toko`
 - `POST auth/approve/release` `{ token }` (leaving a PIN menu)
 
 ### Users (PIN)
@@ -384,14 +385,14 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `POST sales/:id/receipt` (save PDF to receipt folder as `<TRX>.pdf`; later receipts `<TRX>-SALINAN.pdf`)
 - `POST sales/:id/receipt/open` (open saved PDF in default viewer), `POST receipts/open-folder`
 - `GET sales/:id/receipt.pdf` (download)
-- `POST sales/:id/void` (PIN, action `sale.void` on this sale) `{ reason? }`
+- `POST sales/:id/void` (PIN, action `sale.void` on this sale) `{ reason: salah_input|pembeli_batal|lainnya, note? }` (note required for `lainnya`)
 
 ### Customers and kasbon
 - `GET customers` (q, status, page, limit; each with `balance`), `GET customers/:id`, `POST customers`, `PUT customers/:id` (name, phone, note, active), `GET customers/:id/ledger`
 - `GET receivables` (customerId, status `open|all`; oldest first)
 - `POST customer-payments` `{ id (client UUID), customerId, receivableIds, method, amount }` (`amount` = cash received or QRIS amount), `GET customer-payments/:id`
 - `POST customer-payments/:id/receipt`, `POST customer-payments/:id/receipt/open`, `GET customer-payments/:id/receipt.pdf`
-- `POST customer-payments/:id/void` (PIN, action `payment.void` on this payment) `{ reason? }`
+- `POST customer-payments/:id/void` (PIN, action `payment.void` on this payment) `{ reason, note? }` (as for sales)
 - `POST sales` takes an optional `customerId`; with it, an underpayment becomes kasbon (one receivable, `debt_amount`). Without it, underpayment is refused.
 
 ### Suppliers and stock
