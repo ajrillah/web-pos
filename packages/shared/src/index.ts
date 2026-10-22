@@ -6,3 +6,5 @@ export * from './dates';
 export * from './money';
 export * from './rupiah';
 export * from './sales';
+export * from './stock';
+export * from './suppliers';

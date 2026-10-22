@@ -17,3 +17,16 @@ export function formatRupiah(amount: number): string {
   const digits = formatInteger(Math.abs(amount));
   return amount < 0 ? `-Rp ${digits}` : `Rp ${digits}`;
 }
+
+/** Basis points as an Indonesian percentage: 1850 -> `18,5%`, -300 -> `-3%`. */
+export function formatPercentBp(bp: number): string {
+  if (!Number.isSafeInteger(bp)) {
+    throw new RangeError(`bp must be a safe integer, got ${bp}`);
+  }
+  const abs = Math.abs(bp);
+  const whole = Math.floor(abs / 100);
+  const frac = String(abs % 100)
+    .padStart(2, '0')
+    .replace(/0+$/, '');
+  return `${bp < 0 ? '-' : ''}${formatInteger(whole)}${frac ? `,${frac}` : ''}%`;
+}
