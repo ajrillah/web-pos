@@ -5,7 +5,7 @@ import { docNumberSequence, formatDocNumber, localDate } from '@toko-podomoro/sh
  * number with that day's prefix. NNNN restarts at 0001 each day and grows past 9999.
  */
 export function nextDocNumber(
-  prefix: 'TRX' | 'BYR',
+  prefix: 'TRX' | 'BYR' | 'BLI' | 'BYH',
   now: Date,
   lastWithPrefix: (dayPrefix: string) => string | undefined,
 ): string {
