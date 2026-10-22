@@ -14,6 +14,7 @@ import { HomePage } from './pages/HomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ComingSoonPage, OwnerPinGate } from './pages/PlaceholderPages';
 import { ChangePinPage } from './pages/settings/ChangePinPage';
+import { SettingsIndex, SettingsLayout } from './pages/settings/SettingsLayout';
 import { UsersPage } from './pages/settings/UsersPage';
 
 export const router = createBrowserRouter([
@@ -51,22 +52,29 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: '/pengaturan/pengguna',
-            element: (
-              <OwnerPinGate title="Pengguna">
-                <UsersPage />
-              </OwnerPinGate>
-            ),
+            path: '/pengaturan',
+            element: <SettingsLayout />,
+            children: [
+              { index: true, element: <SettingsIndex /> },
+              {
+                path: 'pengguna',
+                element: (
+                  <OwnerPinGate title="Pengguna">
+                    <UsersPage />
+                  </OwnerPinGate>
+                ),
+              },
+              {
+                path: 'toko',
+                element: (
+                  <OwnerPinGate title="Profil Toko">
+                    <ComingSoonPage title="Profil Toko" stage={5} />
+                  </OwnerPinGate>
+                ),
+              },
+              { path: 'ubah-pin', element: <ChangePinPage /> },
+            ],
           },
-          {
-            path: '/pengaturan/toko',
-            element: (
-              <OwnerPinGate title="Profil Toko">
-                <ComingSoonPage title="Profil Toko" stage={5} />
-              </OwnerPinGate>
-            ),
-          },
-          { path: '/pengaturan/ubah-pin', element: <ChangePinPage /> },
           { path: '*', element: <NotFoundPage /> },
         ],
       },
