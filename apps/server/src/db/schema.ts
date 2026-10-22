@@ -174,6 +174,20 @@ export const stockMovements = sqliteTable(
   ],
 );
 
+export const customers = sqliteTable(
+  'customers',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    phone: text('phone'),
+    note: text('note'),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('customers_name_idx').on(t.name)],
+);
+
 export const sales = sqliteTable(
   'sales',
   {
@@ -192,6 +206,10 @@ export const sales = sqliteTable(
     paidTotal: integer('paid_total').notNull().default(0),
     changeAmount: integer('change_amount').notNull().default(0),
     debtAmount: integer('debt_amount').notNull().default(0),
+    // Kasbon customer (required when debt_amount > 0).
+    customerId: text('customer_id').references(() => customers.id),
+    // Customer's remaining kasbon right after the sale; printed on the receipt.
+    customerBalanceAfter: integer('customer_balance_after'),
     completedAt: text('completed_at'),
     voidedAt: text('voided_at'),
     voidedBy: text('voided_by').references(() => users.id),
@@ -255,4 +273,76 @@ export const salePayments = sqliteTable(
     createdAt: createdAt(),
   },
   (t) => [index('sale_payments_sale_id_idx').on(t.saleId)],
+);
+
+export const receivables = sqliteTable(
+  'receivables',
+  {
+    id: id(),
+    customerId: text('customer_id')
+      .notNull()
+      .references(() => customers.id),
+    // One receivable per sale.
+    saleId: text('sale_id')
+      .notNull()
+      .unique()
+      .references(() => sales.id),
+    amount: integer('amount').notNull(),
+    // amount - sum(active allocations); kept in the same transaction as allocations.
+    remaining: integer('remaining').notNull(),
+    status: text('status', { enum: ['open', 'paid', 'void'] }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('receivables_customer_status_idx').on(t.customerId, t.status, t.createdAt)],
+);
+
+export const customerPayments = sqliteTable(
+  'customer_payments',
+  {
+    // Client-generated UUID (idempotency).
+    id: text('id').primaryKey(),
+    // BYR-YYYYMMDD-NNNN (local date).
+    number: text('number').notNull().unique(),
+    customerId: text('customer_id')
+      .notNull()
+      .references(() => customers.id),
+    method: text('method', { enum: ['cash', 'qris'] }).notNull(),
+    // Applied to receivables (sum of allocations).
+    amount: integer('amount').notNull(),
+    amountReceived: integer('amount_received').notNull(),
+    changeAmount: integer('change_amount').notNull(),
+    // Customer's remaining kasbon right after the payment; printed on the receipt.
+    balanceAfter: integer('balance_after').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    status: text('status', { enum: ['active', 'voided'] }).notNull(),
+    voidedAt: text('voided_at'),
+    voidedBy: text('voided_by').references(() => users.id),
+    receiptCount: integer('receipt_count').notNull().default(0),
+    receiptFile: text('receipt_file'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('customer_payments_customer_idx').on(t.customerId, t.createdAt)],
+);
+
+export const paymentAllocations = sqliteTable(
+  'payment_allocations',
+  {
+    id: id(),
+    paymentId: text('payment_id')
+      .notNull()
+      .references(() => customerPayments.id),
+    receivableId: text('receivable_id')
+      .notNull()
+      .references(() => receivables.id),
+    amount: integer('amount').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('payment_allocations_payment_idx').on(t.paymentId),
+    index('payment_allocations_receivable_idx').on(t.receivableId),
+  ],
 );

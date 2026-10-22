@@ -90,7 +90,36 @@ export const appErrors = {
     ),
   qrisExceedsTotal: () =>
     new AppError(400, 'QRIS_EXCEEDS_TOTAL', 'Pembayaran QRIS tidak boleh melebihi total.'),
-  underpaid: () => new AppError(400, 'UNDERPAID', 'Pembayaran kurang dari total belanja.'),
+  underpaid: () =>
+    new AppError(
+      400,
+      'UNDERPAID',
+      'Pembayaran kurang dari total belanja. Pilih pelanggan untuk mencatat kasbon.',
+    ),
+  customerNotFound: () => new AppError(404, 'CUSTOMER_NOT_FOUND', 'Pelanggan tidak ditemukan.'),
+  customerInactive: () =>
+    new AppError(400, 'CUSTOMER_INACTIVE', 'Pelanggan nonaktif tidak dapat dipilih.'),
+  customerHasBalance: (amount: string) =>
+    new AppError(
+      409,
+      'CUSTOMER_HAS_BALANCE',
+      `Pelanggan masih punya kasbon ${amount}. Lunasi dulu sebelum menonaktifkan.`,
+    ),
+  duplicatePayment: () => new AppError(409, 'DUPLICATE_PAYMENT', 'Pembayaran ini sudah tersimpan.'),
+  paymentNotFound: () =>
+    new AppError(404, 'PAYMENT_NOT_FOUND', 'Pembayaran kasbon tidak ditemukan.'),
+  invalidReceivables: () =>
+    new AppError(
+      400,
+      'INVALID_RECEIVABLES',
+      'Kasbon yang dipilih tidak valid atau sudah lunas. Muat ulang daftar kasbon.',
+    ),
+  qrisExceedsKasbon: () =>
+    new AppError(
+      400,
+      'QRIS_EXCEEDS_KASBON',
+      'Pembayaran QRIS tidak boleh melebihi total kasbon yang dipilih.',
+    ),
   saleNotFound: () => new AppError(404, 'SALE_NOT_FOUND', 'Transaksi tidak ditemukan.'),
   heldSaleNotFound: () =>
     new AppError(404, 'HELD_SALE_NOT_FOUND', 'Transaksi yang ditahan tidak ditemukan.'),
