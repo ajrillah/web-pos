@@ -5,11 +5,12 @@ import {
   type ReceiptSavedResponse,
   type Sale,
 } from '@toko-podomoro/shared';
-import { Save } from 'lucide-react';
+import { Ban, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import { api, receipts } from '../../api/endpoints';
+import { useApproval } from '../../approval/ApprovalProvider';
 import { ErrorAlert } from '../../components/forms';
 import { ReceiptActions } from '../../components/receipts/ReceiptActions';
 import { Badge } from '../../components/ui/badge';
@@ -21,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog';
+import { VoidDialog } from '../../components/VoidDialog';
 
 export const dateTime = (iso: string) =>
   new Date(iso).toLocaleString('id-ID', {
@@ -35,12 +37,17 @@ export const dateTime = (iso: string) =>
 export function SaleDetailDialog({
   saleId,
   onClose,
+  onChanged,
 }: {
   saleId: string | null;
   onClose: () => void;
+  /** The sale was voided; lists update. */
+  onChanged?: (sale: Sale) => void;
 }) {
   const [sale, setSale] = useState<Sale | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [voiding, setVoiding] = useState(false);
+  const { withApproval } = useApproval();
 
   useEffect(() => {
     setSale(null);
@@ -135,9 +142,42 @@ export function SaleDetailDialog({
               </div>
               <ReceiptActions kind="sale" id={sale.id} />
             </div>
+            {sale.status === 'completed' && (
+              <div className="flex justify-end border-t border-border pt-4">
+                <Button
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive-soft"
+                  onClick={() => setVoiding(true)}
+                >
+                  <Ban className="size-[18px]" aria-hidden />
+                  Batalkan transaksi
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </DialogContent>
+      {sale && (
+        <VoidDialog
+          open={voiding}
+          title={`Batalkan ${sale.number}?`}
+          description={
+            sale.debtAmount > 0
+              ? 'Stok dikembalikan dan kasbon transaksi ini dibatalkan.'
+              : 'Stok dikembalikan. Transaksi tetap tercatat sebagai dibatalkan.'
+          }
+          onClose={() => setVoiding(false)}
+          onVoid={async (reason) => {
+            const { sale: voided } = await withApproval('sale.void', sale.id, (token) =>
+              api.voidSale(sale.id, reason ? { reason } : {}, token),
+            );
+            setSale(voided);
+            setVoiding(false);
+            toast.success(`${voided.number} dibatalkan.`);
+            onChanged?.(voided);
+          }}
+        />
+      )}
     </Dialog>
   );
 }

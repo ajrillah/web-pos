@@ -259,7 +259,23 @@ export function HistoryPage() {
           </div>
         </div>
       </div>
-      <SaleDetailDialog saleId={openId} onClose={() => setOpenId(null)} />
+      <SaleDetailDialog
+        saleId={openId}
+        onClose={() => setOpenId(null)}
+        onChanged={(voided) =>
+          setResult(
+            (r) =>
+              r && {
+                ...r,
+                sales: r.sales.map((s) =>
+                  s.id === voided.id
+                    ? { ...s, status: voided.status, voidedAt: voided.voidedAt }
+                    : s,
+                ),
+              },
+          )
+        }
+      />
     </section>
   );
 }

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Navigate, Outlet } from 'react-router';
 import { Button } from '../components/ui/button';
 import { useAuth } from './AuthProvider';
+import { LockScreen } from './LockScreen';
 
 function FullScreenMessage({ children }: { children: ReactNode }) {
   return (
@@ -38,6 +39,7 @@ export function RequireUser() {
   if (state.status === 'needsSetup') return <Navigate to="/setup" replace />;
   if (state.status !== 'authenticated') return <Navigate to="/login" replace />;
   if (state.user.mustChangePin) return <Navigate to="/ubah-pin" replace />;
+  if (state.locked) return <LockScreen />;
   return <Outlet />;
 }
 

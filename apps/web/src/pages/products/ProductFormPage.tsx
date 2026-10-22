@@ -14,6 +14,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import { api } from '../../api/endpoints';
+import { useApproval } from '../../approval/ApprovalProvider';
 import { useCurrentUser } from '../../auth/AuthProvider';
 import { ErrorAlert, TextField } from '../../components/forms';
 import { NumberInput } from '../../components/NumberInput';
@@ -138,6 +139,7 @@ export function ProductFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const user = useCurrentUser();
+  const { withApproval } = useApproval();
   const [product, setProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [draft, setDraft] = useState<Draft | null>(id ? null : emptyDraft());
@@ -145,7 +147,8 @@ export function ProductFormPage() {
   const [busy, setBusy] = useState(false);
 
   // Cashiers may edit everything except prices; price changes need owner approval (PIN).
-  const pricesLocked = product !== null && user.role !== 'owner';
+  // Cashiers may change prices too, but saving them asks for the owner's PIN.
+  const needsPinForPrices = product !== null && user.role !== 'owner';
   // Stock is counted in the current unit, so type and stock unit kind are fixed once it moved.
   const unitKindLocked = product?.hasStockMovements === true;
 
@@ -200,7 +203,9 @@ export function ProductFormPage() {
     setError(null);
     try {
       if (product) {
-        await api.updateProduct(product.id, body);
+        await withApproval('product.price', product.id, (token) =>
+          api.updateProduct(product.id, body, token),
+        );
         toast.success(`${body.name} disimpan.`);
       } else {
         await api.createProduct({ ...body, initialStock: draft.initialStock ?? 0 });
@@ -217,7 +222,11 @@ export function ProductFormPage() {
   async function toggleActive() {
     if (!product) return;
     try {
-      const { product: updated } = await api.setProductActive(product.id, !product.active);
+      const { product: updated } = product.active
+        ? await withApproval('product.deactivate', product.id, (token) =>
+            api.setProductActive(product.id, false, token),
+          )
+        : await api.setProductActive(product.id, true);
       setProduct(updated);
       toast.success(
         updated.active ? `${updated.name} diaktifkan.` : `${updated.name} dinonaktifkan.`,
@@ -227,7 +236,7 @@ export function ProductFormPage() {
     }
   }
 
-  const deactivateLocked = product?.active === true && user.role !== 'owner';
+  const deactivateNeedsPin = product?.active === true && user.role !== 'owner';
 
   return (
     <section className="max-w-4xl">
@@ -245,17 +254,12 @@ export function ProductFormPage() {
           product && (
             <Button
               variant="ghost"
-              onClick={deactivateLocked ? undefined : () => void toggleActive()}
-              aria-disabled={deactivateLocked || undefined}
-              className={
-                product.active
-                  ? 'text-destructive hover:bg-destructive-soft aria-disabled:cursor-not-allowed aria-disabled:opacity-60'
-                  : ''
-              }
+              onClick={() => void toggleActive()}
+              className={product.active ? 'text-destructive hover:bg-destructive-soft' : ''}
             >
               <Power className="size-[18px]" aria-hidden />
               {product.active ? 'Nonaktifkan barang' : 'Aktifkan barang'}
-              {deactivateLocked && <PinHint />}
+              {deactivateNeedsPin && <PinHint />}
             </Button>
           )
         }
@@ -302,18 +306,10 @@ export function ProductFormPage() {
               <Label id="type-label">Jenis</Label>
               <Tabs value={draft.type} onValueChange={(v) => changeType(v as ProductType)}>
                 <TabsList aria-labelledby="type-label" className="flex w-full">
-                  <TabsTrigger
-                    value="unit"
-                    disabled={pricesLocked || unitKindLocked}
-                    className="flex-1"
-                  >
+                  <TabsTrigger value="unit" disabled={unitKindLocked} className="flex-1">
                     Satuan
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="bulk"
-                    disabled={pricesLocked || unitKindLocked}
-                    className="flex-1"
-                  >
+                  <TabsTrigger value="bulk" disabled={unitKindLocked} className="flex-1">
                     Curah (timbang)
                   </TabsTrigger>
                 </TabsList>
@@ -375,10 +371,10 @@ export function ProductFormPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <CardTitle>Satuan dan harga</CardTitle>
-              {pricesLocked && <PinHint />}
+              {needsPinForPrices && <PinHint />}
             </div>
             <CardDescription>
-              {pricesLocked
+              {needsPinForPrices
                 ? 'Perubahan harga dan satuan baru memerlukan persetujuan pemilik (PIN).'
                 : isBulk
                   ? `Barang curah dijual per ${costUnit}; stok dicatat dalam ${draft.baseUnit}.`
@@ -393,7 +389,6 @@ export function ProductFormPage() {
                 value={draft.costPrice}
                 onValueChange={(costPrice) => set({ costPrice })}
                 prefix="Rp"
-                disabled={pricesLocked}
               />
             </div>
 
@@ -433,7 +428,6 @@ export function ProductFormPage() {
                     value={unit.sellPrice}
                     onValueChange={(sellPrice) => setUnit(unit.key, { sellPrice })}
                     prefix="Rp"
-                    disabled={pricesLocked && unit.id !== undefined}
                   />
                   <div className="flex justify-center">
                     <input
@@ -474,7 +468,6 @@ export function ProductFormPage() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  disabled={pricesLocked}
                   onClick={() =>
                     set({
                       units: [
@@ -486,7 +479,7 @@ export function ProductFormPage() {
                 >
                   <Plus className="size-4" aria-hidden />
                   Tambah satuan
-                  {pricesLocked && <PinHint />}
+                  {needsPinForPrices && <PinHint />}
                 </Button>
               )}
             </div>
