@@ -38,6 +38,17 @@ export function findProductById(db: Executor, id: string): ProductWithCategory |
   return row && flatten(row);
 }
 
+export function findProductsByIds(db: Executor, ids: string[]): ProductWithCategory[] {
+  if (ids.length === 0) return [];
+  return db
+    .select(withCategory)
+    .from(products)
+    .innerJoin(categories, eq(categories.id, products.categoryId))
+    .where(inArray(products.id, ids))
+    .all()
+    .map(flatten);
+}
+
 /** Exact code match, ignoring case like the unique index; includes inactive products. */
 export function findProductByCode(db: Executor, code: string): ProductWithCategory | undefined {
   const row = db

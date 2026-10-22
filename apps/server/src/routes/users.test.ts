@@ -9,6 +9,7 @@ import {
   createUserAs,
   type Harness,
   login,
+  serviceContext,
   setupOwner,
   withSession,
 } from '../testing/harness';
@@ -158,7 +159,7 @@ describe('update', () => {
     // Reachable once cashiers act with owner approval (Stage 5); checked at the service level.
     const { id: cashierId } = await activeCashier();
     const owner = findUserByUsername(h.handle.db, 'pemilik');
-    const ctx = { db: h.handle.db, now: () => h.clock.now };
+    const ctx = serviceContext(h);
     await expect(
       updateUserById(ctx, { id: cashierId, role: 'cashier' }, owner?.id ?? '', { active: false }),
     ).rejects.toMatchObject({ code: 'LAST_ACTIVE_OWNER' });

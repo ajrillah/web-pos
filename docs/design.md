@@ -52,7 +52,7 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - Server serves the built web app and `/api` on the same port.
 - Server layering: `routes -> services -> repositories`.
 - Versioned SQL migrations via drizzle-kit from Stage 0.
-- Build: esbuild bundles the server (including `packages/shared`) into `apps/server/dist/main.js`; only native `better-sqlite3` stays external. `dist/drizzle/` (migrations) and `dist/public/` (built web app) are copied next to it, so `dist/` plus `node_modules/better-sqlite3` is the deployable server.
+- Build: esbuild bundles the server (including `packages/shared`) into `apps/server/dist/main.js`; native `better-sqlite3` and `pdfkit` (it loads its standard fonts through package `#imports`) stay external. `dist/drizzle/` (migrations) and `dist/public/` (built web app) are copied next to it, so `dist/` plus `node_modules` for those two packages (and their dependencies) is the deployable server.
 - Node 26 rationale: better-sqlite3 13.x ships Node-API (v10) prebuilds inside the npm package, including `win32-x64`, so it needs no compiler and works on any Node >= 22. Verified on Node v26.12.0 on 2026-10-19 with install scripts disabled. Node 26 is scheduled for LTS promotion in late October 2026, before the pilot (Stage 6).
 
 ## 4. Data rules
@@ -111,6 +111,7 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - Settings changes.
 - All voids (sales, purchases, customer payments, supplier payments).
 - Every owner PIN approval.
+- Held sale deletions (manual, bulk, and automatic; see 6.1).
 
 Sales, payments, purchases, adjustments, and opname are not audit-logged; their own tables are the record.
 
@@ -155,6 +156,9 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Hold sale (Tahan):
   - Stored in DB with status `held`, no TRX number, no stock reservation.
   - On resume, prices are refreshed from current product data. Lines with deactivated products are removed and the user sees a notice.
+  - Held sales are drafts, so they are deleted (the one exception to "no hard deletes"); every deletion is audit-logged (entity `held_sale`).
+  - Held sales from previous local days are labeled "kemarin" and can be bulk-deleted.
+  - On server start, held sales older than 7 days are deleted automatically (audit action `auto_delete`, no user).
 - TRX number `TRX-YYYYMMDD-NNNN` assigned on completion. `NNNN` resets daily from `0001` (local date); after `9999` it grows to 5+ digits.
 - Cancel sale before payment.
 - Void after payment:
@@ -175,7 +179,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 ### 6.3 Keyboard UX
 - Fully keyboard-driven. Focus always returns to search. Large fonts.
 - App captures F1-F10 over Edge defaults. F11 and F12 are not used.
-- F-key capture is tested in Edge `--app` mode on Windows in Stage 3. If a key cannot be captured, its action falls back to `Alt+<number>` (e.g. `Alt+1` for F1).
+- F-key capture is tested manually in Edge `--app` mode on Windows (Stage 6 checklist). If a key cannot be captured, its action falls back to `Alt+<number>` (e.g. `Alt+1` for F1).
 
 ### 6.4 Transaction history (Riwayat Transaksi)
 - Defaults to today. Filters: date, text, status.
@@ -276,7 +280,7 @@ Sidebar layout on all pages except Kasir. Visual design and locked layouts: `ui-
 | Esc | | Batal / tutup |
 | Ctrl+L | | Kunci |
 
-Fallbacks are enabled only for keys that fail the Stage 3 capture test. F11 and F12 are never used.
+Fallbacks are enabled only for keys that fail the Windows capture test (Stage 6 checklist). F11 and F12 are never used.
 
 ## 9. Database tables
 
@@ -294,12 +298,14 @@ All tables have `id` (UUID) and `created_at`; mutable tables also have `updated_
 - `product_units`(product_id, name, factor, sell_price, is_base, active)
 
 ### 9.3 Sales
-- `sales`(number, cashier_id, customer_id, status, total, rounding_amount, paid_total, change_amount, debt_amount, completed_at, voided_at, voided_by, void_reason)
+- `sales`(number, cashier_id, customer_id, status, total, rounding_amount, paid_total, change_amount, debt_amount, completed_at, voided_at, voided_by, void_reason, receipt_count, receipt_file)
+  - `id` is the client UUID. `customer_id` is added with customers in Stage 4.
+  - `receipt_count`: receipts generated so far (every one after the first is "SALINAN"); `receipt_file`: last saved receipt PDF.
   - `number`: `TRX-YYYYMMDD-NNNN`, nullable while held.
   - `status`: `held` | `completed` | `voided`.
   - `total` is after rounding.
-- `sale_items`(sale_id, product_id, unit_id, product_code, product_name, unit_name, qty_base, unit_factor, unit_price, cost_price, pricing_factor, subtotal, cost_total)
-- `sale_payments`(sale_id, method, amount) — `method`: `cash` | `qris`
+- `sale_items`(sale_id, line_no, product_id, unit_id, product_code, product_name, unit_name, qty_base, unit_factor, unit_price, cost_price, pricing_factor, subtotal, cost_total)
+- `sale_payments`(sale_id, method, amount) — `method`: `cash` | `qris`; cash `amount` is the cash received, change is `sales.change_amount`
 
 ### 9.4 Customers and receivables
 - `customers`(name, phone, note, active)
@@ -355,10 +361,11 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `GET categories`, `POST categories` (PIN), `PUT categories/:id` (PIN; default categories cannot be deactivated)
 
 ### Sales
-- `POST sales`
-- `POST sales/held`, `GET sales/held`, `DELETE sales/held/:id`
-- `GET sales` (from, to, q, status), `GET sales/:id`
-- `POST sales/:id/receipt` (save PDF to receipt folder)
+- `POST sales` `{ id (client UUID), lines: [{ productId, unitId, qtyBase }], cash, qris, expectedTotal }` -> `{ sale, warnings }`. The server prices every line from current data; if its rounded total differs from `expectedTotal` it refuses with 409 `TOTAL_CHANGED`. `warnings` lists products now below zero stock. Until Stage 4, underpayment is refused (400 `UNDERPAID`).
+- `POST sales/held`, `GET sales/held`, `DELETE sales/held/:id`, `DELETE sales/held?before=YYYY-MM-DD` (bulk-delete "kemarin" and older)
+- `POST sales/held/:id/resume` -> `{ lines: [{ product, unitId, qtyBase, heldUnitPrice }], removed: [names] }`; removes the held sale (not audit-logged: it goes back into the cart).
+- `GET sales` (from, to = local days, default today; q = number, product code or name; status `completed|voided|all`; page, limit), `GET sales/:id`
+- `POST sales/:id/receipt` (save PDF to receipt folder as `<TRX>.pdf`; later receipts `<TRX>-SALINAN.pdf`)
 - `POST sales/:id/receipt/open` (open saved PDF in default viewer), `POST receipts/open-folder`
 - `GET sales/:id/receipt.pdf` (download)
 - `POST sales/:id/void` (PIN)
@@ -381,7 +388,8 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `GET reports/:type/export?format=pdf|xlsx`
 
 ### Settings
-- `GET settings`, `PUT settings` (PIN)
+- `GET settings` (any user; Stage 3), `PUT settings` (PIN; Stage 5)
+- Defaults until set: `store_name` "TOKO PODOMORO", `rounding` `none`, `receipt_width` `58`, `receipt_footer` "Terima kasih atas kunjungan Anda", `auto_lock_minutes` 5.
 
 ## 11. Roadmap
 
@@ -419,10 +427,9 @@ Tracked with checkboxes in `../production_checklist.md`.
 
 Not decided. Do not implement a choice without asking. Tagged with the stage that needs the answer.
 
-1. [Stage 3] Are old held sales ever cleaned up, or kept indefinitely?
-2. [Stage 5] Should failed PIN attempts be logged?
-3. [Stage 5] Approval token lifetime, and the scope of menu-access tokens (e.g. one Laporan visit vs. a time window).
-4. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
-5. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
-6. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
-7. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
+1. [Stage 5] Should failed PIN attempts be logged?
+2. [Stage 5] Approval token lifetime, and the scope of menu-access tokens (e.g. one Laporan visit vs. a time window).
+3. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
+4. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
+5. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
+6. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?

@@ -6,6 +6,8 @@ import { runMigrations } from './db/migrate';
 import { StartupError } from './errors';
 import { migrationsDir, webDir } from './paths';
 import { listenLocal } from './server';
+import { deleteExpiredHeldSales } from './services/sale-service';
+import { openWithSystem } from './system/open-path';
 
 async function main(): Promise<void> {
   const dataDir = resolveDataDir({
@@ -17,6 +19,11 @@ async function main(): Promise<void> {
   const config = loadConfig(dataDir);
   const { db, sqlite } = openDatabase(path.join(dataDir, DB_FILE));
   runMigrations(db, migrationsDir);
+  const expiredHeld = deleteExpiredHeldSales({
+    db,
+    now: () => new Date(),
+    openPath: openWithSystem,
+  });
 
   const app = await buildApp({ db, webDir, logger: true });
   app.addHook('onClose', async () => {
@@ -38,7 +45,7 @@ async function main(): Promise<void> {
     await app.close();
     throw error;
   }
-  app.log.info({ dataDir }, 'TOKO PODOMORO berjalan');
+  app.log.info({ dataDir, expiredHeld }, 'TOKO PODOMORO berjalan');
 }
 
 main().catch((error: unknown) => {

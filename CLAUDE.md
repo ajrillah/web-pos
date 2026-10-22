@@ -62,13 +62,13 @@ installer/        Inno Setup scripts (output/ is ignored)
 - Line: `subtotal = round(qty_base * unit_price / unit_factor)`, `cost_total = round(qty_base * cost_price / pricing_factor)`. Half up, 1 Rp, once per line.
 - Sale total rounding setting: `none | 100 | 500`, to nearest, ties up. `sales.total` = sum(subtotals) + `rounding_amount`. QRIS limit, change, kasbon use the rounded total.
 - Negative stock allowed (warning); shown in reports.
-- UUID ids. No hard deletes (`active` flag or void status). `created_at` everywhere, `updated_at` on mutable tables.
+- UUID ids. No hard deletes (`active` flag or void status); only held-sale drafts are deleted (audit-logged). `created_at` everywhere, `updated_at` on mutable tables.
 - Timestamps stored UTC. "Today" and TRX date use the PC's local time zone.
 - Sale items snapshot code, name, unit, prices, subtotal, cost_total.
 - `stock_movements` is the stock source of truth; `products.stock` is a cache updated in the same transaction.
 - SQLite: `foreign_keys = ON`, WAL. Multi-table writes in one transaction.
 - Product code unique across all products, including inactive.
-- `audit_logs` only for: master data (products, units, categories, customers, suppliers), users, settings, all voids, every PIN approval. Not sales or payments.
+- `audit_logs` only for: master data (products, units, categories, customers, suppliers), users, settings, all voids, every PIN approval, held-sale deletions. Not sales or payments.
 - Voided records are excluded from all report totals.
 - Never edit an applied migration; add a new one.
 
@@ -78,7 +78,7 @@ installer/        Inno Setup scripts (output/ is ignored)
 
 ## Keyboard
 
-- F1-F10 captured over Edge defaults; F11/F12 never used. Fallback `Alt+<number>` only for keys that fail the Stage 3 Windows test.
+- F1-F10 captured over Edge defaults; F11/F12 never used. Fallback `Alt+<number>` only for keys that fail the manual Windows test (Stage 6).
 
 ## Conventions
 

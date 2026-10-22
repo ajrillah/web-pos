@@ -2,18 +2,29 @@ import {
   type ChangePinRequest,
   type CreateCategoryRequest,
   type CreateProductRequest,
+  type CreateSaleRequest,
   type CreateUserRequest,
   categoriesResponseSchema,
   categoryResponseSchema,
   changePinResponseSchema,
+  createSaleResponseSchema,
+  deletedCountResponseSchema,
+  type HoldSaleRequest,
+  heldSalesResponseSchema,
   type LoginRequest,
   meResponseSchema,
   type ProductsQuery,
   productResponseSchema,
   productsResponseSchema,
   type RecoverRequest,
+  receiptSavedResponseSchema,
   recoveryCodeResponseSchema,
+  resumeHeldSaleResponseSchema,
+  type SalesQuery,
   type SetupRequest,
+  saleResponseSchema,
+  salesResponseSchema,
+  settingsResponseSchema,
   setupStatusResponseSchema,
   type UpdateCategoryRequest,
   type UpdateProductRequest,
@@ -52,11 +63,47 @@ export const api = {
     apiRequest('POST', '/products', productResponseSchema, body),
   updateProduct: (id: string, body: UpdateProductRequest) =>
     apiRequest('PUT', `/products/${encodeURIComponent(id)}`, productResponseSchema, body),
+  productByCode: (code: string) =>
+    apiRequest('GET', `/products/by-code/${encodeURIComponent(code)}`, productResponseSchema),
   setProductActive: (id: string, active: boolean) =>
     apiRequest('PATCH', `/products/${encodeURIComponent(id)}/active`, productResponseSchema, {
       active,
     }),
+
+  settings: () => apiRequest('GET', '/settings', settingsResponseSchema),
+
+  createSale: (body: CreateSaleRequest) =>
+    apiRequest('POST', '/sales', createSaleResponseSchema, body),
+  getSale: (id: string) =>
+    apiRequest('GET', `/sales/${encodeURIComponent(id)}`, saleResponseSchema),
+  listSales: (query: SalesQuery) =>
+    apiRequest('GET', `/sales?${toSearchParams(query)}`, salesResponseSchema),
+  holdSale: (body: HoldSaleRequest) => apiRequest('POST', '/sales/held', saleResponseSchema, body),
+  listHeldSales: () => apiRequest('GET', '/sales/held', heldSalesResponseSchema),
+  resumeHeldSale: (id: string) =>
+    apiRequest(
+      'POST',
+      `/sales/held/${encodeURIComponent(id)}/resume`,
+      resumeHeldSaleResponseSchema,
+    ),
+  deleteHeldSale: (id: string) =>
+    apiRequest('DELETE', `/sales/held/${encodeURIComponent(id)}`, deletedCountResponseSchema),
+  deleteHeldSalesBefore: (day: string) =>
+    apiRequest(
+      'DELETE',
+      `/sales/held?${toSearchParams({ before: day })}`,
+      deletedCountResponseSchema,
+    ),
+  saveReceipt: (saleId: string) =>
+    apiRequest('POST', `/sales/${encodeURIComponent(saleId)}/receipt`, receiptSavedResponseSchema),
+  openReceipt: (saleId: string) =>
+    apiRequest('POST', `/sales/${encodeURIComponent(saleId)}/receipt/open`, null),
+  openReceiptFolder: () => apiRequest('POST', '/receipts/open-folder', null),
 };
+
+/** Browser download URL of a sale's receipt PDF. */
+export const receiptDownloadUrl = (saleId: string) =>
+  `/api/sales/${encodeURIComponent(saleId)}/receipt.pdf`;
 
 /** Query string from defined, non-empty values. */
 function toSearchParams(query: object): string {

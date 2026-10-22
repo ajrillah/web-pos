@@ -18,6 +18,7 @@ import { findCategoryById } from '../repositories/categories-repository';
 import {
   findProductByCode,
   findProductById,
+  findProductsByIds,
   insertProduct,
   insertUnit,
   listUnits,
@@ -96,6 +97,12 @@ function toProducts(db: Executor, rows: ProductWithCategory[]): Product[] {
   const units = listUnits(db, ids);
   const withMovements = productIdsWithMovements(db, ids);
   return rows.map((row) => toProduct(row, units, withMovements));
+}
+
+/** Products by id (any status), in API shape. */
+export function productsByIds(db: Executor, ids: string[]): Map<string, Product> {
+  const rows = findProductsByIds(db, [...new Set(ids)]);
+  return new Map(toProducts(db, rows).map((p) => [p.id, p]));
 }
 
 function loadProduct(db: Executor, id: string): Product {
