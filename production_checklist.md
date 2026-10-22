@@ -38,13 +38,13 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 
 ## Stage 2 — Products
 
-- [ ] Categories with defaults (Rokok, Sembako, Lain-lain); owner can add
-- [ ] Product CRUD; code unique across all products (incl. inactive) and editable; deactivate, never delete
-- [ ] Unit rows with exactly one `is_base` (primary sell unit); wholesale pricing via unit rows
-- [ ] Bulk products: stock in gram/ml, single `kg`/`liter` row factor 1000, `pricing_factor = 1000`
-- [ ] Search by code/name, filter by category, pagination
-- [ ] Audit log for product, unit, and category changes
-- [ ] Initial stock entered via stock adjustment (creates movement)
+- [x] Categories with defaults (Rokok, Sembako, Lain-lain); owner can add
+- [x] Product CRUD; code unique across all products (incl. inactive) and editable; deactivate, never delete
+- [x] Unit rows with exactly one `is_base` (primary sell unit); wholesale pricing via unit rows
+- [x] Bulk products: stock in gram/ml, single `kg`/`liter` row factor 1000, `pricing_factor = 1000`
+- [x] Search by code/name, filter by category, pagination
+- [x] Audit log for product, unit, and category changes
+- [x] Initial stock entered via stock adjustment (creates movement)
 
 **Done when:** 100 products entered and searchable.
 
