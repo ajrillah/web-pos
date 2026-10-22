@@ -41,6 +41,7 @@ Checked for every text token on `background`, `card`, `muted`, and `selected`:
 - `subtle-foreground` was specified as `#6C7C7B` (4.37 on white, 3.90 on muted: fails). Darkened to `#607070` (>= 4.63). Do not use it on `primary-soft`.
 - `success` text only on `card`, `background`, or its soft bg (4.58-5.02); it fails on `muted` (4.48).
 - `faint` (2.9 max) and `warning` gold (2.2) are never text colors.
+- `<Kbd>` tints its own text color at 10%: `muted-foreground` passes (>= 5.1), `subtle-foreground` does not (4.1). Use `muted-foreground` or `primary-foreground` text on key hints.
 - Focus: `primary-soft` alone is 1.2:1 against white, so focus is a `primary` border plus a 3px `primary-soft` halo.
 
 ## 2. Typography
