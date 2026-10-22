@@ -81,14 +81,14 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 
 ## Stage 5 — PIN & void
 
-- [ ] `POST auth/approve` -> in-memory short-lived token; `X-Approval-Token` enforced for cashier on PIN endpoints; action tokens single-use
-- [ ] Owner session bypasses approval; every approval audit-logged
-- [ ] Void sale: stock returned via movements, receivable voided; rejected if receivable has active payments
-- [ ] Void customer payment (PIN): allocations reversed, receivable remaining restored
-- [ ] Voided receipts marked "DIBATALKAN"; all voids audit-logged
-- [ ] Auto-lock (default 5 min) and quick lock (Ctrl+L); unlock same user only; "Ganti pengguna" -> login
-- [ ] Login with user tiles + 6-digit PIN pad (keyboard also types digits); `GET auth/users` returns only id, name, role of active users (no usernames); login by user id + PIN
-- [ ] Settings page (PIN): store name/address/phone, receipt footer, rounding, receipt width, receipt folder, auto-lock; audit logged
+- [x] `POST auth/approve` -> in-memory short-lived token; `X-Approval-Token` enforced for cashier on PIN endpoints; action tokens single-use
+- [x] Owner session bypasses approval; every approval audit-logged
+- [x] Void sale: stock returned via movements, receivable voided; rejected if receivable has active payments
+- [x] Void customer payment (PIN): allocations reversed, receivable remaining restored
+- [x] Voided receipts marked "DIBATALKAN"; all voids audit-logged
+- [x] Auto-lock (default 5 min) and quick lock (Ctrl+L); unlock same user only; "Ganti pengguna" -> login
+- [x] Login with user tiles + 6-digit PIN pad (keyboard also types digits); `GET auth/users` returns only id, name, role of active users (no usernames); login by user id + PIN
+- [x] Settings page (PIN): store name/address/phone, receipt footer, rounding, receipt width, receipt folder, auto-lock; audit logged
 
 **Done when:** MVP complete; tag `v0.1.0-mvp` (ask before tagging).
 
