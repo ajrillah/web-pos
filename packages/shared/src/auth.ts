@@ -82,6 +82,9 @@ export const actionScopeSchema = z.enum([
   'product.price',
   'product.deactivate',
   'category.manage',
+  'purchase.void',
+  'purchase.cost',
+  'supplier-payment.void',
 ]);
 export type ActionScope = z.infer<typeof actionScopeSchema>;
 
@@ -97,7 +100,7 @@ export const APPROVAL_HEADER = 'x-approval-token';
 export const approveRequestSchema = z.object({
   pin: pinSchema,
   scope: approvalScopeSchema,
-  /** The sale, payment, product, or category the action applies to. */
+  /** The sale, payment, purchase, product, or category the action applies to. */
   targetId: z.string().min(1).optional(),
   /** The owner chosen on the tiles; required when several owners are active. */
   ownerId: z.string().min(1).optional(),
