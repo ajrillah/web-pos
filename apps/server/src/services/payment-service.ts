@@ -170,6 +170,7 @@ export function voidCustomerPayment(
       action: 'void',
       oldValue: { number: payment.number, amount: payment.amount, status: payment.status },
       newValue: { status: 'voided', reason },
+      createdAt: now,
     });
     return loadPayment(tx, id);
   });
