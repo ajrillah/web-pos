@@ -173,3 +173,86 @@ export const stockMovements = sqliteTable(
     index('stock_movements_ref_id_idx').on(t.refId),
   ],
 );
+
+export const sales = sqliteTable(
+  'sales',
+  {
+    // Client-generated UUID for completed sales (idempotency) and held sales.
+    id: text('id').primaryKey(),
+    // TRX-YYYYMMDD-NNNN (local date); null while held.
+    number: text('number').unique(),
+    cashierId: text('cashier_id')
+      .notNull()
+      .references(() => users.id),
+    status: text('status', { enum: ['held', 'completed', 'voided'] }).notNull(),
+    // After rounding: sum(sale_items.subtotal) + rounding_amount.
+    total: integer('total').notNull(),
+    roundingAmount: integer('rounding_amount').notNull(),
+    // Cash received + QRIS.
+    paidTotal: integer('paid_total').notNull().default(0),
+    changeAmount: integer('change_amount').notNull().default(0),
+    debtAmount: integer('debt_amount').notNull().default(0),
+    completedAt: text('completed_at'),
+    voidedAt: text('voided_at'),
+    voidedBy: text('voided_by').references(() => users.id),
+    voidReason: text('void_reason'),
+    // Receipts generated so far; every one after the first is marked "SALINAN".
+    receiptCount: integer('receipt_count').notNull().default(0),
+    // Last receipt saved to the receipt folder (for "Buka").
+    receiptFile: text('receipt_file'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('sales_status_created_at_idx').on(t.status, t.createdAt),
+    index('sales_completed_at_idx').on(t.completedAt),
+  ],
+);
+
+export const saleItems = sqliteTable(
+  'sale_items',
+  {
+    id: id(),
+    saleId: text('sale_id')
+      .notNull()
+      .references(() => sales.id),
+    lineNo: integer('line_no').notNull(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id),
+    unitId: text('unit_id')
+      .notNull()
+      .references(() => productUnits.id),
+    // Snapshot at sale time; history never reads current product data.
+    productCode: text('product_code').notNull(),
+    productName: text('product_name').notNull(),
+    unitName: text('unit_name').notNull(),
+    qtyBase: integer('qty_base').notNull(),
+    unitFactor: integer('unit_factor').notNull(),
+    unitPrice: integer('unit_price').notNull(),
+    costPrice: integer('cost_price').notNull(),
+    pricingFactor: integer('pricing_factor').notNull(),
+    subtotal: integer('subtotal').notNull(),
+    costTotal: integer('cost_total').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('sale_items_sale_id_idx').on(t.saleId),
+    index('sale_items_product_id_idx').on(t.productId),
+  ],
+);
+
+export const salePayments = sqliteTable(
+  'sale_payments',
+  {
+    id: id(),
+    saleId: text('sale_id')
+      .notNull()
+      .references(() => sales.id),
+    method: text('method', { enum: ['cash', 'qris'] }).notNull(),
+    // Cash: amount received (change is in sales.change_amount). QRIS: amount paid.
+    amount: integer('amount').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('sale_payments_sale_id_idx').on(t.saleId)],
+);
