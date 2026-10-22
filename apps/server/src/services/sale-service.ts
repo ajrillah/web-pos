@@ -500,6 +500,7 @@ export function voidSale(ctx: ServiceContext, actor: Actor, id: string, reason: 
       action: 'void',
       oldValue: voidSnapshot(row),
       newValue: { status: 'voided', reason },
+      createdAt: now,
     });
     return loadSale(tx, id);
   });

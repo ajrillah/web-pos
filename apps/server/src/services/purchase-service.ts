@@ -367,6 +367,7 @@ function voidPaymentRows(
     action: 'void',
     oldValue: { number: payment.number, amount: payment.amount, status: 'active' },
     newValue: { status: 'voided', reason },
+    createdAt: now,
   });
 }
 
@@ -424,6 +425,7 @@ export function voidPurchase(
       action: 'void',
       oldValue: { number: purchase.number, total: purchase.total, status: purchase.status },
       newValue: { status: 'voided', reason },
+      createdAt: now,
     });
 
     const changed = purchase.items.filter((i) => i.newCostPrice !== i.oldCostPrice);
