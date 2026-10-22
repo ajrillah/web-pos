@@ -1,4 +1,11 @@
-import type { Customer, Product, Purchase, Sale, Supplier } from '@toko-podomoro/shared';
+import {
+  type Customer,
+  localDate,
+  type Product,
+  type Purchase,
+  type Sale,
+  type Supplier,
+} from '@toko-podomoro/shared';
 import ExcelJS from 'exceljs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -506,6 +513,18 @@ describe('report access and queries', () => {
     // Menu tokens are not spent.
     const again = await api('GET', '/api/reports/debts', undefined, token, menu);
     expect(again.statusCode).toBe(200);
+    // The approval and a failed owner PIN show in the activity report (stamped with the
+    // wall clock, not the test clock).
+    await api('POST', '/api/auth/approve', { pin: '999999', scope: 'laporan' }, token);
+    const today = localDate(new Date());
+    const activity = await report(`activity?from=${today}&to=${today}`);
+    const descriptions = activity.rows.map((a: { description: string }) => a.description);
+    expect(descriptions).toContain('Persetujuan pemilik untuk membuka Laporan');
+    expect(descriptions).toContain(
+      'PIN salah pada persetujuan pemilik (membuka Laporan) untuk Rina',
+    );
+    const granted = activity.rows.find((a: { action: string }) => a.action === 'grant');
+    expect(granted).toMatchObject({ userName: 'Rina', approvedByName: 'Bu Sari' });
   });
 
   it('refuses a category filter on non-product reports, bad periods, and unknown types', async () => {
