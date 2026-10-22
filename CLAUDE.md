@@ -4,7 +4,7 @@ TOKO PODOMORO (slug `toko-podomoro`): offline POS web app for Indonesian grocery
 
 - Full spec (source of truth): `docs/design.md`.
 - UI look and locked layouts: `docs/ui-style.md` (theme "Teal Elegan").
-- Roadmap and progress: `production_checklist.md` (stages 0-10 + production readiness).
+- Roadmap and progress: `production_checklist.md` (stages 0-10 + production readiness). Order: 0-5, 7, 8, 9, 6, 10 (Distribution runs after Import; numbers unchanged).
 - Procedures live in `.claude/skills/`: money-rules, db-change, api-endpoint, cashier-ui, ui-style, verify, stage-done.
 - Items under "Open questions" in `docs/design.md` are undecided. Ask; do not pick one.
 

@@ -221,11 +221,13 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
   - `cost_price` is not reverted; the owner sees a reminder to review the cost price of affected products.
 - Supplier debt payments are allocated to ticked purchases (oldest pre-ticked).
 - Supplier payment void (owner PIN): allocations reversed, purchase `remaining` restored.
+  - A purchase's initial payment can be voided on its own the same way; its amount becomes debt again and the purchase stays completed.
 - Adjustments with reason: `rusak`, `kedaluwarsa`, `hilang`, `opname`, `lainnya`.
-- Stock opname is a session:
+- Stock opname is a session, one per category:
   - Start: creates `stock_opnames` (status `open`); `system_qty_at_start` is recorded for each product counted.
+  - A product can be in only one open session. Sessions for other categories may run in parallel; starting a session that would include a product already in an open session is refused (409).
   - Enter counted quantities (`counted_qty`); sales continue during the session.
-  - Complete: per item, `delta = counted_qty - system_qty_at_start`, applied as an adjustment (reason `opname`) to current stock.
+  - Complete: per item, `delta = counted_qty - system_qty_at_start`, applied as an adjustment (reason `opname`) to current stock. The adjustment is valued at the product's `cost_price` at completion time (`stock_adjustments.cost_price`).
   - Cancel: status `cancelled`, no stock change.
 - Movement history.
 
@@ -413,7 +415,7 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 
 ## 11. Roadmap
 
-Tracked with checkboxes in `../production_checklist.md`.
+Tracked with checkboxes in `../production_checklist.md`. Stages run in table order (0-5, 7, 8, 9, 6, 10); numbers are kept.
 
 | Stage | Scope | Done when |
 |---|---|---|
@@ -423,10 +425,10 @@ Tracked with checkboxes in `../production_checklist.md`.
 | 3 Cashier | Search, units, cash/QRIS, rounding, atomic save, idempotency, hold, receipt PDF (folder + download), transaction history, keyboard UX | 50 test sales, stock matches movements, receipts correct |
 | 4 Kasbon | Customers, auto kasbon, payments with allocation, ledger | Balances always reconcile |
 | 5 PIN & void | Approval tokens, sale void, customer payment void, auto-lock, switch user | MVP; tag `v0.1.0-mvp` |
-| 6 Distribution | Installer, portable Node, launcher, autostart, port config, manual backup | Runs on clean PC; pilot store; tag `v0.2.0-pilot` |
 | 7 Stock & suppliers | Purchases, cost suggestions, supplier debt, purchase and supplier payment void, adjustments, opname sessions, movement history | Stock and payables reconcile with movements/allocations |
 | 8 Reports | All reports + PDF/Excel export | Totals match raw data on a seeded dataset |
 | 9 Import | CSV/Excel product import (may move earlier) | 500-row file imports; invalid rows reported, none saved partially |
+| 6 Distribution | Installer, portable Node, launcher, autostart, port config, manual backup | Runs on clean PC; pilot store; tag `v0.2.0-pilot` |
 | 10 Deferred | See below | — |
 
 ## 12. Deferred (Stage 10)
@@ -447,7 +449,4 @@ Tracked with checkboxes in `../production_checklist.md`.
 
 Not decided. Do not implement a choice without asking. Tagged with the stage that needs the answer.
 
-1. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
-2. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
-3. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
-4. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
+1. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
