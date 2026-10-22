@@ -41,3 +41,16 @@ export function insertUser(db: Executor, row: NewUserRow): UserRow {
 export function updateUser(db: Executor, id: string, patch: UserPatch): UserRow {
   return db.update(users).set(patch).where(eq(users.id, id)).returning().get();
 }
+
+export function listActiveUsers(db: Executor): UserRow[] {
+  return db
+    .select()
+    .from(users)
+    .where(eq(users.active, true))
+    .orderBy(asc(users.name), asc(users.username))
+    .all();
+}
+
+export function listActiveOwners(db: Executor): UserRow[] {
+  return listActiveUsers(db).filter((u) => u.role === 'owner');
+}

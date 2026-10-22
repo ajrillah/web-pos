@@ -32,7 +32,7 @@ import {
   updateUnit,
 } from '../repositories/products-repository';
 import { productIdsWithMovements } from '../repositories/stock-repository';
-import type { Actor, ServiceContext } from './context';
+import { type Actor, isApproved, type ServiceContext } from './context';
 import { recordAdjustment } from './stock-service';
 
 // Rules: docs/design.md 4.1 and 6.5. Cashier limits: 6.5 "Cashier permissions".
@@ -220,6 +220,7 @@ export function createProduct(
     });
     insertAudit(tx, {
       userId: actor.id,
+      approvedBy: actor.approvedBy ?? null,
       entity: 'product',
       entityId: product.id,
       action: 'create',
@@ -235,6 +236,7 @@ export function createProduct(
       });
       insertAudit(tx, {
         userId: actor.id,
+        approvedBy: actor.approvedBy ?? null,
         entity: 'product_unit',
         entityId: row.id,
         action: 'create',
@@ -299,7 +301,7 @@ export function updateProductById(
         const row = u.id === undefined ? undefined : existing.get(u.id);
         return !row?.active || row.sellPrice !== u.sellPrice;
       });
-    if (priceChanged && actor.role !== 'owner') {
+    if (priceChanged && !isApproved(actor)) {
       throw appErrors.ownerApprovalRequired();
     }
 
@@ -319,6 +321,7 @@ export function updateProductById(
       const updated = updateProduct(tx, product.id, next);
       insertAudit(tx, {
         userId: actor.id,
+        approvedBy: actor.approvedBy ?? null,
         entity: 'product',
         entityId: product.id,
         action: 'update',
@@ -330,6 +333,7 @@ export function updateProductById(
     const auditUnit = (action: string, before: UnitRow | undefined, after: UnitRow) =>
       insertAudit(tx, {
         userId: actor.id,
+        approvedBy: actor.approvedBy ?? null,
         entity: 'product_unit',
         entityId: after.id,
         action,
@@ -385,13 +389,14 @@ export function setProductActive(
     if (!product) {
       throw appErrors.productNotFound();
     }
-    if (!active && actor.role !== 'owner') {
+    if (!active && !isApproved(actor)) {
       throw appErrors.ownerApprovalRequired();
     }
     if (product.active !== active) {
       const updated = updateProduct(tx, product.id, { active });
       insertAudit(tx, {
         userId: actor.id,
+        approvedBy: actor.approvedBy ?? null,
         entity: 'product',
         entityId: product.id,
         action: active ? 'activate' : 'deactivate',

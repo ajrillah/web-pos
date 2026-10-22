@@ -71,7 +71,12 @@ export function insertPayment(db: Executor, row: NewPaymentRow): void {
 export function updatePayment(
   db: Executor,
   id: string,
-  patch: Partial<Pick<PaymentRow, 'receiptCount' | 'receiptFile'>>,
+  patch: Partial<
+    Pick<
+      PaymentRow,
+      'receiptCount' | 'receiptFile' | 'status' | 'voidedAt' | 'voidedBy' | 'voidReason'
+    >
+  >,
 ): void {
   db.update(customerPayments).set(patch).where(eq(customerPayments.id, id)).run();
 }

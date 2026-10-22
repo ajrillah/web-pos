@@ -16,6 +16,7 @@ import { saleRoutes } from './routes/sales';
 import { settingsRoutes } from './routes/settings';
 import { setupRoutes } from './routes/setup';
 import { userRoutes } from './routes/users';
+import { ApprovalStore } from './security/approvals';
 import type { ServiceContext } from './services/context';
 import { openWithSystem } from './system/open-path';
 
@@ -45,7 +46,7 @@ export async function buildApp({
   openPath = openWithSystem,
 }: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger });
-  const ctx: ServiceContext = { db, now, openPath };
+  const ctx: ServiceContext = { db, now, openPath, approvals: new ApprovalStore(now) };
 
   app.addHook('onRequest', async (request, reply) => {
     if (!allowedHostnames.has(request.hostname)) {

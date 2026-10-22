@@ -41,6 +41,7 @@ export function createCategory(
     const row = insertCategory(tx, input.name);
     insertAudit(tx, {
       userId: actor.id,
+      approvedBy: actor.approvedBy ?? null,
       entity: 'category',
       entityId: row.id,
       action: 'create',
@@ -77,6 +78,7 @@ export function updateCategoryById(
     const updated = updateCategory(tx, row.id, patch);
     insertAudit(tx, {
       userId: actor.id,
+      approvedBy: actor.approvedBy ?? null,
       entity: 'category',
       entityId: row.id,
       action: 'update',

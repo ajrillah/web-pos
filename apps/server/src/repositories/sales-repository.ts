@@ -83,7 +83,12 @@ export function insertSale(db: Executor, row: NewSaleRow): void {
 export function updateSale(
   db: Executor,
   id: string,
-  patch: Partial<Pick<SaleRow, 'receiptCount' | 'receiptFile'>>,
+  patch: Partial<
+    Pick<
+      SaleRow,
+      'receiptCount' | 'receiptFile' | 'status' | 'voidedAt' | 'voidedBy' | 'voidReason'
+    >
+  >,
 ): void {
   db.update(sales).set(patch).where(eq(sales.id, id)).run();
 }
