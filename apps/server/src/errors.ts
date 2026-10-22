@@ -54,6 +54,21 @@ export const appErrors = {
       'OWNER_PIN_RESET_FORBIDDEN',
       'PIN pemilik hanya dapat diatur ulang oleh pemilik itu sendiri dengan kode pemulihan.',
     ),
+  categoryNotFound: () => new AppError(404, 'CATEGORY_NOT_FOUND', 'Kategori tidak ditemukan.'),
+  categoryInactive: () =>
+    new AppError(400, 'CATEGORY_INACTIVE', 'Kategori nonaktif tidak dapat dipilih.'),
+  categoryNameTaken: () => new AppError(409, 'CATEGORY_NAME_TAKEN', 'Nama kategori sudah dipakai.'),
+  defaultCategoryLocked: () =>
+    new AppError(409, 'DEFAULT_CATEGORY_LOCKED', 'Kategori bawaan tidak dapat dinonaktifkan.'),
+  productNotFound: () => new AppError(404, 'PRODUCT_NOT_FOUND', 'Barang tidak ditemukan.'),
+  productCodeTaken: () =>
+    new AppError(
+      409,
+      'PRODUCT_CODE_TAKEN',
+      'Kode barang sudah dipakai, termasuk oleh barang nonaktif.',
+    ),
+  /** Unit rows break a rule; `message` says which. */
+  invalidUnits: (message: string) => new AppError(400, 'INVALID_UNITS', message),
 };
 
 export function validationMessage(field: string | undefined): string {

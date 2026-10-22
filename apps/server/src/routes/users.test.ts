@@ -3,6 +3,8 @@ import { auditLogs } from '../db/schema';
 import { findUserByUsername } from '../repositories/users-repository';
 import { updateUserById } from '../services/user-service';
 import {
+  activeCashier as activeCashierFor,
+  CASHIER,
   createHarness,
   createUserAs,
   type Harness,
@@ -23,26 +25,13 @@ afterEach(async () => {
   await h.close();
 });
 
-const CASHIER = { username: 'kasir1', name: 'Rina', role: 'cashier' as const, pin: '555555' };
-
 const put = (token: string, id: string, payload: object) =>
   h.app.inject({ method: 'PUT', url: `/api/users/${id}`, headers: withSession(token), payload });
 
 const me = (token: string) =>
   h.app.inject({ method: 'GET', url: '/api/auth/me', headers: withSession(token) });
 
-/** Logs the cashier in and completes the forced PIN change; returns a usable session. */
-async function activeCashier(): Promise<{ id: string; token: string }> {
-  const id = await createUserAs(h, ownerToken, CASHIER);
-  const token = await login(h, CASHIER.username, CASHIER.pin);
-  await h.app.inject({
-    method: 'PUT',
-    url: '/api/auth/me/pin',
-    headers: withSession(token),
-    payload: { currentPin: CASHIER.pin, newPin: '565656' },
-  });
-  return { id, token };
-}
+const activeCashier = () => activeCashierFor(h, ownerToken);
 
 describe('access', () => {
   it('requires a session', async () => {
