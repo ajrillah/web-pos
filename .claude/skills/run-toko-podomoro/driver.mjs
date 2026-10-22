@@ -10,7 +10,7 @@
 //      SHOTS_DIR     screenshot directory (default: /tmp/toko-shots)
 //      BASE_URL      prefix for relative nav paths (default: http://127.0.0.1:4747)
 
-import { spawn } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -293,6 +293,14 @@ async function main() {
       const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
       fs.writeFileSync(file, Buffer.from(data, 'base64'));
       return file;
+    },
+    async sh(arg) {
+      // Runs a shell command between steps (e.g. restart the server); browser state is kept.
+      return execSync(arg, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: '/bin/bash',
+      }).trim();
     },
     async console() {
       return errors.length ? errors.join('\n') : '(no errors)';
