@@ -8,7 +8,7 @@ export const Tabs = TabsPrimitive.Root;
 export const tabsListClass = 'inline-flex items-center gap-1 rounded-full bg-muted p-1';
 export const tabsTriggerClass = cn(
   'inline-flex h-10 items-center gap-2 rounded-full px-4 text-[15px] font-semibold whitespace-nowrap text-muted-foreground outline-none transition-colors',
-  'hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-primary-soft focus-visible:outline-2 focus-visible:outline-primary',
+  'hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-primary-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50',
 );
 export const tabsTriggerActiveClass = 'bg-card text-primary shadow-card';
 

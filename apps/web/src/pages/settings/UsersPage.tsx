@@ -1,11 +1,12 @@
 import { createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table';
 import type { Role, User } from '@toko-podomoro/shared';
 import { KeyRound, Pencil, Power, UserPlus } from 'lucide-react';
-import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import { api } from '../../api/endpoints';
 import { useCurrentUser } from '../../auth/AuthProvider';
+import { FormDialog } from '../../components/FormDialog';
 import {
   checkPin,
   checkUsername,
@@ -17,14 +18,6 @@ import {
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
 import {
   Select,
@@ -262,67 +255,6 @@ function UserActions({
         toggle
       )}
     </div>
-  );
-}
-
-/** Dialog with a form: Enter submits, Esc closes, errors stay inline. */
-function FormDialog({
-  open,
-  title,
-  description,
-  submitLabel,
-  onClose,
-  onSubmit,
-  children,
-}: {
-  open: boolean;
-  title: string;
-  description?: string;
-  submitLabel: string;
-  onClose: () => void;
-  /** Returns an error message to show, or null on success. */
-  onSubmit: () => Promise<string | null>;
-  children: ReactNode;
-}) {
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(await onSubmit());
-    setBusy(false);
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) {
-          setError(null);
-          onClose();
-        }
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
-        </DialogHeader>
-        <form onSubmit={submit} className="space-y-4" noValidate>
-          {children}
-          <ErrorAlert message={error} />
-          <DialogFooter>
-            <Button variant="secondary" onClick={onClose}>
-              Batal
-            </Button>
-            <Button type="submit" disabled={busy}>
-              {busy ? 'Memproses…' : submitLabel}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
 
