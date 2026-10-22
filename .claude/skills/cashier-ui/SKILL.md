@@ -23,7 +23,7 @@ Visual style (colors, fonts, radius, components, locked layouts): `ui-style` ski
 ## Keyboard
 - Register shortcuts in one global handler: F1 Kasir, F2 Cari, F3 Barang, F4 Stok, F5 Pelanggan, F6 Riwayat, F8 Bayar, F9 Tahan, Esc batal/tutup, Ctrl+L kunci.
 - Capture F1-F10 with `preventDefault()` so Edge defaults (help, reload, find) do not fire. Never bind F11/F12.
-- Wire `Alt+<number>` fallbacks only for keys that fail the Stage 3 Windows capture test (see `docs/design.md` section 8).
+- Wire `Alt+<number>` fallbacks only for keys that fail the manual Windows capture test (Stage 6; see `docs/design.md` section 8).
 - Esc closes the topmost dialog; with no dialog in Kasir, it cancels the current action.
 - Every dialog: autofocus primary field, Enter confirms, Esc cancels, focus trapped.
 - "Simpan nota PDF?": Enter = save, Esc = skip. Then "Nota tersimpan" with Buka, Buka folder, Unduh.

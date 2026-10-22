@@ -64,7 +64,7 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 - [ ] "Simpan nota PDF?" prompt (Enter = yes, Esc = skip); "SALINAN" on reprint
 - [ ] Riwayat Transaksi: default today; filter date/text/status; detail with Buka/Buka folder/Unduh
 - [ ] Keyboard UX: shortcuts, focus returns to search, large fonts
-- [ ] F-key capture tested in Edge `--app` mode on Windows; Alt+number fallback for any key that fails; no F11/F12
+- [ ] F1-F10 captured with `preventDefault` (no F11/F12); Alt+number fallback can be switched on per key (manual Windows test: Stage 6)
 
 **Done when:** 50 test sales completed; stock matches movements; receipts correct.
 
@@ -101,6 +101,7 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 - [ ] Data in `C:\ProgramData\TokoPodomoro\`; uninstall keeps data
 - [ ] Default receipt folder `%USERPROFILE%\Documents\TokoPodomoro\Nota` created on first save
 - [ ] Manual backup (and documented restore)
+- [ ] F-key capture verified manually in Edge `--app` mode on Windows; switch on the Alt+number fallback for any key that fails
 - [ ] Revisit web bundle size: code-split routes (Vite warns the main chunk is > 500 kB)
 
 **Done when:** runs on a clean PC; deployed to pilot store; tag `v0.2.0-pilot` (ask before tagging).
