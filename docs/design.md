@@ -140,7 +140,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
   - Lock screen unlocks only for the same user.
   - "Ganti pengguna" goes to the login page.
 - No lockout on wrong PIN.
-- Cashier needs owner PIN for: all voids, reports, user management, store settings. Everything else is open.
+- Cashier needs owner PIN for: all voids, reports, user management, store settings, product price changes and product deactivation (6.5), category management. Everything else is open.
 
 ## 6. Features
 
@@ -186,6 +186,10 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - `code`: unique (including inactive), editable.
 - `name`.
 - Category; defaults: Rokok, Sembako, Lain-lain. Owner can add categories.
+- Cashier permissions (owner session passes directly; cashiers need owner approval, and until Stage 5 get 403 `OWNER_APPROVAL_REQUIRED`; the UI shows the PIN hint):
+  - Open to cashiers: create products (including their initial prices) and edit code, name, category, type, base unit, and unit rows (name, factor, primary flag, deactivate) except prices.
+  - Needs approval: changing any `sell_price` or `cost_price`, adding a unit row (it introduces a sell price), and deactivating a product. Reactivating is open.
+  - All product, unit, and category changes are audit-logged.
 - Type: `unit` | `bulk`.
 - Base (stock) unit; cost price.
 - Unit rows: name, factor, sell price; exactly one `is_base` (primary sell) row. Unit rows also serve as wholesale pricing (normal products only).
@@ -413,11 +417,10 @@ Tracked with checkboxes in `../production_checklist.md`.
 
 Not decided. Do not implement a choice without asking. Tagged with the stage that needs the answer.
 
-1. [Stage 2] Can cashiers edit product data and cost prices with no control, or does that need owner PIN? (Product edits are audit-logged either way.)
-2. [Stage 3] Are old held sales ever cleaned up, or kept indefinitely?
-3. [Stage 5] Should failed PIN attempts be logged?
-4. [Stage 5] Approval token lifetime, and the scope of menu-access tokens (e.g. one Laporan visit vs. a time window).
-5. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
-6. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
-7. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
-8. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
+1. [Stage 3] Are old held sales ever cleaned up, or kept indefinitely?
+2. [Stage 5] Should failed PIN attempts be logged?
+3. [Stage 5] Approval token lifetime, and the scope of menu-access tokens (e.g. one Laporan visit vs. a time window).
+4. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
+5. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
+6. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
+7. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?

@@ -74,7 +74,7 @@ installer/        Inno Setup scripts (output/ is ignored)
 
 ## Roles
 
-- `owner`, `cashier`. Cashier needs owner PIN for: all voids (sale, purchase, customer/supplier payment), reports, user management, store settings. Everything else open.
+- `owner`, `cashier`. Cashier needs owner PIN for: all voids (sale, purchase, customer/supplier payment), reports, user management, store settings, product sell/cost price changes and new unit rows, product deactivation, category management. Everything else open (incl. creating products and editing non-price fields).
 
 ## Keyboard
 
