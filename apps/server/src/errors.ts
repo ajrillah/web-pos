@@ -28,6 +28,34 @@ export const errorMessages = {
   internal: 'Terjadi kesalahan pada server. Silakan coba lagi.',
 } as const;
 
+/** Business errors raised by services. Messages are Indonesian and shown to the user as is. */
+export const appErrors = {
+  unauthenticated: () => new AppError(401, 'UNAUTHENTICATED', 'Silakan masuk terlebih dahulu.'),
+  invalidCredentials: () =>
+    new AppError(401, 'INVALID_CREDENTIALS', 'Nama pengguna atau PIN salah.'),
+  setupAlreadyDone: () =>
+    new AppError(409, 'SETUP_ALREADY_DONE', 'Pengaturan awal sudah dilakukan.'),
+  pinChangeRequired: () =>
+    new AppError(403, 'PIN_CHANGE_REQUIRED', 'Anda harus mengganti PIN terlebih dahulu.'),
+  ownerApprovalRequired: () =>
+    new AppError(403, 'OWNER_APPROVAL_REQUIRED', 'Tindakan ini memerlukan persetujuan pemilik.'),
+  wrongCurrentPin: () => new AppError(400, 'WRONG_CURRENT_PIN', 'PIN saat ini salah.'),
+  invalidRecovery: () =>
+    new AppError(400, 'INVALID_RECOVERY', 'Nama pengguna atau kode pemulihan salah.'),
+  usernameTaken: () => new AppError(409, 'USERNAME_TAKEN', 'Nama pengguna sudah dipakai.'),
+  userNotFound: () => new AppError(404, 'USER_NOT_FOUND', 'Pengguna tidak ditemukan.'),
+  lastActiveOwner: () =>
+    new AppError(409, 'LAST_ACTIVE_OWNER', 'Pemilik aktif terakhir tidak dapat dinonaktifkan.'),
+  cannotDeactivateSelf: () =>
+    new AppError(409, 'CANNOT_DEACTIVATE_SELF', 'Anda tidak dapat menonaktifkan akun sendiri.'),
+  ownerPinResetForbidden: () =>
+    new AppError(
+      403,
+      'OWNER_PIN_RESET_FORBIDDEN',
+      'PIN pemilik hanya dapat diatur ulang oleh pemilik itu sendiri dengan kode pemulihan.',
+    ),
+};
+
 export function validationMessage(field: string | undefined): string {
   return field ? `Data tidak valid pada kolom "${field}".` : errorMessages.validation;
 }

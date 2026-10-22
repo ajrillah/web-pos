@@ -1,0 +1,101 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
+import { buildApp } from '../app';
+import { SESSION_COOKIE } from '../auth/session';
+import { type DatabaseHandle, openDatabase } from '../db/client';
+import { runMigrations } from '../db/migrate';
+import { migrationsDir } from '../paths';
+
+/** A test app on a migrated SQLite file in a temp dir, with a clock tests can move. */
+export interface Harness {
+  app: FastifyInstance;
+  handle: DatabaseHandle;
+  dbFile: string;
+  clock: { now: Date; advance(ms: number): void };
+  /** Rebuilds the app on the same DB file, like a server restart. */
+  restart(): Promise<void>;
+  close(): Promise<void>;
+}
+
+export async function createHarness(): Promise<Harness> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'toko-test-'));
+  const dbFile = path.join(dir, 'test.db');
+  const clock = {
+    now: new Date('2026-10-22T08:00:00.000Z'),
+    advance(ms: number) {
+      clock.now = new Date(clock.now.getTime() + ms);
+    },
+  };
+  const open = async () => {
+    const handle = openDatabase(dbFile);
+    runMigrations(handle.db, migrationsDir);
+    const app = await buildApp({ db: handle.db, now: () => clock.now });
+    return { app, handle };
+  };
+  const harness: Harness = {
+    ...(await open()),
+    dbFile,
+    clock,
+    async restart() {
+      await harness.app.close();
+      harness.handle.sqlite.close();
+      Object.assign(harness, await open());
+    },
+    async close() {
+      await harness.app.close();
+      harness.handle.sqlite.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    },
+  };
+  return harness;
+}
+
+export function sessionCookie(res: LightMyRequestResponse): string {
+  const cookie = res.cookies.find((c) => c.name === SESSION_COOKIE);
+  if (!cookie?.value) {
+    throw new Error(`no session cookie in response (${res.statusCode} ${res.body})`);
+  }
+  return cookie.value;
+}
+
+export const withSession = (token: string) => ({ cookie: `${SESSION_COOKIE}=${token}` });
+
+export const OWNER = { username: 'pemilik', name: 'Bu Sari', pin: '111111' };
+
+/** Runs first-run setup and returns the owner's session token and recovery code. */
+export async function setupOwner(h: Harness): Promise<{ token: string; recoveryCode: string }> {
+  const res = await h.app.inject({ method: 'POST', url: '/api/setup', payload: OWNER });
+  if (res.statusCode !== 201) {
+    throw new Error(`setup failed: ${res.statusCode} ${res.body}`);
+  }
+  return { token: sessionCookie(res), recoveryCode: res.json().recoveryCode };
+}
+
+export async function login(h: Harness, username: string, pin: string): Promise<string> {
+  const res = await h.app.inject({
+    method: 'POST',
+    url: '/api/auth/login',
+    payload: { username, pin },
+  });
+  return sessionCookie(res);
+}
+
+/** Creates a user as the given owner and returns its id. */
+export async function createUserAs(
+  h: Harness,
+  ownerToken: string,
+  user: { username: string; name: string; role: 'owner' | 'cashier'; pin: string },
+): Promise<string> {
+  const res = await h.app.inject({
+    method: 'POST',
+    url: '/api/users',
+    headers: withSession(ownerToken),
+    payload: user,
+  });
+  if (res.statusCode !== 201) {
+    throw new Error(`create user failed: ${res.statusCode} ${res.body}`);
+  }
+  return res.json().user.id;
+}
