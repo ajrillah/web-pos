@@ -95,6 +95,21 @@ export type MenuScope = z.infer<typeof menuScopeSchema>;
 export const approvalScopeSchema = z.union([actionScopeSchema, menuScopeSchema]);
 export type ApprovalScope = z.infer<typeof approvalScopeSchema>;
 
+/** What an approval is for, completing "... untuk <label>". */
+export const APPROVAL_SCOPE_LABELS: Record<ApprovalScope, string> = {
+  'sale.void': 'membatalkan transaksi',
+  'payment.void': 'membatalkan pembayaran kasbon',
+  'product.price': 'mengubah harga atau menambah satuan barang',
+  'product.deactivate': 'menonaktifkan barang',
+  'category.manage': 'mengubah kategori',
+  'purchase.void': 'membatalkan stok masuk',
+  'purchase.cost': 'mengubah harga modal dari stok masuk',
+  'supplier-payment.void': 'membatalkan pembayaran hutang',
+  laporan: 'membuka Laporan',
+  pengguna: 'membuka Pengguna',
+  'profil-toko': 'membuka Profil Toko',
+};
+
 export const APPROVAL_HEADER = 'x-approval-token';
 
 export const approveRequestSchema = z.object({
