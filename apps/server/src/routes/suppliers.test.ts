@@ -559,3 +559,151 @@ describe('Kartu Hutang', () => {
     reconcile();
   });
 });
+
+describe('Done when: stock and payables reconcile with movements and allocations', () => {
+  it('holds through random purchases, payments, voids, adjustments, sales, and opname', async () => {
+    const suppliers = [await newSupplier('A'), await newSupplier('B')];
+    const products = [indomie, gula];
+    // Deterministic pseudo-random sequence.
+    let seed = 7;
+    const rand = (n: number) => {
+      seed = (seed * 1103515245 + 12345) % 2 ** 31;
+      // High bits: the low bits of this generator cycle quickly.
+      return Math.floor(seed / 2 ** 16) % n;
+    };
+    const sembako = (await api('GET', '/api/categories'))
+      .json()
+      .categories.find((c: { name: string }) => c.name === 'Sembako').id;
+    let opnameId: string | null = null;
+
+    for (let step = 0; step < 80; step++) {
+      h.clock.advance(1000);
+      const supplier = suppliers[rand(2)] as Supplier;
+      const action = rand(8);
+      if (action <= 1) {
+        const qty = 1 + rand(5);
+        const body = {
+          id: crypto.randomUUID(),
+          supplierId: supplier.id,
+          lines: [
+            {
+              productId: indomie.id,
+              unitId: unitOf(indomie, 'dus'),
+              qtyBase: qty * 40,
+              buyPrice: 95000 + rand(10) * 1000,
+              newCostPrice: 2500,
+            },
+            {
+              productId: gula.id,
+              unitId: unitOf(gula, 'kg'),
+              qtyBase: 100 + rand(5000),
+              buyPrice: 13000 + rand(2000),
+              newCostPrice: 14000,
+            },
+          ],
+          paidAmount: rand(2) === 0 ? 0 : rand(100000),
+        };
+        expect((await api('POST', '/api/purchases', body)).statusCode).toBe(201);
+      } else if (action === 2) {
+        const open = (await api('GET', `/api/payables?supplierId=${supplier.id}`)).json()
+          .purchases as Purchase[];
+        if (open.length === 0) continue;
+        const ticked = open.filter((_, i) => i === 0 || rand(2) === 1);
+        const total = ticked.reduce((s, p) => s + p.remaining, 0);
+        const res = await paySupplier(
+          supplier,
+          ticked.map((p) => p.id),
+          1 + rand(total),
+        );
+        expect(res.statusCode).toBe(201);
+      } else if (action === 3) {
+        const payments = h.handle.sqlite
+          .prepare("select id from supplier_payments where status = 'active'")
+          .all() as { id: string }[];
+        const target = payments[rand(Math.max(payments.length, 1))];
+        if (!target) continue;
+        const res = await api('POST', `/api/supplier-payments/${target.id}/void`, {
+          reason: 'salah_input',
+        });
+        expect(res.statusCode).toBe(200);
+      } else if (action === 4) {
+        const list = (await api('GET', '/api/purchases?status=completed')).json()
+          .purchases as Purchase[];
+        const target = list[rand(Math.max(list.length, 1))];
+        if (!target) continue;
+        const url = `/api/purchases/${target.id}/void`;
+        const res = await api('POST', url, { reason: 'salah_input' });
+        if (res.statusCode === 409) {
+          // Refused while a debt payment is active: void those payments, then the purchase.
+          expect(res.json().error.code).toBe('PURCHASE_HAS_PAYMENTS');
+          for (const p of (await getPurchase(target.id)).payments) {
+            if (p.initial || p.status !== 'active') continue;
+            await api('POST', `/api/supplier-payments/${p.paymentId}/void`, {
+              reason: 'salah_input',
+            });
+          }
+          expect((await api('POST', url, { reason: 'salah_input' })).statusCode).toBe(200);
+        } else {
+          expect(res.statusCode).toBe(200);
+        }
+      } else if (action === 5) {
+        const product = products[rand(2)] as Product;
+        const res = await api('POST', '/api/stock-adjustments', {
+          productId: product.id,
+          qtyChange: rand(2) === 0 ? -(1 + rand(30)) : 1 + rand(30),
+          reason: 'rusak',
+        });
+        expect(res.statusCode).toBe(201);
+      } else if (action === 6) {
+        const qty = 1 + rand(20);
+        const res = await api('POST', '/api/sales', {
+          id: crypto.randomUUID(),
+          lines: [{ productId: indomie.id, unitId: unitOf(indomie, 'pcs'), qtyBase: qty }],
+          cash: qty * 3500,
+          qris: 0,
+          expectedTotal: qty * 3500,
+        });
+        expect(res.statusCode).toBe(201);
+      } else if (opnameId === null) {
+        const res = await api('POST', '/api/stock-opname', { categoryId: sembako });
+        expect(res.statusCode).toBe(201);
+        opnameId = res.json().opname.id;
+        await api('PUT', `/api/stock-opname/${opnameId}/items`, {
+          items: [{ productId: indomie.id, countedQty: rand(100) }],
+        });
+      } else {
+        const res = await api('POST', `/api/stock-opname/${opnameId}/complete`);
+        expect(res.statusCode).toBe(200);
+        opnameId = null;
+      }
+
+      reconcile();
+      for (const s of suppliers) {
+        const sums = h.handle.sqlite
+          .prepare(
+            `select
+               (select coalesce(sum(remaining), 0) from purchases where supplier_id = ? and status = 'completed') as open_remaining,
+               (select coalesce(sum(total), 0) from purchases where supplier_id = ? and status = 'completed') as bought,
+               (select coalesce(sum(amount), 0) from supplier_payments where supplier_id = ? and status = 'active') as paid`,
+          )
+          .get(s.id, s.id, s.id) as { open_remaining: number; bought: number; paid: number };
+        expect(sums.open_remaining).toBe(sums.bought - sums.paid);
+        const ledger = (await api('GET', `/api/suppliers/${s.id}/ledger`)).json();
+        expect(ledger.supplier.balance).toBe(sums.open_remaining);
+        expect(ledger.entries.at(-1)?.balance ?? 0).toBe(sums.open_remaining);
+      }
+    }
+    // The sequence exercised every kind of write.
+    const counts = h.handle.sqlite
+      .prepare(
+        `select
+           (select count(*) from purchases where status = 'voided') as voided_purchases,
+           (select count(*) from supplier_payments where status = 'voided' and initial_purchase_id is null) as voided_payments,
+           (select count(*) from supplier_payments where initial_purchase_id is not null) as initial_payments,
+           (select count(*) from stock_opnames where status = 'completed') as opnames,
+           (select count(*) from stock_movements where type = 'sale') as sales`,
+      )
+      .get() as Record<string, number>;
+    for (const [name, n] of Object.entries(counts)) expect(n, name).toBeGreaterThan(0);
+  }, 60_000);
+});
