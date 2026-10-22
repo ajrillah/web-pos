@@ -1,6 +1,6 @@
 import { XIcon } from 'lucide-react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
-import type { ComponentProps } from 'react';
+import { type ComponentProps, useRef } from 'react';
 import { cn } from '../../lib/utils';
 
 // Centered with a dim overlay. Radix traps focus and closes on Esc; forms inside confirm on Enter.
@@ -12,8 +12,10 @@ export const DialogClose = DialogPrimitive.Close;
 export function DialogContent({
   className,
   children,
+  onOpenAutoFocus,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content>) {
+  const contentRef = useRef<HTMLDivElement>(null);
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay
@@ -21,6 +23,17 @@ export function DialogContent({
         className="fixed inset-0 z-50 bg-foreground/40"
       />
       <DialogPrimitive.Content
+        ref={contentRef}
+        // Focus goes to the element marked `data-autofocus` (e.g. the confirm button, so Enter
+        // confirms); otherwise Radix focuses the first focusable element.
+        onOpenAutoFocus={(e) => {
+          const target = contentRef.current?.querySelector<HTMLElement>('[data-autofocus]');
+          if (target) {
+            e.preventDefault();
+            target.focus();
+          }
+          onOpenAutoFocus?.(e);
+        }}
         data-slot="dialog-content"
         className={cn(
           'fixed top-1/2 left-1/2 z-50 grid w-full max-w-md -translate-x-1/2 -translate-y-1/2 gap-5 rounded-card bg-popover p-7 text-popover-foreground shadow-card outline-none',
