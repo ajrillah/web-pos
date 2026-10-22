@@ -49,6 +49,21 @@ const customerTabs: MenuEntry[] = [
   { label: 'Daftar Piutang', path: '/pelanggan/piutang' },
 ];
 
+// Sub-pages of Stok.
+const stockTabs: MenuEntry[] = [
+  { label: 'Stok Masuk', path: '/stok' },
+  { label: 'Penyesuaian', path: '/stok/penyesuaian' },
+  { label: 'Opname', path: '/stok/opname' },
+  { label: 'Riwayat', path: '/stok/riwayat' },
+];
+
+// Sub-pages of Pemasok.
+const supplierTabs: MenuEntry[] = [
+  { label: 'Daftar', path: '/pemasok' },
+  { label: 'Kartu Hutang', path: '/pemasok/kartu' },
+  { label: 'Daftar Hutang', path: '/pemasok/hutang' },
+];
+
 function forRole(entries: MenuEntry[], role: Role): MenuItem[] {
   return entries.map(({ ownerPin = false, ...entry }) => ({
     ...entry,
@@ -74,6 +89,16 @@ export function productTabsFor(role: Role): MenuItem[] {
 /** Pelanggan tabs (open to every role). */
 export function customerTabsFor(role: Role): MenuItem[] {
   return forRole(customerTabs, role);
+}
+
+/** Stok tabs (open to every role; voids ask for the owner PIN). */
+export function stockTabsFor(role: Role): MenuItem[] {
+  return forRole(stockTabs, role);
+}
+
+/** Pemasok tabs (open to every role; voids ask for the owner PIN). */
+export function supplierTabsFor(role: Role): MenuItem[] {
+  return forRole(supplierTabs, role);
 }
 
 /** First Pengaturan tab a role can open without approval. */
