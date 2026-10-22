@@ -10,6 +10,7 @@ import { AppError, errorMessages, validationMessage } from './errors';
 import { authRoutes } from './routes/auth';
 import { categoryRoutes } from './routes/categories';
 import { healthRoutes } from './routes/health';
+import { productRoutes } from './routes/products';
 import { setupRoutes } from './routes/setup';
 import { userRoutes } from './routes/users';
 import type { ServiceContext } from './services/context';
@@ -75,6 +76,7 @@ export async function buildApp({
   await app.register(authRoutes, { prefix: '/api', ctx });
   await app.register(userRoutes, { prefix: '/api', ctx });
   await app.register(categoryRoutes, { prefix: '/api', ctx });
+  await app.register(productRoutes, { prefix: '/api', ctx });
 
   const hasWeb = webDir !== undefined && fs.existsSync(path.join(webDir, 'index.html'));
   if (hasWeb) {
