@@ -1,5 +1,8 @@
+import { createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table';
 import type { Role, User } from '@toko-podomoro/shared';
-import { type FormEvent, useCallback, useEffect, useState } from 'react';
+import { KeyRound, Pencil, Power, UserPlus } from 'lucide-react';
+import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import { api } from '../../api/endpoints';
 import { useCurrentUser } from '../../auth/AuthProvider';
@@ -11,20 +14,52 @@ import {
   PinField,
   TextField,
 } from '../../components/forms';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card } from '../../components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog';
+import { Label } from '../../components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../components/ui/table';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../components/ui/tooltip';
+import { PageHeader } from '../../layout/PageHeader';
+import { cn } from '../../lib/utils';
 import { roleLabels } from '../../navigation/menu';
 
-type RowAction = { kind: 'rename' | 'resetPin'; userId: string } | null;
+type OpenDialog = { kind: 'create' } | { kind: 'rename' | 'resetPin'; user: User } | null;
 
-const smallButton =
-  'rounded border border-slate-300 bg-white px-2.5 py-1 text-sm hover:bg-slate-50 disabled:opacity-40';
+/** Runs a mutation; on success shows a toast and reloads. Errors are thrown to the caller. */
+type Run = (task: () => Promise<unknown>, success: string) => Promise<void>;
+
+const features = tableFeatures({});
+const column = createColumnHelper<typeof features, User>();
 
 /** Owner-only user management: create, rename, (de)activate, and reset cashier PINs. */
 export function UsersPage() {
   const me = useCurrentUser();
   const [users, setUsers] = useState<User[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [action, setAction] = useState<RowAction>(null);
+  const [dialog, setDialog] = useState<OpenDialog>(null);
 
   const load = useCallback(async () => {
     try {
@@ -38,271 +73,406 @@ export function UsersPage() {
     void load();
   }, [load]);
 
-  async function run(task: () => Promise<unknown>, success: string) {
-    setError(null);
-    setNotice(null);
-    try {
+  const run = useCallback<Run>(
+    async (task, success) => {
       await task();
-      setNotice(success);
-      setAction(null);
+      toast.success(success);
+      setDialog(null);
+      setError(null);
       await load();
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-  }
+    },
+    [load],
+  );
+
+  const toggleActive = useCallback(
+    (user: User) =>
+      run(
+        () => api.updateUser(user.id, { active: !user.active }),
+        user.active ? `${user.name} dinonaktifkan.` : `${user.name} diaktifkan kembali.`,
+      ).catch((err: unknown) => setError(errorMessage(err))),
+    [run],
+  );
+
+  const columns = useMemo(
+    () =>
+      column.columns([
+        column.accessor('name', {
+          header: 'Nama',
+          cell: ({ row }) => (
+            <div className="leading-snug">
+              <div className="font-semibold">
+                {row.original.name}
+                {row.original.id === me.id && (
+                  <span className="ml-2 text-[15px] font-normal text-muted-foreground">(Anda)</span>
+                )}
+              </div>
+              <div className="font-mono text-sm text-muted-foreground">{row.original.username}</div>
+            </div>
+          ),
+        }),
+        column.accessor('role', {
+          header: 'Peran',
+          cell: ({ getValue }) => roleLabels[getValue()],
+        }),
+        column.display({
+          id: 'status',
+          header: 'Status',
+          cell: ({ row }) => <UserStatus user={row.original} />,
+        }),
+        column.display({
+          id: 'actions',
+          header: () => <span className="sr-only">Aksi</span>,
+          cell: ({ row }) => (
+            <UserActions
+              user={row.original}
+              isSelf={row.original.id === me.id}
+              onRename={() => setDialog({ kind: 'rename', user: row.original })}
+              onResetPin={() => setDialog({ kind: 'resetPin', user: row.original })}
+              onToggleActive={() => void toggleActive(row.original)}
+            />
+          ),
+        }),
+      ]),
+    [me.id, toggleActive],
+  );
+
+  const data = useMemo(() => users ?? [], [users]);
+  const table = useTable({ features, columns, data, getRowId: (user) => user.id });
 
   return (
-    <section className="max-w-4xl space-y-6">
-      <h1 className="text-2xl font-bold">Pengguna</h1>
-      <ErrorAlert message={error} />
-      {notice && (
-        <p
-          role="status"
-          className="rounded border border-green-300 bg-green-50 px-3 py-2 text-green-800"
-        >
-          {notice}
-        </p>
-      )}
-
-      <table className="w-full overflow-hidden rounded bg-white text-left shadow">
-        <thead className="bg-slate-200 text-sm text-slate-700">
-          <tr>
-            <th className="px-3 py-2">Nama</th>
-            <th className="px-3 py-2">Nama pengguna</th>
-            <th className="px-3 py-2">Peran</th>
-            <th className="px-3 py-2">Status</th>
-            <th className="px-3 py-2">Aksi</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users?.map((user) => (
-            <UserRow
-              key={user.id}
-              user={user}
-              isSelf={user.id === me.id}
-              action={action?.userId === user.id ? action.kind : null}
-              onAction={(kind) => setAction(kind ? { kind, userId: user.id } : null)}
-              run={run}
-            />
-          ))}
-        </tbody>
-      </table>
-      {users === null && !error && <p>Memuat…</p>}
-
-      <CreateUserForm
-        onCreate={(input) =>
-          run(
-            () => api.createUser(input),
-            `Pengguna ${input.username} dibuat. PIN sementara harus diganti saat pertama masuk.`,
-          )
+    <section className="max-w-5xl">
+      <PageHeader
+        title="Pengguna"
+        description="Kelola akun pemilik dan kasir."
+        actions={
+          <Button onClick={() => setDialog({ kind: 'create' })}>
+            <UserPlus className="size-[18px]" aria-hidden />
+            Tambah pengguna
+          </Button>
         }
       />
+      <div className="space-y-4">
+        <ErrorAlert message={error} />
+        <Card className="px-3 py-4">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((group) => (
+                <TableRow key={group.id}>
+                  {group.headers.map((header) => (
+                    <TableHead key={header.id} className={header.id === 'actions' ? 'w-0' : ''}>
+                      {header.isPlaceholder ? null : <table.FlexRender header={header} />}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-username={row.original.username}
+                  className={row.original.active ? '' : 'text-muted-foreground'}
+                >
+                  {row.getAllCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      <table.FlexRender cell={cell} />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {users === null && !error && <p className="px-4 py-3 text-muted-foreground">Memuat…</p>}
+        </Card>
+      </div>
+
+      <CreateUserDialog
+        open={dialog?.kind === 'create'}
+        onClose={() => setDialog(null)}
+        run={run}
+      />
+      {dialog?.kind === 'rename' && (
+        <RenameDialog user={dialog.user} onClose={() => setDialog(null)} run={run} />
+      )}
+      {dialog?.kind === 'resetPin' && (
+        <ResetPinDialog user={dialog.user} onClose={() => setDialog(null)} run={run} />
+      )}
     </section>
   );
 }
 
-function UserRow({
-  user,
-  isSelf,
-  action,
-  onAction,
-  run,
-}: {
-  user: User;
-  isSelf: boolean;
-  action: 'rename' | 'resetPin' | null;
-  onAction: (kind: 'rename' | 'resetPin' | null) => void;
-  run: (task: () => Promise<unknown>, success: string) => Promise<void>;
-}) {
-  const [value, setValue] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [localError, setLocalError] = useState<string | null>(null);
-
-  function open(kind: 'rename' | 'resetPin') {
-    setValue(kind === 'rename' ? user.name : '');
-    setConfirm('');
-    setLocalError(null);
-    onAction(action === kind ? null : kind);
-  }
-
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    if (action === 'rename') {
-      if (!value.trim()) return setLocalError(fieldMessages.name);
-      void run(() => api.updateUser(user.id, { name: value }), 'Nama pengguna diperbarui.');
-    } else if (action === 'resetPin') {
-      const problem = checkPin(value, confirm);
-      if (problem) return setLocalError(problem);
-      void run(
-        () => api.updateUser(user.id, { pin: value }),
-        `PIN ${user.name} diatur ulang. PIN sementara harus diganti saat masuk.`,
-      );
-    }
-  }
-
-  const toggleActive = () =>
-    void run(
-      () => api.updateUser(user.id, { active: !user.active }),
-      user.active ? `${user.name} dinonaktifkan.` : `${user.name} diaktifkan kembali.`,
-    );
-
+function UserStatus({ user }: { user: User }) {
+  if (!user.active) return <Badge variant="neutral">Nonaktif</Badge>;
   return (
-    <>
-      <tr className="border-t border-slate-200" data-username={user.username}>
-        <td className="px-3 py-2 font-medium whitespace-nowrap">
-          {user.name}
-          {isSelf && <span className="ml-2 text-sm text-slate-500">(Anda)</span>}
-        </td>
-        <td className="px-3 py-2 font-mono text-sm">{user.username}</td>
-        <td className="px-3 py-2">{roleLabels[user.role]}</td>
-        <td className="px-3 py-2">
-          {user.active ? (
-            user.mustChangePin ? (
-              <span className="text-amber-700">Aktif · PIN sementara</span>
-            ) : (
-              <span className="text-green-700">Aktif</span>
-            )
-          ) : (
-            <span className="text-slate-500">Nonaktif</span>
-          )}
-        </td>
-        <td className="space-x-2 px-3 py-2 whitespace-nowrap">
-          <button type="button" className={smallButton} onClick={() => open('rename')}>
-            Ubah nama
-          </button>
-          {user.role === 'cashier' && (
-            <button type="button" className={smallButton} onClick={() => open('resetPin')}>
-              Atur ulang PIN
-            </button>
-          )}
-          <button
-            type="button"
-            className={smallButton}
-            onClick={toggleActive}
-            disabled={isSelf}
-            title={isSelf ? 'Anda tidak dapat menonaktifkan akun sendiri.' : undefined}
-          >
-            {user.active ? 'Nonaktifkan' : 'Aktifkan'}
-          </button>
-        </td>
-      </tr>
-      {action && (
-        <tr className="bg-slate-50">
-          <td colSpan={5} className="px-3 py-3">
-            <form onSubmit={submit} className="flex items-end gap-3" noValidate>
-              {action === 'rename' ? (
-                <TextField
-                  id={`rename-${user.id}`}
-                  label="Nama"
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                  autoFocus
-                />
-              ) : (
-                <>
-                  <PinField
-                    id={`pin-${user.id}`}
-                    label="PIN sementara"
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    autoFocus
-                  />
-                  <PinField
-                    id={`pin-confirm-${user.id}`}
-                    label="Ulangi PIN"
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                  />
-                </>
-              )}
-              <button type="submit" className="rounded bg-slate-900 px-4 py-2 text-white">
-                Simpan
-              </button>
-              <button type="button" className={smallButton} onClick={() => onAction(null)}>
-                Batal
-              </button>
-            </form>
-            {localError && <p className="mt-2 text-red-700">{localError}</p>}
-          </td>
-        </tr>
-      )}
-    </>
+    <span className="flex flex-wrap gap-1.5">
+      <Badge variant="neutral">Aktif</Badge>
+      {user.mustChangePin && <Badge variant="warning">PIN sementara</Badge>}
+    </span>
   );
 }
 
-function CreateUserForm({
-  onCreate,
+function UserActions({
+  user,
+  isSelf,
+  onRename,
+  onResetPin,
+  onToggleActive,
 }: {
-  onCreate: (input: { name: string; username: string; role: Role; pin: string }) => Promise<void>;
+  user: User;
+  isSelf: boolean;
+  onRename: () => void;
+  onResetPin: () => void;
+  onToggleActive: () => void;
 }) {
-  const empty = { name: '', username: '', role: 'cashier' as Role, pin: '', confirm: '' };
-  const [form, setForm] = useState(empty);
+  // Self-deactivation is blocked; the button stays focusable (aria-disabled) so the tooltip
+  // explaining why is reachable by mouse and keyboard.
+  const toggle = (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={isSelf ? undefined : onToggleActive}
+      aria-disabled={isSelf || undefined}
+      className={cn(
+        user.active && 'text-destructive hover:bg-destructive-soft',
+        'aria-disabled:cursor-not-allowed aria-disabled:opacity-50',
+      )}
+    >
+      <Power className="size-4" aria-hidden />
+      {user.active ? 'Nonaktifkan' : 'Aktifkan'}
+    </Button>
+  );
+  return (
+    <div className="flex justify-end gap-1 whitespace-nowrap">
+      <Button variant="ghost" size="sm" onClick={onRename}>
+        <Pencil className="size-4" aria-hidden />
+        Ubah nama
+      </Button>
+      {user.role === 'cashier' && (
+        <Button variant="ghost" size="sm" onClick={onResetPin}>
+          <KeyRound className="size-4" aria-hidden />
+          Atur ulang PIN
+        </Button>
+      )}
+      {isSelf ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{toggle}</TooltipTrigger>
+          <TooltipContent>Anda tidak dapat menonaktifkan akun sendiri.</TooltipContent>
+        </Tooltip>
+      ) : (
+        toggle
+      )}
+    </div>
+  );
+}
+
+/** Dialog with a form: Enter submits, Esc closes, errors stay inline. */
+function FormDialog({
+  open,
+  title,
+  description,
+  submitLabel,
+  onClose,
+  onSubmit,
+  children,
+}: {
+  open: boolean;
+  title: string;
+  description?: string;
+  submitLabel: string;
+  onClose: () => void;
+  /** Returns an error message to show, or null on success. */
+  onSubmit: () => Promise<string | null>;
+  children: ReactNode;
+}) {
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const problem =
-      (form.name.trim() ? null : fieldMessages.name) ??
-      checkUsername(form.username) ??
-      checkPin(form.pin, form.confirm);
-    if (problem) {
-      setError(problem);
-      return;
-    }
-    setError(null);
-    await onCreate({ name: form.name, username: form.username, role: form.role, pin: form.pin });
-    setForm(empty);
+    setBusy(true);
+    setError(await onSubmit());
+    setBusy(false);
   }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) {
+          setError(null);
+          onClose();
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          {description && <DialogDescription>{description}</DialogDescription>}
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4" noValidate>
+          {children}
+          <ErrorAlert message={error} />
+          <DialogFooter>
+            <Button variant="secondary" onClick={onClose}>
+              Batal
+            </Button>
+            <Button type="submit" disabled={busy}>
+              {busy ? 'Memproses…' : submitLabel}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Wraps `run` so API errors come back as a message for the dialog. */
+async function attempt(run: Run, task: () => Promise<unknown>, success: string) {
+  try {
+    await run(task, success);
+    return null;
+  } catch (err) {
+    return errorMessage(err);
+  }
+}
+
+function RenameDialog({ user, onClose, run }: { user: User; onClose: () => void; run: Run }) {
+  const [name, setName] = useState(user.name);
+  return (
+    <FormDialog
+      open
+      title="Ubah nama"
+      description={`Nama pengguna ${user.username} tidak dapat diubah.`}
+      submitLabel="Simpan"
+      onClose={onClose}
+      onSubmit={async () =>
+        name.trim()
+          ? attempt(run, () => api.updateUser(user.id, { name }), 'Nama pengguna diperbarui.')
+          : fieldMessages.name
+      }
+    >
+      <TextField
+        id={`rename-${user.id}`}
+        label="Nama"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        autoFocus
+      />
+    </FormDialog>
+  );
+}
+
+function ResetPinDialog({ user, onClose, run }: { user: User; onClose: () => void; run: Run }) {
+  const [pin, setPin] = useState('');
+  const [confirm, setConfirm] = useState('');
+  return (
+    <FormDialog
+      open
+      title={`Atur ulang PIN ${user.name}`}
+      description="Kasir wajib mengganti PIN sementara ini saat masuk. Sesi yang terbuka akan ditutup."
+      submitLabel="Atur ulang PIN"
+      onClose={onClose}
+      onSubmit={async () =>
+        checkPin(pin, confirm) ??
+        attempt(
+          run,
+          () => api.updateUser(user.id, { pin }),
+          `PIN ${user.name} diatur ulang. PIN sementara harus diganti saat masuk.`,
+        )
+      }
+    >
+      <PinField
+        id={`pin-${user.id}`}
+        label="PIN sementara"
+        value={pin}
+        onChange={(e) => setPin(e.target.value)}
+        autoFocus
+      />
+      <PinField
+        id={`pin-confirm-${user.id}`}
+        label="Ulangi PIN"
+        value={confirm}
+        onChange={(e) => setConfirm(e.target.value)}
+      />
+    </FormDialog>
+  );
+}
+
+const emptyUser = { name: '', username: '', role: 'cashier' as Role, pin: '', confirm: '' };
+
+function CreateUserDialog({
+  open,
+  onClose,
+  run,
+}: {
+  open: boolean;
+  onClose: () => void;
+  run: Run;
+}) {
+  const [form, setForm] = useState(emptyUser);
 
   const set =
     (key: 'name' | 'username' | 'pin' | 'confirm') => (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm({ ...form, [key]: e.target.value });
 
+  async function submit() {
+    const problem =
+      (form.name.trim() ? null : fieldMessages.name) ??
+      checkUsername(form.username) ??
+      checkPin(form.pin, form.confirm);
+    if (problem) return problem;
+    const { confirm: _, ...input } = form;
+    const result = await attempt(
+      run,
+      () => api.createUser(input),
+      `Pengguna ${form.username} dibuat. PIN sementara harus diganti saat pertama masuk.`,
+    );
+    if (!result) setForm(emptyUser);
+    return result;
+  }
+
   return (
-    <form onSubmit={submit} className="max-w-md space-y-4 rounded bg-white p-5 shadow" noValidate>
-      <h2 className="text-lg font-bold">Tambah pengguna</h2>
-      <TextField id="new-name" label="Nama" value={form.name} onChange={set('name')} />
+    <FormDialog
+      open={open}
+      title="Tambah pengguna"
+      description="Pengguna baru wajib mengganti PIN sementara saat pertama kali masuk."
+      submitLabel="Tambah pengguna"
+      onClose={() => {
+        setForm(emptyUser);
+        onClose();
+      }}
+      onSubmit={submit}
+    >
+      <TextField id="new-name" label="Nama" value={form.name} onChange={set('name')} autoFocus />
       <TextField
         id="new-username"
         label="Nama pengguna"
         value={form.username}
         onChange={set('username')}
         autoCapitalize="none"
+        className="[&_input]:font-mono"
       />
-      <label htmlFor="new-role" className="block space-y-1">
-        <span className="text-sm font-medium text-slate-700">Peran</span>
-        <select
-          id="new-role"
-          value={form.role}
-          onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
-          className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-lg"
-        >
-          <option value="cashier">Kasir</option>
-          <option value="owner">Pemilik</option>
-        </select>
-      </label>
-      <PinField
-        id="new-pin"
-        label="PIN sementara (6 angka)"
-        value={form.pin}
-        onChange={set('pin')}
-      />
-      <PinField
-        id="new-confirm"
-        label="Ulangi PIN"
-        value={form.confirm}
-        onChange={set('confirm')}
-      />
-      <p className="text-sm text-slate-600">
-        Pengguna baru wajib mengganti PIN sementara saat pertama kali masuk.
-      </p>
-      <ErrorAlert message={error} />
-      <button
-        type="submit"
-        className="w-full rounded bg-slate-900 px-4 py-2 text-lg font-semibold text-white hover:bg-slate-700"
-      >
-        Tambah pengguna
-      </button>
-    </form>
+      <div className="space-y-1.5">
+        <Label htmlFor="new-role">Peran</Label>
+        <Select value={form.role} onValueChange={(role: Role) => setForm({ ...form, role })}>
+          <SelectTrigger id="new-role">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="cashier">{roleLabels.cashier}</SelectItem>
+            <SelectItem value="owner">{roleLabels.owner}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <PinField id="new-pin" label="PIN sementara" value={form.pin} onChange={set('pin')} />
+        <PinField
+          id="new-confirm"
+          label="Ulangi PIN"
+          value={form.confirm}
+          onChange={set('confirm')}
+        />
+      </div>
+    </FormDialog>
   );
 }

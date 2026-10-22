@@ -51,10 +51,10 @@ export function RecoverPinPage() {
 
   if (newCode) {
     return (
-      <AuthCard title="PIN berhasil diatur ulang">
-        <p className="text-slate-700">
-          Kode pemulihan lama tidak berlaku lagi. Simpan kode baru di bawah ini.
-        </p>
+      <AuthCard
+        title="PIN berhasil diatur ulang"
+        description="Kode pemulihan lama tidak berlaku lagi. Simpan kode baru di bawah ini."
+      >
         <RecoveryCodeNotice
           code={newCode}
           continueLabel="Ke halaman masuk"
@@ -65,11 +65,10 @@ export function RecoverPinPage() {
   }
 
   return (
-    <AuthCard title="Pulihkan PIN pemilik">
-      <p className="text-slate-600">
-        Masukkan kode pemulihan yang Anda catat saat membuat akun. Kasir yang lupa PIN dapat meminta
-        pemilik mengatur ulang PIN-nya.
-      </p>
+    <AuthCard
+      title="Pulihkan PIN pemilik"
+      description="Masukkan kode pemulihan yang Anda catat saat membuat akun. Kasir yang lupa PIN dapat meminta pemilik mengatur ulang PIN-nya."
+    >
       <form onSubmit={submit} className="space-y-4" noValidate>
         <TextField
           id="username"
@@ -87,6 +86,7 @@ export function RecoverPinPage() {
           autoCapitalize="characters"
           autoComplete="off"
           placeholder="XXXX-XXXX-XXXX-XXXX"
+          className="[&_input]:font-mono [&_input]:tracking-[0.08em]"
         />
         <PinField
           id="newPin"
@@ -104,7 +104,7 @@ export function RecoverPinPage() {
         <PrimaryButton busy={busy}>Atur ulang PIN</PrimaryButton>
       </form>
       <p className="text-center text-sm">
-        <Link to="/login" className="text-blue-700 underline">
+        <Link to="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
           Kembali ke halaman masuk
         </Link>
       </p>

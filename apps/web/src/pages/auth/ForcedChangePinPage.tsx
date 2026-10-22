@@ -7,14 +7,22 @@ export function ForcedChangePinPage() {
   const { signedIn, logout } = useAuth();
   const user = useCurrentUser();
   return (
-    <AuthCard title="Ganti PIN">
-      <p className="text-slate-600">
-        Halo, <strong>{user.name}</strong>. PIN Anda masih sementara. Buat PIN baru yang hanya Anda
-        ketahui sebelum melanjutkan.
-      </p>
+    <AuthCard
+      title="Ganti PIN"
+      description={
+        <>
+          Halo, <strong className="text-foreground">{user.name}</strong>. PIN Anda masih sementara.
+          Buat PIN baru yang hanya Anda ketahui sebelum melanjutkan.
+        </>
+      }
+    >
       <ChangePinForm onDone={signedIn} />
       <p className="text-center text-sm">
-        <button type="button" onClick={() => void logout()} className="text-blue-700 underline">
+        <button
+          type="button"
+          onClick={() => void logout()}
+          className="font-semibold text-primary underline-offset-4 hover:underline"
+        >
           Keluar
         </button>
       </p>

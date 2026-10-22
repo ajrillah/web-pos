@@ -1,14 +1,20 @@
+import { Construction, Lock } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import { useCurrentUser } from '../auth/AuthProvider';
+import { Card } from '../components/ui/card';
+import { PageHeader } from '../layout/PageHeader';
 import { requiresOwnerPin } from '../navigation/menu';
 
 /** Page whose feature is scheduled for a later roadmap stage. */
 export function ComingSoonPage({ title, stage }: { title: string; stage: number }) {
   return (
-    <section className="space-y-2">
-      <h1 className="text-2xl font-bold">{title}</h1>
-      <p className="text-slate-600">Fitur ini sedang dikembangkan (tahap {stage}).</p>
+    <section>
+      <PageHeader title={title} />
+      <Card className="flex items-center gap-4 p-6">
+        <Construction className="size-6 text-faint" aria-hidden />
+        <p className="text-muted-foreground">Fitur ini sedang dikembangkan (tahap {stage}).</p>
+      </Card>
     </section>
   );
 }
@@ -21,12 +27,13 @@ export function OwnerPinGate({ title, children }: { title: string; children: Rea
     return children;
   }
   return (
-    <section className="space-y-2">
-      <h1 className="text-2xl font-bold">{title}</h1>
+    <section>
+      <PageHeader title={title} />
       <p
         role="alert"
-        className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900"
+        className="flex items-center gap-3 rounded-control border border-warning-border bg-warning-soft px-5 py-4 text-warning-foreground"
       >
+        <Lock className="size-5 shrink-0" aria-hidden />
         Halaman ini memerlukan persetujuan pemilik (PIN). Minta pemilik untuk membukanya.
       </p>
     </section>

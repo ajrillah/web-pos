@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { Navigate, Outlet } from 'react-router';
+import { Button } from '../components/ui/button';
 import { useAuth } from './AuthProvider';
 
 function FullScreenMessage({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6 text-lg text-slate-700">
+    <div className="flex min-h-screen items-center justify-center bg-background p-6 text-lg text-muted-foreground">
       {children}
     </div>
   );
@@ -20,14 +21,8 @@ function useGateFallback(): ReactNode | null {
     return (
       <FullScreenMessage>
         <div className="space-y-4 text-center">
-          <p className="text-red-700">{state.message}</p>
-          <button
-            type="button"
-            onClick={() => void refresh()}
-            className="rounded bg-slate-800 px-4 py-2 text-white"
-          >
-            Coba lagi
-          </button>
+          <p className="text-destructive">{state.message}</p>
+          <Button onClick={() => void refresh()}>Coba lagi</Button>
         </div>
       </FullScreenMessage>
     );
