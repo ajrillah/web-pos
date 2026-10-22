@@ -7,7 +7,7 @@ export function NotFoundPage() {
     <section>
       <PageHeader title="Halaman tidak ditemukan" />
       <Button variant="outline" asChild>
-        <Link to="/">Kembali ke Beranda</Link>
+        <Link to="/">Kembali ke Kasir</Link>
       </Button>
     </section>
   );

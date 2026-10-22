@@ -183,6 +183,7 @@ export function ProductListPage() {
             />
             <Input
               id="product-search"
+              data-search-input
               aria-label="Cari barang"
               placeholder="Kode atau nama barang"
               value={search}
