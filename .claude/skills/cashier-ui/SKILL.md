@@ -7,6 +7,8 @@ paths:
 
 # Cashier UI
 
+Visual style (colors, fonts, radius, components, locked layouts): `ui-style` skill and `docs/ui-style.md`. This skill covers behaviour.
+
 ## Text
 - Write all visible text in Indonesian. Keep identifiers in English.
 - Show API `error.message` directly; it is already Indonesian.
@@ -31,9 +33,9 @@ paths:
 
 ## Layout
 - Kasir is full-screen; all other pages use the sidebar layout.
-- Large fonts on Kasir: search and totals at least `text-2xl`, grand total larger. High contrast; no hover-only controls.
+- Kasir sizes and layout are locked in `docs/ui-style.md` section 5 (60px search, 52px total, 72px Bayar). Text contrast >= 4.5:1; no hover-only controls.
 - Hide owner-only menus from cashier; PIN actions open the owner PIN dialog.
 - Lock screen unlocks only the same user; "Ganti pengguna" navigates to login.
 
 ## Offline
-- Bundle all assets, fonts, and icons locally. No CDN links, no external fonts.
+- Bundle all assets, fonts (`@fontsource-variable/*`), and icons (`lucide-react`) locally. No CDN links, no external fonts.
