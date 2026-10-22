@@ -87,7 +87,8 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - Product `code` is unique across all products, including inactive ones, ignoring case (`COLLATE NOCASE` index). Category names are unique the same way.
 
 ### 4.3 Sales snapshots
-- Sale items snapshot: product code, product name, unit name, sell price, cost price (and factors), computed `subtotal` and `cost_total`.
+- Sale items snapshot: product code, product name, category (id and name), unit name, sell price, cost price (and factors), computed `subtotal` and `cost_total`.
+- Reports group sales by the category snapshot, so moving a product to another category (or renaming a category) never changes past reports. Lines sold before the snapshot existed (migration 0008) took the product's category at migration time.
 - Historical sales are never recomputed from current product data.
 
 ### 4.4 Stock
@@ -324,7 +325,7 @@ All tables have `id` (UUID) and `created_at`; mutable tables also have `updated_
   - `number`: `TRX-YYYYMMDD-NNNN`, nullable while held.
   - `status`: `held` | `completed` | `voided`.
   - `total` is after rounding.
-- `sale_items`(sale_id, line_no, product_id, unit_id, product_code, product_name, unit_name, qty_base, unit_factor, unit_price, cost_price, pricing_factor, subtotal, cost_total)
+- `sale_items`(sale_id, line_no, product_id, unit_id, product_code, product_name, category_id, category_name, unit_name, qty_base, unit_factor, unit_price, cost_price, pricing_factor, subtotal, cost_total)
 - `sale_payments`(sale_id, method, amount) — `method`: `cash` | `qris`; cash `amount` is the cash received, change is `sales.change_amount`
 
 ### 9.4 Customers and receivables

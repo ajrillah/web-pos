@@ -110,6 +110,8 @@ function itemRows(saleId: string, lines: PricedLine[], createdAt: string) {
     unitId: line.unit.id,
     productCode: line.product.code,
     productName: line.product.name,
+    categoryId: line.product.categoryId,
+    categoryName: line.product.categoryName,
     unitName: line.unit.name,
     qtyBase: line.qtyBase,
     unitFactor: line.unit.factor,

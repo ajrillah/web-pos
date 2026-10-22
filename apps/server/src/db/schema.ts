@@ -246,6 +246,9 @@ export const saleItems = sqliteTable(
     // Snapshot at sale time; history never reads current product data.
     productCode: text('product_code').notNull(),
     productName: text('product_name').notNull(),
+    // Category at sale time (reports group by it); no foreign key, like the other snapshots.
+    categoryId: text('category_id').notNull(),
+    categoryName: text('category_name').notNull(),
     unitName: text('unit_name').notNull(),
     qtyBase: integer('qty_base').notNull(),
     unitFactor: integer('unit_factor').notNull(),
@@ -259,6 +262,7 @@ export const saleItems = sqliteTable(
   (t) => [
     index('sale_items_sale_id_idx').on(t.saleId),
     index('sale_items_product_id_idx').on(t.productId),
+    index('sale_items_category_id_idx').on(t.categoryId),
   ],
 );
 
