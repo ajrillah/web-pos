@@ -149,7 +149,7 @@ function UserRow({
   return (
     <>
       <tr className="border-t border-slate-200" data-username={user.username}>
-        <td className="px-3 py-2 font-medium">
+        <td className="px-3 py-2 font-medium whitespace-nowrap">
           {user.name}
           {isSelf && <span className="ml-2 text-sm text-slate-500">(Anda)</span>}
         </td>
