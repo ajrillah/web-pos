@@ -71,6 +71,7 @@ Checked for every text token on `background`, `card`, `muted`, and `selected`:
 - Data tables: TanStack Table (`@tanstack/react-table`) rendered with the `table` component.
 - Buttons: `default` (teal) for the one primary action per view; `secondary`, `outline`, `ghost` otherwise; `destructive` only for void/cancel/deactivate.
 - Key hints: `<Kbd>` (JetBrains Mono, `muted` pill), e.g. `F8` inside the Bayar button.
+- Dialogs: mark the element that should get focus on open with `data-autofocus` (Radix otherwise focuses the first focusable element); confirm dialogs use `ConfirmDialog`.
 
 ## 5. Locked layout
 
@@ -95,7 +96,7 @@ Target: desktop only, minimum 1366x768. Nothing may require horizontal scrolling
 - Sidebar bottom: user card + Keluar.
 - PIN-gated items show a gold "PIN" hint for cashiers.
 - Sub-pages are tabs above the content (e.g. Pengaturan: Pengguna, Profil Toko, Ubah PIN; Barang: Daftar, Impor, Kategori).
-- Until Kasir exists, `/` shows a welcome page inside the sidebar layout.
+- `/` opens Kasir.
 
 ### Login and lock (Stage 5 for tiles, pad, and lock)
 - Login: user tiles + 6-digit PIN pad; the keyboard also types digits.

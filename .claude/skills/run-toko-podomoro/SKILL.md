@@ -26,7 +26,7 @@ pnpm build          # web -> apps/web/dist, server bundle -> apps/server/dist (i
 
 ## Run (agent path)
 
-Start the built app on an isolated data dir, wait for health, drive, stop by port. A fresh data dir redirects every page to `/setup`; this script creates the owner (`pemilik` / PIN `111111`) and lands on the owner home:
+Start the built app on an isolated data dir, wait for health, drive, stop by port. A fresh data dir redirects every page to `/setup`; this script creates the owner (`pemilik` / PIN `111111`) and lands on Kasir (`/` opens `/kasir`):
 
 ```bash
 export TOKO_PODOMORO_DATA_DIR=/tmp/toko-data && rm -rf /tmp/toko-data
@@ -44,9 +44,9 @@ click button[type=submit]
 wait-for [data-testid=recovery-code]
 click input[type=checkbox]
 click button:not([disabled])
-wait-for text=Selamat datang, Bu Sari
-text nav
-screenshot owner-home
+wait-for #kasir-search
+url
+screenshot kasir
 console
 EOF
 
@@ -68,7 +68,21 @@ Driver prints `READY`, then `ok <cmd>[: output]` or `error <cmd>: ...` per line;
 | `console` | console errors, uncaught exceptions, failed requests since start (the anonymous `auth/me` check logs an expected 401) |
 | `sh <command>` | run a bash command between steps, e.g. restart the server; the browser keeps its cookies |
 
-Later runs on the same data dir: log in instead (`nav /login`, `fill #username pemilik`, `fill #pin 111111`, `press Enter`, `wait-for text=Selamat datang`). Users created in Pengaturan > Pengguna have a temporary PIN and land on `/ubah-pin` (`#currentPin`, `#newPin`, `#confirm`) at first login.
+Later runs on the same data dir: log in instead (`nav /login`, `fill #username pemilik`, `fill #pin 111111`, `press Enter`, `wait-for #kasir-search`). Users created in Pengaturan > Pengguna have a temporary PIN and land on `/ubah-pin` (`#currentPin`, `#newPin`, `#confirm`) at first login.
+
+Kasir (needs products; create them in Barang or with `POST /api/products`). Selectors: search `#kasir-search` (Enter adds the exact code, else the highlighted match), cart rows `[data-line=<code>]`, qty inputs `[data-qty-input=<code>]`, bulk weight `#weight`, totals `[data-testid=total]`, Bayar `press F8` then `#pay-cash` / `#pay-qris` and `press Enter`, receipt prompt `press Enter` (save) or `press Escape` (skip), Tahan `press F9`, held notice `[data-testid=held-notice]`, Riwayat rows `[data-number]`. Point receipts at a scratch folder first, or they land in `~/Documents/TokoPodomoro/Nota`: with the server stopped, insert a `settings` row `receipt_folder` (and `rounding` `none|100|500`) into the DB.
+
+```
+type IDM
+press Enter
+wait-for [data-line=IDM]
+press F8
+wait-for #pay-cash
+type 10000
+press Enter
+wait-for text=Simpan nota PDF?
+press Escape
+```
 
 API smoke (server running):
 
