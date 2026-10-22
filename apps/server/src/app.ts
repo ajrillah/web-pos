@@ -12,6 +12,7 @@ import { categoryRoutes } from './routes/categories';
 import { customerRoutes } from './routes/customers';
 import { healthRoutes } from './routes/health';
 import { productRoutes } from './routes/products';
+import { reportRoutes } from './routes/reports';
 import { saleRoutes } from './routes/sales';
 import { settingsRoutes } from './routes/settings';
 import { setupRoutes } from './routes/setup';
@@ -91,6 +92,7 @@ export async function buildApp({
   await app.register(customerRoutes, { prefix: '/api', ctx });
   await app.register(supplierRoutes, { prefix: '/api', ctx });
   await app.register(stockRoutes, { prefix: '/api', ctx });
+  await app.register(reportRoutes, { prefix: '/api', ctx });
   await app.register(settingsRoutes, { prefix: '/api', ctx });
 
   const hasWeb = webDir !== undefined && fs.existsSync(path.join(webDir, 'index.html'));
