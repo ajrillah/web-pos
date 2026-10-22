@@ -98,10 +98,10 @@ Target: desktop only, minimum 1366x768. Nothing may require horizontal scrolling
 - Sub-pages are tabs above the content (e.g. Pengaturan: Pengguna, Profil Toko, Ubah PIN; Barang: Daftar, Impor, Kategori).
 - `/` opens Kasir.
 
-### Login and lock (Stage 5 for tiles, pad, and lock)
-- Login: user tiles + 6-digit PIN pad; the keyboard also types digits.
-  - Tiles come from `GET auth/users` (id, display name, role of active users only; no usernames). Built in Stage 5; until then login is a username field + PIN field.
-- Lock screen: same user only, with a "Ganti pengguna" link to login.
+### Login and lock
+- Login: user tiles (`GET auth/users`: id, display name, role of active users; no usernames) + 6-digit PIN pad; the keyboard also types digits; the sixth digit submits. One user skips the tiles.
+- Lock screen (Ctrl+L, idle, or the Kunci buttons): same user only, with "Ganti pengguna" (logout).
+- Owner approval: the same PIN pad in a dialog ("Persetujuan pemilik"); cashiers see it when an action or PIN menu needs the owner.
 
 ### Dialogs
 - Centered, dim overlay (`foreground` at 40%), `rounded-card`.
