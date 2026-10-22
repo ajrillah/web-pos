@@ -27,6 +27,7 @@ import {
   customerResponseSchema,
   customersResponseSchema,
   deletedCountResponseSchema,
+  type ExportFormat,
   type HoldSaleRequest,
   heldSalesResponseSchema,
   type LoginRequest,
@@ -47,9 +48,13 @@ import {
   purchasesResponseSchema,
   type ReceivablesQuery,
   type RecoverRequest,
+  type ReportQuery,
+  type ReportResponse,
+  type ReportType,
   receiptSavedResponseSchema,
   receivablesResponseSchema,
   recoveryCodeResponseSchema,
+  reportResponseSchemas,
   resumeHeldSaleResponseSchema,
   type SalesQuery,
   type SetupRequest,
@@ -76,7 +81,8 @@ import {
   type VoidRequest,
   voidPurchaseResponseSchema,
 } from '@toko-podomoro/shared';
-import { apiRequest } from './client';
+import type { z } from 'zod';
+import { apiDownload, apiRequest } from './client';
 
 export const api = {
   setupStatus: () => apiRequest('GET', '/setup/status', setupStatusResponseSchema),
@@ -258,6 +264,18 @@ export const api = {
     apiRequest('POST', `/stock-opname/${encodeURIComponent(id)}/cancel`, opnameResponseSchema),
   listMovements: (query: MovementsQuery) =>
     apiRequest('GET', `/stock-movements?${toSearchParams(query)}`, movementsResponseSchema),
+};
+
+/** Laporan: one report as JSON, or saved as PDF / Excel. */
+export const reports = {
+  get: <T extends ReportType>(type: T, query: ReportQuery<T>) =>
+    apiRequest(
+      'GET',
+      `/reports/${type}?${toSearchParams(query)}`,
+      reportResponseSchemas[type] as unknown as z.ZodType<ReportResponse<T>>,
+    ),
+  download: <T extends ReportType>(type: T, format: ExportFormat, query: ReportQuery<T>) =>
+    apiDownload(`/reports/${type}/export?${toSearchParams({ ...query, format })}`),
 };
 
 export type ReceiptKind = 'sale' | 'payment';

@@ -24,6 +24,7 @@ import { CategoriesPage } from './pages/products/CategoriesPage';
 import { ProductFormPage } from './pages/products/ProductFormPage';
 import { ProductListPage } from './pages/products/ProductListPage';
 import { ProductsLayout } from './pages/products/ProductsLayout';
+import { ReportsPage } from './pages/reports/ReportsPage';
 import { ChangePinPage } from './pages/settings/ChangePinPage';
 import { SettingsIndex, SettingsLayout } from './pages/settings/SettingsLayout';
 import { StoreSettingsPage } from './pages/settings/StoreSettingsPage';
@@ -111,7 +112,7 @@ export const router = createBrowserRouter([
                 path: '/laporan',
                 element: (
                   <OwnerPinGate scope="laporan" title="Laporan">
-                    <ComingSoonPage title="Laporan" stage={8} />
+                    <ReportsPage />
                   </OwnerPinGate>
                 ),
               },
