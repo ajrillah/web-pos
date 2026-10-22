@@ -181,6 +181,47 @@ export type Settings = z.infer<typeof settingsSchema>;
 export const settingsResponseSchema = z.object({ settings: settingsSchema });
 export type SettingsResponse = z.infer<typeof settingsResponseSchema>;
 
+/** Settings page (Profil Toko, PIN). Only the fields sent are changed. */
+export const updateSettingsRequestSchema = z
+  .object({
+    storeName: z.string().trim().min(1).max(60),
+    storeAddress: z.string().trim().max(120),
+    storePhone: z.string().trim().max(30),
+    receiptFooter: z.string().trim().max(120),
+    rounding: roundingModeSchema,
+    receiptWidth: z.enum(['58', '80']),
+    receiptFolder: z.string().trim().min(1).max(260),
+    autoLockMinutes: z.number().int().min(1).max(120),
+  })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0);
+export type UpdateSettingsRequest = z.infer<typeof updateSettingsRequestSchema>;
+
+export const voidReasonSchema = z.enum(['salah_input', 'pembeli_batal', 'lainnya']);
+export type VoidReason = z.infer<typeof voidReasonSchema>;
+
+export const VOID_REASON_LABELS: Record<VoidReason, string> = {
+  salah_input: 'Salah input',
+  pembeli_batal: 'Pembeli batal',
+  lainnya: 'Lainnya',
+};
+
+/** Void a sale or a customer payment (owner approval for cashiers). A note is required for `lainnya`. */
+export const voidRequestSchema = z
+  .object({
+    reason: voidReasonSchema,
+    note: z.string().trim().max(200).optional(),
+  })
+  .refine((v) => v.reason !== 'lainnya' || Boolean(v.note), { path: ['note'] });
+export type VoidRequest = z.infer<typeof voidRequestSchema>;
+
+/** Stored `void_reason`: the label, plus the note for "Lainnya". */
+export function voidReasonText({ reason, note }: VoidRequest): string {
+  return reason === 'lainnya'
+    ? `${VOID_REASON_LABELS.lainnya}: ${note ?? ''}`
+    : VOID_REASON_LABELS[reason];
+}
+
 // --- Cash helpers ---
 
 const NOTES = [1000, 2000, 5000, 10_000, 20_000, 50_000, 100_000];

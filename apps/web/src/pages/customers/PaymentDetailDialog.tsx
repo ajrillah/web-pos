@@ -1,9 +1,10 @@
 import { type CustomerPayment, formatRupiah } from '@toko-podomoro/shared';
-import { Save } from 'lucide-react';
+import { Ban, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import { api, receipts } from '../../api/endpoints';
+import { useApproval } from '../../approval/ApprovalProvider';
 import { ErrorAlert } from '../../components/forms';
 import { ReceiptActions } from '../../components/receipts/ReceiptActions';
 import { Badge } from '../../components/ui/badge';
@@ -15,18 +16,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog';
+import { VoidDialog } from '../../components/VoidDialog';
 import { dateTime } from '../history/SaleDetailDialog';
 
 /** A kasbon payment: allocations, amounts, and receipt actions (save a copy, open, download). */
 export function PaymentDetailDialog({
   paymentId,
   onClose,
+  onChanged,
 }: {
   paymentId: string | null;
   onClose: () => void;
+  /** The payment was voided; the ledger reloads. */
+  onChanged?: () => void;
 }) {
   const [payment, setPayment] = useState<CustomerPayment | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [voiding, setVoiding] = useState(false);
+  const { withApproval } = useApproval();
 
   useEffect(() => {
     setPayment(null);
@@ -110,9 +117,38 @@ export function PaymentDetailDialog({
               </Button>
               <ReceiptActions kind="payment" id={payment.id} />
             </div>
+            {payment.status === 'active' && (
+              <div className="flex justify-end border-t border-border pt-4">
+                <Button
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive-soft"
+                  onClick={() => setVoiding(true)}
+                >
+                  <Ban className="size-[18px]" aria-hidden />
+                  Batalkan pembayaran
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </DialogContent>
+      {payment && (
+        <VoidDialog
+          open={voiding}
+          title={`Batalkan ${payment.number}?`}
+          description="Kasbon yang dibayar kembali terbuka sebesar pembayaran ini."
+          onClose={() => setVoiding(false)}
+          onVoid={async (input) => {
+            const { payment: voided } = await withApproval('payment.void', payment.id, (token) =>
+              api.voidCustomerPayment(payment.id, input, token),
+            );
+            setPayment(voided);
+            setVoiding(false);
+            toast.success(`${voided.number} dibatalkan.`);
+            onChanged?.();
+          }}
+        />
+      )}
     </Dialog>
   );
 }

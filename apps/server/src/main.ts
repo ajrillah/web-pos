@@ -5,6 +5,7 @@ import { openDatabase } from './db/client';
 import { runMigrations } from './db/migrate';
 import { StartupError } from './errors';
 import { migrationsDir, webDir } from './paths';
+import { ApprovalStore } from './security/approvals';
 import { listenLocal } from './server';
 import { deleteExpiredHeldSales } from './services/sale-service';
 import { openWithSystem } from './system/open-path';
@@ -19,10 +20,12 @@ async function main(): Promise<void> {
   const config = loadConfig(dataDir);
   const { db, sqlite } = openDatabase(path.join(dataDir, DB_FILE));
   runMigrations(db, migrationsDir);
+  const now = () => new Date();
   const expiredHeld = deleteExpiredHeldSales({
     db,
-    now: () => new Date(),
+    now,
     openPath: openWithSystem,
+    approvals: new ApprovalStore(now),
   });
 
   const app = await buildApp({ db, webDir, logger: true });

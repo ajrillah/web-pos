@@ -52,7 +52,11 @@ export function insertReceivable(
 export function updateReceivable(
   db: Executor,
   id: string,
-  patch: Pick<ReceivableRow, 'remaining' | 'status'>,
+  patch: Partial<Pick<ReceivableRow, 'remaining' | 'status'>>,
 ): void {
   db.update(receivables).set(patch).where(eq(receivables.id, id)).run();
+}
+
+export function findReceivableBySale(db: Executor, saleId: string): ReceivableRow | undefined {
+  return db.select().from(receivables).where(eq(receivables.saleId, saleId)).get();
 }

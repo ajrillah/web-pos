@@ -43,6 +43,13 @@
       "when": 1792665357296,
       "tag": "0005_glossy_black_tom",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792666458036,
+      "tag": "0006_fuzzy_betty_brant",
+      "breakpoints": true
     }
   ]
 }

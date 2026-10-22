@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SESSION_IDLE_MS, SESSION_TOUCH_INTERVAL_MS } from '../services/auth-service';
 import {
+  auditRows,
   createHarness,
   createUserAs,
   type Harness,
@@ -8,6 +9,7 @@ import {
   OWNER,
   sessionCookie,
   setupOwner,
+  userIdOf,
   withSession,
 } from '../testing/harness';
 
@@ -84,29 +86,64 @@ describe('login and logout', () => {
     await setupOwner(h);
   });
 
-  it('logs in with username and PIN, ignoring username case', async () => {
+  it('lists login tiles: active users with id, name, and role only', async () => {
+    const token = await login(h, 'pemilik', OWNER.pin);
+    await createUserAs(h, token, {
+      username: 'kasir1',
+      name: 'Rina',
+      role: 'cashier',
+      pin: '555555',
+    });
+    await createUserAs(h, token, {
+      username: 'kasir2',
+      name: 'Tono',
+      role: 'cashier',
+      pin: '555555',
+    });
+    await h.app.inject({
+      method: 'PUT',
+      url: `/api/users/${userIdOf(h, 'kasir2')}`,
+      headers: withSession(token),
+      payload: { active: false },
+    });
+    const res = await h.app.inject({ method: 'GET', url: '/api/auth/users' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().users).toEqual([
+      { id: userIdOf(h, 'pemilik'), name: 'Bu Sari', role: 'owner' },
+      { id: userIdOf(h, 'kasir1'), name: 'Rina', role: 'cashier' },
+    ]);
+    expect(res.body).not.toContain('kasir1');
+  });
+
+  it('logs in by user id and PIN', async () => {
     const res = await h.app.inject({
       method: 'POST',
       url: '/api/auth/login',
-      payload: { username: ' Pemilik ', pin: OWNER.pin },
+      payload: { userId: userIdOf(h, 'pemilik'), pin: OWNER.pin },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().user.role).toBe('owner');
+    expect(res.json()).toMatchObject({ user: { role: 'owner' }, locked: false });
     expect((await me(sessionCookie(res))).statusCode).toBe(200);
   });
 
-  it('rejects a wrong PIN and an unknown user with the same message', async () => {
+  it('rejects a wrong PIN and an unknown user alike, audit-logging each attempt', async () => {
     for (const payload of [
-      { username: 'pemilik', pin: '999999' },
-      { username: 'tidakada', pin: OWNER.pin },
+      { userId: userIdOf(h, 'pemilik'), pin: '999999' },
+      { userId: 'tidak-ada', pin: OWNER.pin },
     ]) {
       const res = await h.app.inject({ method: 'POST', url: '/api/auth/login', payload });
       expect(res.statusCode).toBe(401);
-      expect(res.json().error).toEqual({
-        code: 'INVALID_CREDENTIALS',
-        message: 'Nama pengguna atau PIN salah.',
-      });
+      expect(res.json().error).toEqual({ code: 'INVALID_CREDENTIALS', message: 'PIN salah.' });
     }
+    expect(auditRows(h, 'auth')).toMatchObject([
+      {
+        entityId: userIdOf(h, 'pemilik'),
+        action: 'failed_pin',
+        userId: null,
+        newValue: { context: 'login' },
+      },
+      { entityId: 'tidak-ada', action: 'failed_pin', newValue: { context: 'login' } },
+    ]);
   });
 
   it('requires a session for auth/me', async () => {

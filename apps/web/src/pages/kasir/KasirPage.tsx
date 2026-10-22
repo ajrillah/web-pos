@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import { api } from '../../api/endpoints';
-import { useCurrentUser } from '../../auth/AuthProvider';
+import { useAuth, useCurrentUser } from '../../auth/AuthProvider';
 import { BrandMark } from '../../components/BrandMark';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { AmountBlock, ReceiptPromptDialog } from '../../components/receipts/ReceiptPromptDialog';
@@ -56,6 +56,7 @@ const today = () =>
 /** Kasir: full screen, no sidebar. Layout locked in docs/ui-style.md section 5. */
 export function KasirPage() {
   const user = useCurrentUser();
+  const { lock } = useAuth();
   const navigate = useNavigate();
   const searchRef = useRef<HTMLInputElement>(null);
   const [cart, dispatch] = useReducer(cartReducer, emptyCart);
@@ -216,13 +217,13 @@ export function KasirPage() {
               variant="ghost"
               size="icon"
               aria-label="Kunci layar (Ctrl+L)"
-              aria-disabled
-              className="cursor-not-allowed opacity-50"
+              data-testid="lock"
+              onClick={() => void lock()}
             >
               <Lock className="size-5" aria-hidden />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Kunci layar (Ctrl+L) tersedia di tahap 5.</TooltipContent>
+          <TooltipContent>Kunci layar (Ctrl+L)</TooltipContent>
         </Tooltip>
       </header>
 

@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router';
+import { OwnerPinGate } from './approval/OwnerPinGate';
 import {
   RequireAnonymous,
   RequirePendingPinChange,
@@ -18,13 +19,14 @@ import { ReceivablesPage } from './pages/customers/ReceivablesPage';
 import { HistoryPage } from './pages/history/HistoryPage';
 import { KasirPage } from './pages/kasir/KasirPage';
 import { NotFoundPage } from './pages/NotFoundPage';
-import { ComingSoonPage, OwnerPinGate } from './pages/PlaceholderPages';
+import { ComingSoonPage } from './pages/PlaceholderPages';
 import { CategoriesPage } from './pages/products/CategoriesPage';
 import { ProductFormPage } from './pages/products/ProductFormPage';
 import { ProductListPage } from './pages/products/ProductListPage';
 import { ProductsLayout } from './pages/products/ProductsLayout';
 import { ChangePinPage } from './pages/settings/ChangePinPage';
 import { SettingsIndex, SettingsLayout } from './pages/settings/SettingsLayout';
+import { StoreSettingsPage } from './pages/settings/StoreSettingsPage';
 import { UsersPage } from './pages/settings/UsersPage';
 
 export const router = createBrowserRouter([
@@ -78,7 +80,7 @@ export const router = createBrowserRouter([
               {
                 path: '/laporan',
                 element: (
-                  <OwnerPinGate title="Laporan">
+                  <OwnerPinGate scope="laporan" title="Laporan">
                     <ComingSoonPage title="Laporan" stage={8} />
                   </OwnerPinGate>
                 ),
@@ -91,7 +93,7 @@ export const router = createBrowserRouter([
                   {
                     path: 'pengguna',
                     element: (
-                      <OwnerPinGate title="Pengguna">
+                      <OwnerPinGate scope="pengguna" title="Pengguna">
                         <UsersPage />
                       </OwnerPinGate>
                     ),
@@ -99,8 +101,8 @@ export const router = createBrowserRouter([
                   {
                     path: 'toko',
                     element: (
-                      <OwnerPinGate title="Profil Toko">
-                        <ComingSoonPage title="Profil Toko" stage={5} />
+                      <OwnerPinGate scope="profil-toko" title="Profil Toko">
+                        <StoreSettingsPage />
                       </OwnerPinGate>
                     ),
                   },

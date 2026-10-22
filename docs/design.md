@@ -110,7 +110,7 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - User changes.
 - Settings changes.
 - All voids (sales, purchases, customer payments, supplier payments).
-- Every owner PIN approval.
+- Every owner PIN approval, and every failed PIN attempt (login, unlock, approval).
 - Held sale deletions (manual, bulk, and automatic; see 6.1).
 
 Sales, payments, purchases, adjustments, and opname are not audit-logged; their own tables are the record.
@@ -119,7 +119,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 
 - First-run setup creates the first owner and a one-time recovery code.
 - Multiple owners allowed. Each owner has their own recovery code, stored as `users.recovery_code_hash`. After a recovery code is used, a new one is issued for that owner.
-- Login: username + 6-digit PIN. Roles: `owner`, `cashier`.
+- Login: user tile + 6-digit PIN (by user id). Roles: `owner`, `cashier`. PIN recovery still uses the username.
   - From Stage 5, login shows a tile per active user plus a PIN pad (`ui-style.md` section 5). Tiles come from an unauthenticated endpoint returning only `id`, display name, and role: no usernames, no inactive users. Login then sends the chosen user's `id` + PIN.
 - Sessions stored in DB (survive server restart); httpOnly cookie. A session ends on logout or after 12 h of inactivity.
 - The last active owner cannot be deactivated. Owners cannot deactivate themselves.
@@ -131,15 +131,21 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
   - A new owner's recovery code is issued when they set their own PIN (response of `PUT auth/me/pin`), so the creating owner never sees it. Until then that owner has no recovery code.
 - Username and role are fixed at creation. Name, active flag, and (cashiers only) PIN are editable.
 - Deactivating a user or resetting their PIN ends their open sessions.
-- Until approval tokens exist (Stage 5), PIN endpoints return 403 `OWNER_APPROVAL_REQUIRED` for cashiers.
+- Cashiers without a valid approval token get 403 `OWNER_APPROVAL_REQUIRED`; the UI then opens the owner PIN dialog and retries.
 - Hashing: PINs and recovery codes are stored as salted scrypt hashes; session tokens (256-bit random) as SHA-256 hashes. Cookie `toko_session`: httpOnly, `SameSite=Strict`, path `/`.
 - Owner approval:
   - Owner logged in directly needs no approval token.
   - Cashier obtains owner approval by entering an owner PIN (`POST auth/approve`) -> short-lived token kept in server memory, sent as `X-Approval-Token`.
-  - Action tokens (e.g. void) are single-use.
+  - With exactly one active owner, the dialog asks only for the PIN. With more than one, it first shows owner tiles; the PIN is then checked against the chosen owner only (`ownerId` in the request; required when several owners are active). The approving owner is recorded as `approved_by`.
+  - Tokens are bound to the cashier's session and to one scope; lost on server restart.
+  - Action tokens (voids, product price changes, product deactivation, category changes) are single-use, tied to their target (sale, payment, product) when there is one, and expire after 5 minutes if unused. A token is spent only when the action succeeds.
+  - Menu-access tokens (Laporan, Pengguna, Profil Toko) last while the cashier stays in that menu, at most 15 minutes. Leaving the menu (the page releases the token), locking the screen, or logging out invalidates them.
+  - Every granted approval is audit-logged (entity `approval`), and the approved action's own audit row carries `approved_by`.
+- Failed PIN attempts (login, unlock, approval) are audit-logged with the user, time, and intended action (entity `auth`, action `failed_pin`). No lockout. They appear in the activity report (Stage 8).
 - Auto-lock after idle (`auto_lock_minutes`, default 5) and quick lock with `Ctrl+L`.
+  - The lock is stored on the session (`sessions.locked_at`), so a reload stays locked. While locked only `auth/me`, `auth/unlock`, `auth/logout`, and `auth/users` work (403 `SESSION_LOCKED`).
   - Lock screen unlocks only for the same user.
-  - "Ganti pengguna" goes to the login page.
+  - "Ganti pengguna" ends the session and goes to the login page.
 - No lockout on wrong PIN.
 - Cashier needs owner PIN for: all voids, reports, user management, store settings, product price changes and product deactivation (6.5), category management. Everything else is open.
 
@@ -163,6 +169,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Cancel sale before payment.
 - Void after payment:
   - Needs owner PIN.
+  - A reason is required, picked from quick choices: "Salah input", "Pembeli batal", or "Lainnya" (then a note is required). Stored as `void_reason` ("Lainnya: <note>" for the last). The same applies to customer payment voids.
   - Rejected if the sale's receivable has any active payments.
   - Returns stock (movements of type `void`) and voids the receivable.
 
@@ -294,7 +301,7 @@ All tables have `id` (UUID) and `created_at`; mutable tables also have `updated_
 
 ### 9.1 System
 - `users`(username, name, role, pin_hash, recovery_code_hash, must_change_pin, active) — `recovery_code_hash` for owners only; `username` unique, lowercase
-- `sessions`(user_id, token_hash, expires_at, last_seen_at) — expires after 12 h of inactivity
+- `sessions`(user_id, token_hash, expires_at, last_seen_at, locked_at) — expires after 12 h of inactivity; `locked_at` set while the screen is locked
 - `settings`(key, value)
 - `audit_logs`(user_id, approved_by, entity, entity_id, action, old_value, new_value)
 
@@ -316,7 +323,7 @@ All tables have `id` (UUID) and `created_at`; mutable tables also have `updated_
 ### 9.4 Customers and receivables
 - `customers`(name, phone, note, active)
 - `receivables`(customer_id, sale_id, amount, remaining, status) — `status`: `open` | `paid` | `void`; one per sale (`sale_id` unique); `remaining = amount - sum(active allocations)`
-- `customer_payments`(number, customer_id, method, amount, amount_received, change_amount, balance_after, user_id, status, voided_at, voided_by, receipt_count, receipt_file) — `id` is the client UUID; `number` `BYR-YYYYMMDD-NNNN`; `amount` is the applied amount; `status`: `active` | `voided`
+- `customer_payments`(number, customer_id, method, amount, amount_received, change_amount, balance_after, user_id, status, voided_at, voided_by, void_reason, receipt_count, receipt_file) — `id` is the client UUID; `number` `BYR-YYYYMMDD-NNNN`; `amount` is the applied amount; `status`: `active` | `voided`
 - `payment_allocations`(payment_id, receivable_id, amount, remaining_after) — `remaining_after` is the receipt snapshot
 - `sales` gains `customer_id` and `customer_balance_after` (customer's remaining kasbon after the sale, for the receipt).
 
@@ -351,9 +358,12 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 
 ### Setup and auth
 - `GET setup/status`, `POST setup`
-- `POST auth/login`, `POST auth/logout`, `POST auth/unlock`, `POST auth/approve`, `POST auth/recover`
-- `GET auth/me`, `PUT auth/me/pin`
-- `GET auth/users` (Stage 5): no auth; active users only, `{ users: [{ id, name, role }] }`. Never usernames or inactive users.
+- `GET auth/users`: no auth; login tiles: active users only, `{ users: [{ id, name, role }] }`. Never usernames or inactive users.
+- `POST auth/login` `{ userId, pin }`, `POST auth/logout`, `POST auth/recover` (username + recovery code)
+- `GET auth/me` -> `{ user, locked }`, `PUT auth/me/pin`
+- `POST auth/lock`, `POST auth/unlock` `{ pin }` (same user)
+- `POST auth/approve` `{ pin, scope, targetId?, ownerId? }` -> `{ token, expiresAt, ownerName }` (`ownerId` required when several owners are active); scopes: actions `sale.void`, `payment.void`, `product.price`, `product.deactivate`, `category.manage`; menus `laporan`, `pengguna`, `profil-toko`
+- `POST auth/approve/release` `{ token }` (leaving a PIN menu)
 
 ### Users (PIN)
 - `GET users`, `POST users`, `PUT users/:id`
@@ -375,14 +385,14 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `POST sales/:id/receipt` (save PDF to receipt folder as `<TRX>.pdf`; later receipts `<TRX>-SALINAN.pdf`)
 - `POST sales/:id/receipt/open` (open saved PDF in default viewer), `POST receipts/open-folder`
 - `GET sales/:id/receipt.pdf` (download)
-- `POST sales/:id/void` (PIN)
+- `POST sales/:id/void` (PIN, action `sale.void` on this sale) `{ reason: salah_input|pembeli_batal|lainnya, note? }` (note required for `lainnya`)
 
 ### Customers and kasbon
 - `GET customers` (q, status, page, limit; each with `balance`), `GET customers/:id`, `POST customers`, `PUT customers/:id` (name, phone, note, active), `GET customers/:id/ledger`
 - `GET receivables` (customerId, status `open|all`; oldest first)
 - `POST customer-payments` `{ id (client UUID), customerId, receivableIds, method, amount }` (`amount` = cash received or QRIS amount), `GET customer-payments/:id`
 - `POST customer-payments/:id/receipt`, `POST customer-payments/:id/receipt/open`, `GET customer-payments/:id/receipt.pdf`
-- `POST customer-payments/:id/void` (PIN; Stage 5)
+- `POST customer-payments/:id/void` (PIN, action `payment.void` on this payment) `{ reason, note? }` (as for sales)
 - `POST sales` takes an optional `customerId`; with it, an underpayment becomes kasbon (one receivable, `debt_amount`). Without it, underpayment is refused.
 
 ### Suppliers and stock
@@ -398,7 +408,7 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `GET reports/:type/export?format=pdf|xlsx`
 
 ### Settings
-- `GET settings` (any user; Stage 3), `PUT settings` (PIN; Stage 5)
+- `GET settings` (any user), `PUT settings` (PIN menu `profil-toko`; only sent fields change; each changed key audit-logged)
 - Defaults until set: `store_name` "TOKO PODOMORO", `rounding` `none`, `receipt_width` `58`, `receipt_footer` "Terima kasih atas kunjungan Anda", `auto_lock_minutes` 5.
 
 ## 11. Roadmap
@@ -437,9 +447,7 @@ Tracked with checkboxes in `../production_checklist.md`.
 
 Not decided. Do not implement a choice without asking. Tagged with the stage that needs the answer.
 
-1. [Stage 5] Should failed PIN attempts be logged?
-2. [Stage 5] Approval token lifetime, and the scope of menu-access tokens (e.g. one Laporan visit vs. a time window).
-3. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
-4. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
-5. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
-6. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
+1. [Stage 7] Can a purchase's initial payment be voided on its own (leaving the purchase as debt), or only via purchase void?
+2. [Stage 7] Can a product be in more than one open opname session at a time? Can multiple sessions be open?
+3. [Stage 7] Is the opname adjustment valued at the product's current `cost_price` at completion?
+4. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?

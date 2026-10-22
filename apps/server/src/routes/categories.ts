@@ -6,7 +6,7 @@ import {
 } from '@toko-podomoro/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { currentUser, requireOwner, requireUser } from '../auth/session';
+import { currentActor, requireApproval, requireUser } from '../auth/session';
 import {
   createCategory,
   listAllCategories,
@@ -26,10 +26,10 @@ export const categoryRoutes: FastifyPluginAsync<{ ctx: ServiceContext }> = async
 
   app.post(
     '/categories',
-    { preHandler: requireOwner },
+    { preHandler: requireApproval(ctx.approvals, 'category.manage') },
     async (request, reply): Promise<CategoryResponse> => {
       const input = createCategoryRequestSchema.parse(request.body);
-      const category = createCategory(ctx, currentUser(request), input);
+      const category = createCategory(ctx, currentActor(request), input);
       reply.status(201);
       return { category };
     },
@@ -37,11 +37,17 @@ export const categoryRoutes: FastifyPluginAsync<{ ctx: ServiceContext }> = async
 
   app.put(
     '/categories/:id',
-    { preHandler: requireOwner },
+    {
+      preHandler: requireApproval(
+        ctx.approvals,
+        'category.manage',
+        (request) => idParamsSchema.parse(request.params).id,
+      ),
+    },
     async (request): Promise<CategoryResponse> => {
       const { id } = idParamsSchema.parse(request.params);
       const input = updateCategoryRequestSchema.parse(request.body);
-      return { category: updateCategoryById(ctx, currentUser(request), id, input) };
+      return { category: updateCategoryById(ctx, currentActor(request), id, input) };
     },
   );
 };

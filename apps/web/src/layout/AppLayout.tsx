@@ -1,6 +1,7 @@
 import {
   Boxes,
   ChartColumn,
+  Lock,
   LogOut,
   type LucideIcon,
   Package,
@@ -33,7 +34,7 @@ const icons: Record<string, LucideIcon> = {
 /** Sidebar layout (232px) used by every page except Kasir. The menu depends on the user's role. */
 export function AppLayout() {
   const user = useCurrentUser();
-  const { logout } = useAuth();
+  const { lock, logout } = useAuth();
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <aside className="sticky top-0 flex h-screen w-[232px] shrink-0 flex-col gap-6 px-4 py-6">
@@ -86,10 +87,16 @@ export function AppLayout() {
               </div>
             </div>
           </div>
-          <Button variant="secondary" size="sm" className="w-full" onClick={() => void logout()}>
-            <LogOut className="size-4" aria-hidden />
-            Keluar
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" size="sm" onClick={() => void lock()} title="Ctrl+L">
+              <Lock className="size-4" aria-hidden />
+              Kunci
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => void logout()}>
+              <LogOut className="size-4" aria-hidden />
+              Keluar
+            </Button>
+          </div>
         </div>
       </aside>
       <main className="min-w-0 flex-1 px-8 py-7">

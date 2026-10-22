@@ -24,8 +24,13 @@ import {
 import type { Executor } from '../db/client';
 import { appErrors } from '../errors';
 import { insertAudit } from '../repositories/audit-repository';
+import { activeAllocatedByReceivable } from '../repositories/customer-payments-repository';
 import { findCustomerById } from '../repositories/customers-repository';
-import { insertReceivable } from '../repositories/receivables-repository';
+import {
+  findReceivableBySale,
+  insertReceivable,
+  updateReceivable,
+} from '../repositories/receivables-repository';
 import {
   deleteHeldSales,
   findSaleById,
@@ -40,9 +45,10 @@ import {
   type SaleWithCashier,
   saleIdExists,
   searchSales as searchSaleRows,
+  updateSale,
 } from '../repositories/sales-repository';
 import { addToStockCache, insertMovement } from '../repositories/stock-repository';
-import type { Actor, ServiceContext } from './context';
+import { type Actor, isApproved, type ServiceContext } from './context';
 import { nextDocNumber } from './numbering';
 import { productsByIds } from './product-service';
 import { getSettings } from './settings-service';
@@ -438,4 +444,63 @@ export function deleteExpiredHeldSales(ctx: ServiceContext): number {
   return ctx.db.transaction((tx) =>
     deleteHeldWithAudit(tx, listHeldSales(tx, cutoff), null, 'auto_delete'),
   );
+}
+
+const voidSnapshot = (row: SaleWithCashier) => ({
+  number: row.number,
+  total: row.total,
+  debtAmount: row.debtAmount,
+  customerId: row.customerId,
+  status: row.status,
+});
+
+/**
+ * Voids a completed sale (owner approval for cashiers): stock comes back through `void`
+ * movements and its kasbon is voided. Refused while the kasbon has active payments.
+ * Audit-logged with the approving owner.
+ */
+export function voidSale(ctx: ServiceContext, actor: Actor, id: string, reason: string): Sale {
+  if (!isApproved(actor)) {
+    throw appErrors.ownerApprovalRequired();
+  }
+  return ctx.db.transaction((tx) => {
+    const row = findSaleById(tx, id);
+    if (!row) {
+      throw appErrors.saleNotFound();
+    }
+    if (row.status !== 'completed') {
+      throw appErrors.saleNotVoidable();
+    }
+    const receivable = findReceivableBySale(tx, id);
+    if (receivable && activeAllocatedByReceivable(tx, [receivable.id]).size > 0) {
+      throw appErrors.saleHasPayments();
+    }
+    const now = ctx.now().toISOString();
+    updateSale(tx, id, { status: 'voided', voidedAt: now, voidedBy: actor.id, voidReason: reason });
+    for (const item of listSaleItems(tx, [id])) {
+      insertMovement(tx, {
+        productId: item.productId,
+        qtyChange: item.qtyBase,
+        type: 'void',
+        refId: id,
+        userId: actor.id,
+        createdAt: now,
+      });
+      addToStockCache(tx, item.productId, item.qtyBase);
+    }
+    if (receivable) {
+      // Remaining stays as recorded; the void status takes it out of every balance.
+      updateReceivable(tx, receivable.id, { status: 'void' });
+    }
+    insertAudit(tx, {
+      userId: actor.id,
+      approvedBy: actor.approvedBy ?? null,
+      entity: 'sale',
+      entityId: id,
+      action: 'void',
+      oldValue: voidSnapshot(row),
+      newValue: { status: 'voided', reason },
+    });
+    return loadSale(tx, id);
+  });
 }

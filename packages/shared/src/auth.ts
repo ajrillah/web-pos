@@ -49,14 +49,70 @@ export const recoveryCodeResponseSchema = z.object({
 });
 export type RecoveryCodeResponse = z.infer<typeof recoveryCodeResponseSchema>;
 
+/** Login picks a user tile (by id) and enters the PIN. */
 export const loginRequestSchema = z.object({
-  username: usernameSchema,
+  userId: z.string().min(1),
   pin: pinSchema,
 });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 
-export const meResponseSchema = z.object({ user: userSchema });
+/** Login tiles: active users only, never usernames. */
+export const loginUserSchema = z.object({ id: z.string(), name: z.string(), role: roleSchema });
+export type LoginUser = z.infer<typeof loginUserSchema>;
+
+export const loginUsersResponseSchema = z.object({ users: z.array(loginUserSchema) });
+export type LoginUsersResponse = z.infer<typeof loginUsersResponseSchema>;
+
+export const meResponseSchema = z.object({
+  user: userSchema,
+  /** The session is locked: only unlock, logout, and the login tiles work. */
+  locked: z.boolean().default(false),
+});
 export type MeResponse = z.infer<typeof meResponseSchema>;
+
+export const unlockRequestSchema = z.object({ pin: pinSchema });
+export type UnlockRequest = z.infer<typeof unlockRequestSchema>;
+
+// --- Owner approval (docs/design.md 5) ---
+
+/** Single-use approvals for one action (on one target when it has one). */
+export const actionScopeSchema = z.enum([
+  'sale.void',
+  'payment.void',
+  'product.price',
+  'product.deactivate',
+  'category.manage',
+]);
+export type ActionScope = z.infer<typeof actionScopeSchema>;
+
+/** Approvals that last while the cashier stays in a menu (max 15 minutes). */
+export const menuScopeSchema = z.enum(['laporan', 'pengguna', 'profil-toko']);
+export type MenuScope = z.infer<typeof menuScopeSchema>;
+
+export const approvalScopeSchema = z.union([actionScopeSchema, menuScopeSchema]);
+export type ApprovalScope = z.infer<typeof approvalScopeSchema>;
+
+export const APPROVAL_HEADER = 'x-approval-token';
+
+export const approveRequestSchema = z.object({
+  pin: pinSchema,
+  scope: approvalScopeSchema,
+  /** The sale, payment, product, or category the action applies to. */
+  targetId: z.string().min(1).optional(),
+  /** The owner chosen on the tiles; required when several owners are active. */
+  ownerId: z.string().min(1).optional(),
+});
+export type ApproveRequest = z.infer<typeof approveRequestSchema>;
+
+export const approveResponseSchema = z.object({
+  token: z.string(),
+  expiresAt: z.string(),
+  ownerName: z.string(),
+});
+export type ApproveResponse = z.infer<typeof approveResponseSchema>;
+
+export const releaseApprovalRequestSchema = z.object({ token: z.string().min(1) });
+export type ReleaseApprovalRequest = z.infer<typeof releaseApprovalRequestSchema>;
 
 export const changePinRequestSchema = z
   .object({

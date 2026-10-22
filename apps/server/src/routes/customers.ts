@@ -10,10 +10,12 @@ import {
   type ReceivablesResponse,
   receivablesQuerySchema,
   updateCustomerRequestSchema,
+  voidReasonText,
+  voidRequestSchema,
 } from '@toko-podomoro/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { currentUser, requireUser } from '../auth/session';
+import { currentActor, currentUser, requireApproval, requireUser } from '../auth/session';
 import type { ServiceContext } from '../services/context';
 import {
   createCustomer,
@@ -23,7 +25,11 @@ import {
   searchCustomers,
   updateCustomerById,
 } from '../services/customer-service';
-import { createCustomerPayment, getPayment } from '../services/payment-service';
+import {
+  createCustomerPayment,
+  getPayment,
+  voidCustomerPayment,
+} from '../services/payment-service';
 import { downloadReceipt, openReceipt, saveReceipt } from '../services/receipt-service';
 
 const idParamsSchema = z.object({ id: z.string().min(1) });
@@ -78,6 +84,24 @@ export const customerRoutes: FastifyPluginAsync<{ ctx: ServiceContext }> = async
     const { id } = idParamsSchema.parse(request.params);
     return { payment: getPayment(ctx, id) };
   });
+
+  app.post(
+    '/customer-payments/:id/void',
+    {
+      preHandler: requireApproval(
+        ctx.approvals,
+        'payment.void',
+        (request) => idParamsSchema.parse(request.params).id,
+      ),
+    },
+    async (request): Promise<CustomerPaymentResponse> => {
+      const { id } = idParamsSchema.parse(request.params);
+      const input = voidRequestSchema.parse(request.body ?? {});
+      return {
+        payment: voidCustomerPayment(ctx, currentActor(request), id, voidReasonText(input)),
+      };
+    },
+  );
 
   app.post('/customer-payments/:id/receipt', async (request): Promise<ReceiptSavedResponse> => {
     const { id } = idParamsSchema.parse(request.params);

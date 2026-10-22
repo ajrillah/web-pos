@@ -172,8 +172,16 @@ export function LedgerPage() {
         summary={paid && <PaymentSummary payment={paid} />}
         onClose={() => setPaid(null)}
       />
-      <SaleDetailDialog saleId={openSale} onClose={() => setOpenSale(null)} />
-      <PaymentDetailDialog paymentId={openPayment} onClose={() => setOpenPayment(null)} />
+      <SaleDetailDialog
+        saleId={openSale}
+        onClose={() => setOpenSale(null)}
+        onChanged={() => load()}
+      />
+      <PaymentDetailDialog
+        paymentId={openPayment}
+        onClose={() => setOpenPayment(null)}
+        onChanged={load}
+      />
     </section>
   );
 }

@@ -1,6 +1,6 @@
 import type { User } from '@toko-podomoro/shared';
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react';
-import { ApiRequestError } from '../api/client';
+import { ApiRequestError, SESSION_LOCKED_EVENT, setMenuApprovalToken } from '../api/client';
 import { api } from '../api/endpoints';
 
 export type AuthState =
@@ -8,14 +8,16 @@ export type AuthState =
   | { status: 'error'; message: string }
   | { status: 'needsSetup' }
   | { status: 'anonymous' }
-  | { status: 'authenticated'; user: User };
+  | { status: 'authenticated'; user: User; locked: boolean };
 
 interface AuthContextValue {
   state: AuthState;
   /** Re-reads setup status and the current session from the server. */
   refresh: () => Promise<void>;
-  /** Marks the user as logged in without another round trip. */
+  /** Marks the user as logged in (and unlocked) without another round trip. */
   signedIn: (user: User) => void;
+  /** Locks the screen (Ctrl+L or idle); only the same user can unlock. */
+  lock: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -26,7 +28,8 @@ async function loadState(): Promise<AuthState> {
     if ((await api.setupStatus()).needsSetup) {
       return { status: 'needsSetup' };
     }
-    return { status: 'authenticated', user: (await api.me()).user };
+    const me = await api.me();
+    return { status: 'authenticated', user: me.user, locked: me.locked };
   } catch (error) {
     if (error instanceof ApiRequestError && error.status === 401) {
       return { status: 'anonymous' };
@@ -49,15 +52,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
-  const signedIn = useCallback((user: User) => setState({ status: 'authenticated', user }), []);
+  const signedIn = useCallback(
+    (user: User) => setState({ status: 'authenticated', user, locked: false }),
+    [],
+  );
+
+  const markLocked = useCallback(() => {
+    setMenuApprovalToken(null);
+    setState((current) =>
+      current.status === 'authenticated' ? { ...current, locked: true } : current,
+    );
+  }, []);
+
+  const lock = useCallback(async () => {
+    await api.lock().catch(() => undefined);
+    markLocked();
+  }, [markLocked]);
+
+  // Another tab locked the session, or a request was refused as locked.
+  useEffect(() => {
+    window.addEventListener(SESSION_LOCKED_EVENT, markLocked);
+    return () => window.removeEventListener(SESSION_LOCKED_EVENT, markLocked);
+  }, [markLocked]);
 
   const logout = useCallback(async () => {
     await api.logout().catch(() => undefined);
+    setMenuApprovalToken(null);
     setState({ status: 'anonymous' });
   }, []);
 
   return (
-    <AuthContext.Provider value={{ state, refresh, signedIn, logout }}>
+    <AuthContext.Provider value={{ state, refresh, signedIn, lock, logout }}>
       {children}
     </AuthContext.Provider>
   );

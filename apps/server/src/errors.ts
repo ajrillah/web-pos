@@ -31,14 +31,29 @@ export const errorMessages = {
 /** Business errors raised by services. Messages are Indonesian and shown to the user as is. */
 export const appErrors = {
   unauthenticated: () => new AppError(401, 'UNAUTHENTICATED', 'Silakan masuk terlebih dahulu.'),
-  invalidCredentials: () =>
-    new AppError(401, 'INVALID_CREDENTIALS', 'Nama pengguna atau PIN salah.'),
+  invalidCredentials: () => new AppError(401, 'INVALID_CREDENTIALS', 'PIN salah.'),
   setupAlreadyDone: () =>
     new AppError(409, 'SETUP_ALREADY_DONE', 'Pengaturan awal sudah dilakukan.'),
   pinChangeRequired: () =>
     new AppError(403, 'PIN_CHANGE_REQUIRED', 'Anda harus mengganti PIN terlebih dahulu.'),
   ownerApprovalRequired: () =>
     new AppError(403, 'OWNER_APPROVAL_REQUIRED', 'Tindakan ini memerlukan persetujuan pemilik.'),
+  sessionLocked: () =>
+    new AppError(403, 'SESSION_LOCKED', 'Layar terkunci. Masukkan PIN untuk membuka.'),
+  wrongPin: () => new AppError(401, 'WRONG_PIN', 'PIN salah.'),
+  wrongOwnerPin: () => new AppError(401, 'WRONG_OWNER_PIN', 'PIN pemilik salah.'),
+  ownerRequired: () =>
+    new AppError(400, 'OWNER_REQUIRED', 'Pilih pemilik yang memberi persetujuan.'),
+  saleNotVoidable: () =>
+    new AppError(409, 'SALE_NOT_VOIDABLE', 'Hanya transaksi selesai yang dapat dibatalkan.'),
+  saleHasPayments: () =>
+    new AppError(
+      409,
+      'SALE_HAS_PAYMENTS',
+      'Kasbon transaksi ini sudah ada pembayaran. Batalkan pembayaran kasbonnya dulu.',
+    ),
+  paymentNotVoidable: () =>
+    new AppError(409, 'PAYMENT_NOT_VOIDABLE', 'Pembayaran ini sudah dibatalkan.'),
   wrongCurrentPin: () => new AppError(400, 'WRONG_CURRENT_PIN', 'PIN saat ini salah.'),
   invalidRecovery: () =>
     new AppError(400, 'INVALID_RECOVERY', 'Nama pengguna atau kode pemulihan salah.'),

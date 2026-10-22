@@ -10,10 +10,12 @@ import {
   type SaleResponse,
   type SalesResponse,
   salesQuerySchema,
+  voidReasonText,
+  voidRequestSchema,
 } from '@toko-podomoro/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { currentUser, requireUser } from '../auth/session';
+import { currentActor, currentUser, requireApproval, requireUser } from '../auth/session';
 import type { ServiceContext } from '../services/context';
 import {
   downloadReceipt,
@@ -30,6 +32,7 @@ import {
   listHeld,
   resumeHeldSale,
   searchSales,
+  voidSale,
 } from '../services/sale-service';
 
 const idParamsSchema = z.object({ id: z.string().min(1) });
@@ -79,6 +82,22 @@ export const saleRoutes: FastifyPluginAsync<{ ctx: ServiceContext }> = async (ap
     const { id } = idParamsSchema.parse(request.params);
     return { sale: getSale(ctx, id) };
   });
+
+  app.post(
+    '/sales/:id/void',
+    {
+      preHandler: requireApproval(
+        ctx.approvals,
+        'sale.void',
+        (request) => idParamsSchema.parse(request.params).id,
+      ),
+    },
+    async (request): Promise<SaleResponse> => {
+      const { id } = idParamsSchema.parse(request.params);
+      const input = voidRequestSchema.parse(request.body ?? {});
+      return { sale: voidSale(ctx, currentActor(request), id, voidReasonText(input)) };
+    },
+  );
 
   app.post('/sales/:id/receipt', async (request): Promise<ReceiptSavedResponse> => {
     const { id } = idParamsSchema.parse(request.params);

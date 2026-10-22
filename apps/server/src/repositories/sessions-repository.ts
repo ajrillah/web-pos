@@ -44,3 +44,8 @@ export function expireUserSessions(db: Executor, userId: string, now: string): v
     .where(and(eq(sessions.userId, userId), gt(sessions.expiresAt, now)))
     .run();
 }
+
+/** Locks (timestamp) or unlocks (null) a session. */
+export function setSessionLock(db: Executor, id: string, lockedAt: string | null): void {
+  db.update(sessions).set({ lockedAt }).where(eq(sessions.id, id)).run();
+}

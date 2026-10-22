@@ -68,7 +68,7 @@ Driver prints `READY`, then `ok <cmd>[: output]` or `error <cmd>: ...` per line;
 | `console` | console errors, uncaught exceptions, failed requests since start (the anonymous `auth/me` check logs an expected 401) |
 | `sh <command>` | run a bash command between steps, e.g. restart the server; the browser keeps its cookies |
 
-Later runs on the same data dir: log in instead (`nav /login`, `fill #username pemilik`, `fill #pin 111111`, `press Enter`, `wait-for #kasir-search`). Users created in Pengaturan > Pengguna have a temporary PIN and land on `/ubah-pin` (`#currentPin`, `#newPin`, `#confirm`) at first login.
+Later runs on the same data dir: log in with a tile and the PIN pad: `nav /login`, `wait-for [data-user-tile]`, `eval [...document.querySelectorAll('[data-user-tile]')].find(b=>b.dataset.userTile==='Bu Sari').click()` (skipped when only one user exists), `wait-for #pin`, `type 111111` (the sixth digit submits), `wait-for #kasir-search`. Ctrl+L locks (`press Control+l`, then `type <pin>`). Owner approval for a cashier opens "Persetujuan pemilik": `wait-for text=Persetujuan pemilik`, `type 111111`. Users created in Pengaturan > Pengguna have a temporary PIN and land on `/ubah-pin` (`#currentPin`, `#newPin`, `#confirm`) at first login.
 
 Kasir (needs products; create them in Barang or with `POST /api/products`). Selectors: search `#kasir-search` (Enter adds the exact code, else the highlighted match), cart rows `[data-line=<code>]`, qty inputs `[data-qty-input=<code>]`, bulk weight `#weight`, totals `[data-testid=total]`, Bayar `press F8` then `#pay-cash` / `#pay-qris` and `press Enter`, receipt prompt `press Enter` (save) or `press Escape` (skip), Tahan `press F9`, held notice `[data-testid=held-notice]`, Riwayat rows `[data-number]`. Point receipts at a scratch folder first, or they land in `~/Documents/TokoPodomoro/Nota`: with the server stopped, insert a `settings` row `receipt_folder` (and `rounding` `none|100|500`) into the DB.
 
@@ -90,7 +90,8 @@ API smoke (server running):
 
 ```bash
 curl -s 127.0.0.1:4747/api/health                                  # {"status":"ok","version":"0.0.0"}
-curl -s -c /tmp/toko-cookies -H 'content-type: application/json' -d '{"username":"pemilik","pin":"111111"}' 127.0.0.1:4747/api/auth/login
+curl -s 127.0.0.1:4747/api/auth/users                              # login tiles
+curl -s -c /tmp/toko-cookies -H 'content-type: application/json' -d '{"userId":"<id from auth/users>","pin":"111111"}' 127.0.0.1:4747/api/auth/login
 curl -s -b /tmp/toko-cookies 127.0.0.1:4747/api/users              # {"users":[...]} with the owner session
 curl -s -w ' [%{http_code}]\n' 127.0.0.1:4747/api/nope             # NOT_FOUND [404]
 curl -s -w ' [%{http_code}]\n' -H 'Host: evil.test' 127.0.0.1:4747/api/health   # FORBIDDEN_HOST [403]

@@ -5,6 +5,7 @@ import {
 } from '@toko-podomoro/shared';
 import type { Executor } from '../db/client';
 import { appErrors } from '../errors';
+import { insertAudit } from '../repositories/audit-repository';
 import {
   findPaymentById,
   insertAllocations,
@@ -12,10 +13,11 @@ import {
   lastPaymentNumber,
   listAllocations,
   paymentIdExists,
+  updatePayment,
 } from '../repositories/customer-payments-repository';
 import { findCustomerById } from '../repositories/customers-repository';
 import { listReceivables, updateReceivable } from '../repositories/receivables-repository';
-import type { Actor, ServiceContext } from './context';
+import { type Actor, isApproved, type ServiceContext } from './context';
 import { nextDocNumber } from './numbering';
 
 // Rules: docs/design.md 6.7. Payments are not audit-logged; their tables are the record.
@@ -117,5 +119,58 @@ export function createCustomerPayment(
       }),
     );
     return loadPayment(tx, input.id);
+  });
+}
+
+/**
+ * Voids a customer payment (owner approval for cashiers): each allocated receivable gets its
+ * amount back and is open again. Allocations stay as history; only active payments count.
+ */
+export function voidCustomerPayment(
+  ctx: ServiceContext,
+  actor: Actor,
+  id: string,
+  reason: string,
+): CustomerPayment {
+  if (!isApproved(actor)) {
+    throw appErrors.ownerApprovalRequired();
+  }
+  return ctx.db.transaction((tx) => {
+    const payment = loadPayment(tx, id);
+    if (payment.status !== 'active') {
+      throw appErrors.paymentNotVoidable();
+    }
+    const receivables = new Map(
+      listReceivables(tx, { ids: payment.allocations.map((a) => a.receivableId) }).map((r) => [
+        r.id,
+        r,
+      ]),
+    );
+    for (const allocation of payment.allocations) {
+      const receivable = receivables.get(allocation.receivableId);
+      if (!receivable) continue;
+      updateReceivable(tx, receivable.id, {
+        remaining: receivable.remaining + allocation.amount,
+        // A voided sale's kasbon stays voided.
+        status: receivable.status === 'void' ? 'void' : 'open',
+      });
+    }
+    const now = ctx.now().toISOString();
+    updatePayment(tx, id, {
+      status: 'voided',
+      voidedAt: now,
+      voidedBy: actor.id,
+      voidReason: reason,
+    });
+    insertAudit(tx, {
+      userId: actor.id,
+      approvedBy: actor.approvedBy ?? null,
+      entity: 'customer_payment',
+      entityId: id,
+      action: 'void',
+      oldValue: { number: payment.number, amount: payment.amount, status: payment.status },
+      newValue: { status: 'voided', reason },
+    });
+    return loadPayment(tx, id);
   });
 }

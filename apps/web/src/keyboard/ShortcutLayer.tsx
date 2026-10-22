@@ -1,5 +1,9 @@
 import { createContext, type ReactNode, useContext, useEffect, useRef } from 'react';
 import { Outlet, useNavigate } from 'react-router';
+import { api } from '../api/endpoints';
+import { ApprovalProvider } from '../approval/ApprovalProvider';
+import { useAuth } from '../auth/AuthProvider';
+import { startIdleLock } from './idle-lock';
 import { matchShortcut } from './shortcuts';
 
 type Handler = () => void;
@@ -10,6 +14,29 @@ interface Handlers {
 }
 
 const HandlersContext = createContext<{ current: Handlers } | null>(null);
+
+/** Locks the screen after `auto_lock_minutes` without keyboard or mouse activity. */
+function useIdleLock(lock: () => Promise<void>): void {
+  useEffect(() => {
+    let minutes = 5;
+    let current = true;
+    api
+      .settings()
+      .then((r) => {
+        if (current) minutes = r.settings.autoLockMinutes;
+      })
+      .catch(() => undefined);
+    const stop = startIdleLock({
+      target: window,
+      minutes: () => minutes,
+      onIdle: () => void lock(),
+    });
+    return () => {
+      current = false;
+      stop();
+    };
+  }, [lock]);
+}
 
 /** Focuses the page's main search box (`data-search-input`); on other pages, opens Kasir. */
 function focusSearch(navigate: (path: string) => void): void {
@@ -22,10 +49,15 @@ function focusSearch(navigate: (path: string) => void): void {
   }
 }
 
-/** Global F-key handling for every logged-in page. Kasir registers Bayar and Tahan. */
+/**
+ * Global keys for every logged-in page (F-keys, Ctrl+L) and the idle auto-lock.
+ * Kasir registers Bayar and Tahan.
+ */
 export function ShortcutLayer({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
+  const { lock } = useAuth();
   const handlers = useRef<Handlers>({});
+  useIdleLock(lock);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -35,15 +67,18 @@ export function ShortcutLayer({ children }: { children?: ReactNode }) {
       if (!action) return;
       if (action.kind === 'navigate') navigate(action.path);
       else if (action.kind === 'search') focusSearch(navigate);
+      else if (action.kind === 'lock') void lock();
       else handlers.current[action.kind]?.();
     }
     // Capture phase: runs before inputs and dialogs can swallow the key.
     window.addEventListener('keydown', onKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', onKeyDown, { capture: true });
-  }, [navigate]);
+  }, [navigate, lock]);
 
   return (
-    <HandlersContext.Provider value={handlers}>{children ?? <Outlet />}</HandlersContext.Provider>
+    <HandlersContext.Provider value={handlers}>
+      <ApprovalProvider>{children ?? <Outlet />}</ApprovalProvider>
+    </HandlersContext.Provider>
   );
 }
 
