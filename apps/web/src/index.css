@@ -1,6 +1,111 @@
 @import "tailwindcss";
 
-/* System fonts only: the app runs offline and bundles no web fonts. */
-@theme {
-  --font-sans: "Segoe UI", system-ui, sans-serif;
+/* Theme "Teal Elegan" (light only). Tokens, meanings, and contrast: docs/ui-style.md. */
+:root {
+  --background: #f3f6f6;
+  --foreground: #0b2422;
+  --card: #ffffff;
+  --card-foreground: #0b2422;
+  --popover: #ffffff;
+  --popover-foreground: #0b2422;
+  --muted: #eef3f2;
+  --muted-foreground: #50605f;
+  /* Specified as #6C7C7B; darkened to reach 4.5:1 on muted and background. */
+  --subtle-foreground: #607070;
+  --faint: #8d9b9a;
+  --border: #d8e1e0;
+  --input: #d8e1e0;
+  --secondary: #eef3f2;
+  --secondary-foreground: #0b2422;
+  --accent: #eef3f2;
+  --accent-foreground: #0b2422;
+  --primary: #0e5e5a;
+  --primary-foreground: #ffffff;
+  --primary-soft: #ddedeb;
+  --selected: #eef6f5;
+  --ring: #0e5e5a;
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
+  --destructive-soft: #fdecea;
+  --warning: #d4a72c;
+  --warning-foreground: #7a5a12;
+  --warning-soft: #fbf4e2;
+  --warning-border: #f1e3bd;
+  --success: #15803d;
+  --success-foreground: #ffffff;
+  --success-soft: #edf7f0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-faint: var(--faint);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-selected: var(--selected);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-border: var(--warning-border);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+
+  /* Fonts are bundled with @fontsource-variable (imported in main.tsx); the app is offline. */
+  --font-sans: "Plus Jakarta Sans Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", Consolas, ui-monospace, monospace;
+
+  --radius-card: 24px;
+  --radius-control: 18px;
+  --radius-row: 14px;
+
+  --shadow-card: 0 1px 3px rgba(11, 36, 34, 0.05), 0 12px 32px -18px rgba(11, 36, 34, 0.18);
+}
+
+/* Small caps label: 11-12px uppercase, wide tracking. */
+@utility label-caps {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    font-size: 15px;
+    line-height: 1.5;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::placeholder {
+    color: var(--subtle-foreground);
+    opacity: 1;
+  }
+  ::selection {
+    background-color: var(--primary-soft);
+  }
 }
