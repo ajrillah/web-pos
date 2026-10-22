@@ -22,6 +22,7 @@ import {
 } from '@toko-podomoro/shared';
 import { appErrors } from '../errors';
 import {
+  activeProductSales,
   auditInRange,
   entityNames,
   lossesInRange,
@@ -31,9 +32,9 @@ import {
   paymentsMoney,
   type Range,
   salesByCategory,
-  salesByProduct,
   salesInRange,
   salesMoney,
+  soldProducts,
   stockedProducts,
 } from '../repositories/reports-repository';
 import { describeAudit } from './activity-descriptions';
@@ -164,10 +165,10 @@ export function productsReport(
 ): ProductsReport {
   const q = reportQuerySchemas.products.parse(query);
   const period = resolvePeriod(ctx, q);
-  const sold = salesByProduct(ctx.db, period, q.categoryId, false).sort(
+  const sold = soldProducts(ctx.db, period, q.categoryId).sort(
     (a, b) => b.revenue - a.revenue || a.product_name.localeCompare(b.product_name),
   );
-  const slow = salesByProduct(ctx.db, period, q.categoryId, true).sort(
+  const slow = activeProductSales(ctx.db, period, q.categoryId).sort(
     (a, b) =>
       a.qty_base - b.qty_base ||
       a.revenue - b.revenue ||
@@ -179,7 +180,7 @@ export function productsReport(
     categoryId: q.categoryId ?? null,
     top: sold.slice(0, q.limit).map(toProductRow),
     slow: slow.slice(0, q.limit).map(toProductRow),
-    soldProducts: sold.length,
+    soldProducts: new Set(sold.map((r) => r.product_id)).size,
   };
 }
 

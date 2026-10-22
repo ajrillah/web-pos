@@ -32,7 +32,10 @@ export function salesInRange(db: Executor, { from, to }: Range) {
     order by s.completed_at`);
 }
 
-/** Item sums of valid (completed) sales in the range, per product's current category. */
+/**
+ * Item sums of valid (completed) sales in the range, per category at sale time (the sale line
+ * snapshot). A renamed category shows the name of its latest sale in the range.
+ */
 export function salesByCategory(db: Executor, range: Range, categoryId?: string) {
   return db.all<{
     category_id: string;
@@ -40,16 +43,14 @@ export function salesByCategory(db: Executor, range: Range, categoryId?: string)
     revenue: number;
     cost: number;
   }>(sql`
-    select c.id as category_id, c.name as category_name,
-      sum(i.subtotal) as revenue, sum(i.cost_total) as cost
+    select i.category_id, i.category_name, sum(i.subtotal) as revenue, sum(i.cost_total) as cost,
+      max(s.completed_at) as last_sold
     from sale_items i
     join sales s on s.id = i.sale_id
-    join products p on p.id = i.product_id
-    join categories c on c.id = p.category_id
     where s.status = 'completed' and s.completed_at >= ${range.from} and s.completed_at < ${range.to}
-      ${categoryFilter(categoryId)}
-    group by c.id
-    order by revenue desc, c.name`);
+      ${categoryFilter(categoryId, 'i.category_id')}
+    group by i.category_id
+    order by revenue desc, i.category_name`);
 }
 
 export interface ProductSalesRaw {
@@ -66,14 +67,31 @@ export interface ProductSalesRaw {
 }
 
 /**
- * Per product: quantity, revenue, and cost from valid sales in the range. Products without
- * sales are included only when `includeUnsold` (slow movers), and then only active ones.
+ * Sold products in the range, per product and category at sale time (a product moved to
+ * another category during the range has one row per category). The filter uses the snapshot.
  */
-export function salesByProduct(
+export function soldProducts(db: Executor, range: Range, categoryId?: string): ProductSalesRaw[] {
+  return db.all<ProductSalesRaw>(sql`
+    select p.id as product_id, p.code as product_code, p.name as product_name,
+      i.category_name, p.base_unit, p.active, p.stock,
+      sum(i.qty_base) as qty_base, sum(i.subtotal) as revenue, sum(i.cost_total) as cost,
+      max(s.completed_at) as last_sold
+    from sale_items i
+    join sales s on s.id = i.sale_id
+    join products p on p.id = i.product_id
+    where s.status = 'completed' and s.completed_at >= ${range.from} and s.completed_at < ${range.to}
+      ${categoryFilter(categoryId, 'i.category_id')}
+    group by i.product_id, i.category_id`);
+}
+
+/**
+ * Active products in their current category with everything they sold in the range
+ * (slow movers: the catalog as it is now).
+ */
+export function activeProductSales(
   db: Executor,
   range: Range,
-  categoryId: string | undefined,
-  includeUnsold: boolean,
+  categoryId?: string,
 ): ProductSalesRaw[] {
   return db.all<ProductSalesRaw>(sql`
     with sold as (
@@ -90,8 +108,8 @@ export function salesByProduct(
       coalesce(sold.cost, 0) as cost
     from products p
     join categories c on c.id = p.category_id
-    ${includeUnsold ? sql`left join` : sql`join`} sold on sold.product_id = p.id
-    where ${includeUnsold ? sql`p.active = 1` : sql`1 = 1`} ${categoryFilter(categoryId)}`);
+    left join sold on sold.product_id = p.id
+    where p.active = 1 ${categoryFilter(categoryId)}`);
 }
 
 /** Products with non-zero stock. */
