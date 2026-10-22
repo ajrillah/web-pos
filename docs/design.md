@@ -52,7 +52,7 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - Server serves the built web app and `/api` on the same port.
 - Server layering: `routes -> services -> repositories`.
 - Versioned SQL migrations via drizzle-kit from Stage 0.
-- Build: esbuild bundles the server (including `packages/shared`) into `apps/server/dist/main.js`; only native `better-sqlite3` stays external. `dist/drizzle/` (migrations) and `dist/public/` (built web app) are copied next to it, so `dist/` plus `node_modules/better-sqlite3` is the deployable server.
+- Build: esbuild bundles the server (including `packages/shared`) into `apps/server/dist/main.js`; native `better-sqlite3` and `pdfkit` (it loads its standard fonts through package `#imports`) stay external. `dist/drizzle/` (migrations) and `dist/public/` (built web app) are copied next to it, so `dist/` plus `node_modules` for those two packages (and their dependencies) is the deployable server.
 - Node 26 rationale: better-sqlite3 13.x ships Node-API (v10) prebuilds inside the npm package, including `win32-x64`, so it needs no compiler and works on any Node >= 22. Verified on Node v26.12.0 on 2026-10-19 with install scripts disabled. Node 26 is scheduled for LTS promotion in late October 2026, before the pilot (Stage 6).
 
 ## 4. Data rules
@@ -361,10 +361,11 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `GET categories`, `POST categories` (PIN), `PUT categories/:id` (PIN; default categories cannot be deactivated)
 
 ### Sales
-- `POST sales`
-- `POST sales/held`, `GET sales/held`, `DELETE sales/held/:id`
-- `GET sales` (from, to, q, status), `GET sales/:id`
-- `POST sales/:id/receipt` (save PDF to receipt folder)
+- `POST sales` `{ id (client UUID), lines: [{ productId, unitId, qtyBase }], cash, qris, expectedTotal }` -> `{ sale, warnings }`. The server prices every line from current data; if its rounded total differs from `expectedTotal` it refuses with 409 `TOTAL_CHANGED`. `warnings` lists products now below zero stock. Until Stage 4, underpayment is refused (400 `UNDERPAID`).
+- `POST sales/held`, `GET sales/held`, `DELETE sales/held/:id`, `DELETE sales/held?before=YYYY-MM-DD` (bulk-delete "kemarin" and older)
+- `POST sales/held/:id/resume` -> `{ lines: [{ product, unitId, qtyBase, heldUnitPrice }], removed: [names] }`; removes the held sale (not audit-logged: it goes back into the cart).
+- `GET sales` (from, to = local days, default today; q = number, product code or name; status `completed|voided|all`; page, limit), `GET sales/:id`
+- `POST sales/:id/receipt` (save PDF to receipt folder as `<TRX>.pdf`; later receipts `<TRX>-SALINAN.pdf`)
 - `POST sales/:id/receipt/open` (open saved PDF in default viewer), `POST receipts/open-folder`
 - `GET sales/:id/receipt.pdf` (download)
 - `POST sales/:id/void` (PIN)
@@ -387,7 +388,8 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `GET reports/:type/export?format=pdf|xlsx`
 
 ### Settings
-- `GET settings`, `PUT settings` (PIN)
+- `GET settings` (any user; Stage 3), `PUT settings` (PIN; Stage 5)
+- Defaults until set: `store_name` "TOKO PODOMORO", `rounding` `none`, `receipt_width` `58`, `receipt_footer` "Terima kasih atas kunjungan Anda", `auto_lock_minutes` 5.
 
 ## 11. Roadmap
 

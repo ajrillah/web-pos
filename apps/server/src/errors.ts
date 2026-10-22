@@ -73,6 +73,35 @@ export const appErrors = {
       'STOCK_UNIT_LOCKED',
       'Jenis barang dan satuan stok tidak dapat diubah karena barang ini sudah punya riwayat stok. Nonaktifkan barang ini, lalu buat barang baru.',
     ),
+  productUnavailable: (name: string) =>
+    new AppError(409, 'PRODUCT_UNAVAILABLE', `${name} tidak tersedia lagi. Hapus dari keranjang.`),
+  invalidQuantity: (name: string) =>
+    new AppError(
+      400,
+      'INVALID_QUANTITY',
+      `Jumlah ${name} tidak valid: barang satuan dijual dalam jumlah bulat.`,
+    ),
+  duplicateSale: () => new AppError(409, 'DUPLICATE_SALE', 'Transaksi ini sudah tersimpan.'),
+  totalChanged: (total: string) =>
+    new AppError(
+      409,
+      'TOTAL_CHANGED',
+      `Harga berubah sehingga total menjadi ${total}. Periksa ulang keranjang.`,
+    ),
+  qrisExceedsTotal: () =>
+    new AppError(400, 'QRIS_EXCEEDS_TOTAL', 'Pembayaran QRIS tidak boleh melebihi total.'),
+  underpaid: () => new AppError(400, 'UNDERPAID', 'Pembayaran kurang dari total belanja.'),
+  saleNotFound: () => new AppError(404, 'SALE_NOT_FOUND', 'Transaksi tidak ditemukan.'),
+  heldSaleNotFound: () =>
+    new AppError(404, 'HELD_SALE_NOT_FOUND', 'Transaksi yang ditahan tidak ditemukan.'),
+  receiptNotSaved: () =>
+    new AppError(404, 'RECEIPT_NOT_SAVED', 'Nota belum disimpan. Simpan nota terlebih dahulu.'),
+  receiptSaveFailed: (folder: string) =>
+    new AppError(
+      500,
+      'RECEIPT_SAVE_FAILED',
+      `Nota tidak dapat disimpan ke folder ${folder}. Periksa folder nota di Pengaturan.`,
+    ),
   /** Unit rows break a rule; `message` says which. */
   invalidUnits: (message: string) => new AppError(400, 'INVALID_UNITS', message),
 };
