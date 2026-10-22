@@ -1,6 +1,7 @@
 import {
   type CreateSaleRequest,
   type CreateSaleResponse,
+  docNumberSequence,
   formatRupiah,
   formatSaleNumber,
   type HoldSaleRequest,
@@ -19,13 +20,14 @@ import {
   type SalesQuery,
   type SalesResponse,
   type StockWarning,
-  saleNumberSequence,
   salesQuerySchema,
   startOfLocalDay,
 } from '@toko-podomoro/shared';
 import type { Executor } from '../db/client';
 import { appErrors } from '../errors';
 import { insertAudit } from '../repositories/audit-repository';
+import { findCustomerById } from '../repositories/customers-repository';
+import { insertReceivable } from '../repositories/receivables-repository';
 import {
   deleteHeldSales,
   findSaleById,
@@ -129,6 +131,9 @@ function toSummary(row: SaleWithCashier): SaleSummary {
     changeAmount: row.changeAmount,
     debtAmount: row.debtAmount,
     itemCount: row.itemCount,
+    customerId: row.customerId,
+    customerName: row.customerName,
+    customerBalanceAfter: row.customerBalanceAfter,
     receiptCount: row.receiptCount,
     completedAt: row.completedAt,
     voidedAt: row.voidedAt,
@@ -176,7 +181,7 @@ function nextSaleNumber(db: Executor, now: Date): string {
   const day = localDate(now);
   const prefix = `TRX-${day.replaceAll('-', '')}-`;
   const last = lastSaleNumber(db, prefix);
-  return formatSaleNumber(day, (last ? (saleNumberSequence(last) ?? 0) : 0) + 1);
+  return formatSaleNumber(day, (last ? (docNumberSequence(last) ?? 0) : 0) + 1);
 }
 
 /**
@@ -201,8 +206,17 @@ export function createSale(
     if (input.qris > total) {
       throw appErrors.qrisExceedsTotal();
     }
+    const customer = input.customerId ? findCustomerById(tx, input.customerId) : undefined;
+    if (input.customerId && !customer) {
+      throw appErrors.customerNotFound();
+    }
+    if (customer && !customer.active) {
+      throw appErrors.customerInactive();
+    }
     const paidTotal = input.cash + input.qris;
-    if (paidTotal < total) {
+    // Underpayment is kasbon for the chosen customer (docs/design.md 6.1, 6.7).
+    const debtAmount = Math.max(0, total - paidTotal);
+    if (debtAmount > 0 && !customer) {
       throw appErrors.underpaid();
     }
 
@@ -216,13 +230,26 @@ export function createSale(
       roundingAmount,
       paidTotal,
       // QRIS never exceeds the total, so change always comes out of the cash.
-      changeAmount: paidTotal - total,
-      debtAmount: 0,
+      changeAmount: Math.max(0, paidTotal - total),
+      debtAmount,
+      customerId: customer?.id ?? null,
+      customerBalanceAfter: customer ? customer.balance + debtAmount : null,
       completedAt: now,
       createdAt: now,
       updatedAt: now,
     });
     insertSaleItems(tx, itemRows(input.id, lines, now));
+    if (customer && debtAmount > 0) {
+      insertReceivable(tx, {
+        customerId: customer.id,
+        saleId: input.id,
+        amount: debtAmount,
+        remaining: debtAmount,
+        status: 'open',
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
     insertSalePayments(tx, [
       ...(input.cash > 0
         ? [{ saleId: input.id, method: 'cash' as const, amount: input.cash }]

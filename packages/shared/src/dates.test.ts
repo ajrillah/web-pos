@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
+  docNumberSequence,
+  formatPaymentNumber,
   formatSaleNumber,
   localDate,
   nextLocalDay,
-  saleNumberSequence,
   startOfLocalDay,
 } from './dates';
 
@@ -37,9 +38,14 @@ describe('formatSaleNumber', () => {
     expect(formatSaleNumber('2026-10-22', 10000)).toBe('TRX-20261022-10000');
   });
 
-  it('round-trips through saleNumberSequence', () => {
-    expect(saleNumberSequence('TRX-20261022-0042')).toBe(42);
-    expect(saleNumberSequence('TRX-20261022-10000')).toBe(10000);
-    expect(saleNumberSequence('X-1')).toBeNull();
+  it('round-trips through docNumberSequence', () => {
+    expect(docNumberSequence('TRX-20261022-0042')).toBe(42);
+    expect(docNumberSequence('TRX-20261022-10000')).toBe(10000);
+    expect(docNumberSequence('X-1')).toBeNull();
+  });
+
+  it('formats customer payment numbers the same way', () => {
+    expect(formatPaymentNumber('2026-10-22', 7)).toBe('BYR-20261022-0007');
+    expect(docNumberSequence('BYR-20261022-0007')).toBe(7);
   });
 });
