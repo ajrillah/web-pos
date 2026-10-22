@@ -1,4 +1,5 @@
 import {
+  type CustomerPayment,
   formatRupiah,
   localDate,
   type Product,
@@ -14,6 +15,7 @@ import { api } from '../../api/endpoints';
 import { useCurrentUser } from '../../auth/AuthProvider';
 import { BrandMark } from '../../components/BrandMark';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { AmountBlock, ReceiptPromptDialog } from '../../components/receipts/ReceiptPromptDialog';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Kbd } from '../../components/ui/kbd';
@@ -21,7 +23,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../../components/ui/too
 import { useShortcutHandlers } from '../../keyboard/ShortcutLayer';
 import { cn } from '../../lib/utils';
 import { roleLabels } from '../../navigation/menu';
-import { AfterSaleDialog } from './AfterSaleDialog';
+import { CustomerPaymentDialog } from '../customers/CustomerPaymentDialog';
+import { PaymentSummary } from '../customers/PaymentSummary';
 import { CartTable } from './CartTable';
 import { cartReducer, cartTotals, emptyCart, saleLines } from './cart';
 import { HeldSalesDialog, isFromEarlierDay } from './HeldSalesDialog';
@@ -29,7 +32,7 @@ import { PayDialog } from './PayDialog';
 import { ProductSearch } from './ProductSearch';
 import { WeightDialog } from './WeightDialog';
 
-type OpenDialog = 'pay' | 'held' | 'cancel' | null;
+type OpenDialog = 'pay' | 'held' | 'cancel' | 'kasbon-payment' | null;
 
 const FOOTER_KEYS: { key: string; label: string; path?: string }[] = [
   { key: 'F2', label: 'Cari' },
@@ -61,6 +64,7 @@ export function KasirPage() {
   const [dialog, setDialog] = useState<OpenDialog>(null);
   const [weighing, setWeighing] = useState<Product | null>(null);
   const [completed, setCompleted] = useState<Sale | null>(null);
+  const [paidKasbon, setPaidKasbon] = useState<CustomerPayment | null>(null);
   // One id per cart: retries of the same payment reuse it (the server rejects duplicates).
   const [saleId, setSaleId] = useState(() => crypto.randomUUID());
 
@@ -86,7 +90,7 @@ export function KasirPage() {
 
   const totals = cartTotals(cart, settings?.rounding ?? 'none');
   const isEmpty = cart.lines.length === 0;
-  const busy = dialog !== null || weighing !== null || completed !== null;
+  const busy = dialog !== null || weighing !== null || completed !== null || paidKasbon !== null;
 
   function resetCart() {
     dispatch({ type: 'clear' });
@@ -315,6 +319,13 @@ export function KasirPage() {
             {label}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => setDialog('kasbon-payment')}
+          className="ml-auto flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-warning-foreground hover:bg-warning-soft"
+        >
+          Bayar kasbon
+        </button>
       </footer>
 
       <WeightDialog
@@ -343,7 +354,56 @@ export function KasirPage() {
         }}
         onClosed={focusSearch}
       />
-      <AfterSaleDialog sale={completed} onClose={() => setCompleted(null)} onClosed={focusSearch} />
+      <ReceiptPromptDialog
+        doc={
+          completed?.number ? { kind: 'sale', id: completed.id, number: completed.number } : null
+        }
+        title="Transaksi selesai"
+        summary={
+          completed &&
+          (completed.debtAmount > 0 ? (
+            <div className="space-y-2">
+              <AmountBlock
+                label="Kasbon"
+                amount={formatRupiah(completed.debtAmount)}
+                tone="kasbon"
+                testId="sale-kasbon"
+              />
+              <p className="text-muted-foreground">
+                Sisa kasbon {completed.customerName}:{' '}
+                <span className="font-semibold text-warning-foreground tabular-nums">
+                  {formatRupiah(completed.customerBalanceAfter ?? 0)}
+                </span>
+              </p>
+            </div>
+          ) : (
+            <AmountBlock
+              label="Kembalian"
+              amount={formatRupiah(completed.changeAmount)}
+              tone="change"
+              testId="change-amount"
+            />
+          ))
+        }
+        onClose={() => setCompleted(null)}
+        onClosed={focusSearch}
+      />
+      <CustomerPaymentDialog
+        open={dialog === 'kasbon-payment'}
+        onClose={() => setDialog(null)}
+        onPaid={(payment) => {
+          setDialog(null);
+          setPaidKasbon(payment);
+        }}
+        onClosed={focusSearch}
+      />
+      <ReceiptPromptDialog
+        doc={paidKasbon ? { kind: 'payment', id: paidKasbon.id, number: paidKasbon.number } : null}
+        title="Kasbon dibayar"
+        summary={paidKasbon && <PaymentSummary payment={paidKasbon} />}
+        onClose={() => setPaidKasbon(null)}
+        onClosed={focusSearch}
+      />
       <HeldSalesDialog
         open={dialog === 'held'}
         heldSales={heldSales}

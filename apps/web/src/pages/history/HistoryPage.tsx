@@ -214,6 +214,11 @@ export function HistoryPage() {
                     ) : (
                       <Badge variant="neutral">Selesai</Badge>
                     )}
+                    {sale.debtAmount > 0 && (
+                      <Badge variant="warning" className="ml-1.5">
+                        Kasbon
+                      </Badge>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

@@ -1,13 +1,20 @@
 import {
   type ChangePinRequest,
   type CreateCategoryRequest,
+  type CreateCustomerPaymentRequest,
+  type CreateCustomerRequest,
   type CreateProductRequest,
   type CreateSaleRequest,
   type CreateUserRequest,
+  type CustomersQuery,
   categoriesResponseSchema,
   categoryResponseSchema,
   changePinResponseSchema,
   createSaleResponseSchema,
+  customerLedgerResponseSchema,
+  customerPaymentResponseSchema,
+  customerResponseSchema,
+  customersResponseSchema,
   deletedCountResponseSchema,
   type HoldSaleRequest,
   heldSalesResponseSchema,
@@ -16,8 +23,10 @@ import {
   type ProductsQuery,
   productResponseSchema,
   productsResponseSchema,
+  type ReceivablesQuery,
   type RecoverRequest,
   receiptSavedResponseSchema,
+  receivablesResponseSchema,
   recoveryCodeResponseSchema,
   resumeHeldSaleResponseSchema,
   type SalesQuery,
@@ -27,6 +36,7 @@ import {
   settingsResponseSchema,
   setupStatusResponseSchema,
   type UpdateCategoryRequest,
+  type UpdateCustomerRequest,
   type UpdateProductRequest,
   type UpdateUserRequest,
   userResponseSchema,
@@ -94,16 +104,43 @@ export const api = {
       `/sales/held?${toSearchParams({ before: day })}`,
       deletedCountResponseSchema,
     ),
-  saveReceipt: (saleId: string) =>
-    apiRequest('POST', `/sales/${encodeURIComponent(saleId)}/receipt`, receiptSavedResponseSchema),
-  openReceipt: (saleId: string) =>
-    apiRequest('POST', `/sales/${encodeURIComponent(saleId)}/receipt/open`, null),
   openReceiptFolder: () => apiRequest('POST', '/receipts/open-folder', null),
+
+  listCustomers: (query: CustomersQuery) =>
+    apiRequest('GET', `/customers?${toSearchParams(query)}`, customersResponseSchema),
+  getCustomer: (id: string) =>
+    apiRequest('GET', `/customers/${encodeURIComponent(id)}`, customerResponseSchema),
+  createCustomer: (body: CreateCustomerRequest) =>
+    apiRequest('POST', '/customers', customerResponseSchema, body),
+  updateCustomer: (id: string, body: UpdateCustomerRequest) =>
+    apiRequest('PUT', `/customers/${encodeURIComponent(id)}`, customerResponseSchema, body),
+  customerLedger: (id: string) =>
+    apiRequest('GET', `/customers/${encodeURIComponent(id)}/ledger`, customerLedgerResponseSchema),
+  listReceivables: (query: ReceivablesQuery) =>
+    apiRequest('GET', `/receivables?${toSearchParams(query)}`, receivablesResponseSchema),
+  createCustomerPayment: (body: CreateCustomerPaymentRequest) =>
+    apiRequest('POST', '/customer-payments', customerPaymentResponseSchema, body),
+  getCustomerPayment: (id: string) =>
+    apiRequest(
+      'GET',
+      `/customer-payments/${encodeURIComponent(id)}`,
+      customerPaymentResponseSchema,
+    ),
 };
 
-/** Browser download URL of a sale's receipt PDF. */
-export const receiptDownloadUrl = (saleId: string) =>
-  `/api/sales/${encodeURIComponent(saleId)}/receipt.pdf`;
+export type ReceiptKind = 'sale' | 'payment';
+
+const receiptBase = (kind: ReceiptKind, id: string) =>
+  `/${kind === 'sale' ? 'sales' : 'customer-payments'}/${encodeURIComponent(id)}`;
+
+/** Receipt actions shared by sale receipts (nota) and payment receipts (bukti bayar). */
+export const receipts = {
+  save: (kind: ReceiptKind, id: string) =>
+    apiRequest('POST', `${receiptBase(kind, id)}/receipt`, receiptSavedResponseSchema),
+  open: (kind: ReceiptKind, id: string) =>
+    apiRequest('POST', `${receiptBase(kind, id)}/receipt/open`, null),
+  downloadUrl: (kind: ReceiptKind, id: string) => `/api${receiptBase(kind, id)}/receipt.pdf`,
+};
 
 /** Query string from defined, non-empty values. */
 function toSearchParams(query: object): string {
