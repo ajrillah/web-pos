@@ -23,16 +23,16 @@ Spec: `docs/design.md`. Tick items only when implemented, verified (Biome, typec
 
 ## Stage 1 — Users
 
-- [ ] First-run setup: create owner, show one-time recovery code (`users.recovery_code_hash`)
-- [ ] Login with username + 6-digit PIN; logout
-- [ ] Sessions in DB, httpOnly cookie; survive restart; expire after 12 h inactivity
-- [ ] `GET auth/me`; `PUT auth/me/pin`
-- [ ] Roles owner/cashier; role-based menus
-- [ ] User management (create, edit, deactivate); multiple owners allowed
-- [ ] Last active owner cannot be deactivated; owners cannot deactivate themselves
-- [ ] PIN recovery via the owner's recovery code; new code issued after use
-- [ ] Owner resets a cashier's PIN to a temporary PIN; `must_change_pin` forces a change at next login
-- [ ] Audit log for user changes
+- [x] First-run setup: create owner, show one-time recovery code (`users.recovery_code_hash`)
+- [x] Login with username + 6-digit PIN; logout
+- [x] Sessions in DB, httpOnly cookie; survive restart; expire after 12 h inactivity
+- [x] `GET auth/me`; `PUT auth/me/pin`
+- [x] Roles owner/cashier; role-based menus
+- [x] User management (create, edit, deactivate); multiple owners allowed
+- [x] Last active owner cannot be deactivated; owners cannot deactivate themselves
+- [x] PIN recovery via the owner's recovery code; new code issued after use
+- [x] Owner resets a cashier's PIN to a temporary PIN; `must_change_pin` forces a change at next login
+- [x] Audit log for user changes
 
 **Done when:** owner and cashier see the correct menus; session survives restart.
 
