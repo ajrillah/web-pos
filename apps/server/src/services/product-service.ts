@@ -205,56 +205,80 @@ export function createProduct(
   input: CreateProductInput,
 ): Product {
   const units = checkUnits(input.type, input.baseUnit, input.units);
-  const baseUnit = input.type === 'bulk' ? input.baseUnit.toLowerCase() : input.baseUnit;
   return ctx.db.transaction((tx) => {
     checkCategory(tx, input.categoryId);
     checkCodeFree(tx, input.code);
-    const product = insertProduct(tx, {
-      code: input.code,
-      name: input.name,
-      categoryId: input.categoryId,
-      type: input.type,
-      baseUnit,
-      pricingFactor: pricingFactorFor(input.type),
-      costPrice: input.costPrice,
+    const id = insertNewProduct(
+      tx,
+      actor,
+      { ...input, units },
+      {
+        stockNote: 'Stok awal',
+        createdAt: ctx.now().toISOString(),
+      },
+    );
+    return loadProduct(tx, id);
+  });
+}
+
+/**
+ * Inserts a checked product (units normalized, category and code verified) with its unit rows
+ * and audit rows; initial stock becomes an adjustment (`lainnya`) with `stockNote`, dated
+ * `createdAt`. Returns the id.
+ */
+export function insertNewProduct(
+  tx: Executor,
+  actor: Actor,
+  input: CreateProductInput,
+  { stockNote, createdAt }: { stockNote: string; createdAt: string },
+): string {
+  const baseUnit = input.type === 'bulk' ? input.baseUnit.toLowerCase() : input.baseUnit;
+  const product = insertProduct(tx, {
+    code: input.code,
+    name: input.name,
+    categoryId: input.categoryId,
+    type: input.type,
+    baseUnit,
+    pricingFactor: pricingFactorFor(input.type),
+    costPrice: input.costPrice,
+  });
+  insertAudit(tx, {
+    userId: actor.id,
+    approvedBy: actor.approvedBy ?? null,
+    entity: 'product',
+    entityId: product.id,
+    action: 'create',
+    newValue: productSnapshot(product),
+  });
+  for (const unit of input.units) {
+    const row = insertUnit(tx, {
+      productId: product.id,
+      name: unit.name,
+      factor: unit.factor,
+      sellPrice: unit.sellPrice,
+      isBase: unit.isBase,
     });
     insertAudit(tx, {
       userId: actor.id,
       approvedBy: actor.approvedBy ?? null,
-      entity: 'product',
-      entityId: product.id,
+      entity: 'product_unit',
+      entityId: row.id,
       action: 'create',
-      newValue: productSnapshot(product),
+      newValue: unitSnapshot(row),
     });
-    for (const unit of units) {
-      const row = insertUnit(tx, {
-        productId: product.id,
-        name: unit.name,
-        factor: unit.factor,
-        sellPrice: unit.sellPrice,
-        isBase: unit.isBase,
-      });
-      insertAudit(tx, {
-        userId: actor.id,
-        approvedBy: actor.approvedBy ?? null,
-        entity: 'product_unit',
-        entityId: row.id,
-        action: 'create',
-        newValue: unitSnapshot(row),
-      });
-    }
-    if (input.initialStock > 0) {
-      recordAdjustment(tx, {
-        productId: product.id,
-        qtyChange: input.initialStock,
-        reason: 'lainnya',
-        note: 'Stok awal',
-        costPrice: product.costPrice,
-        userId: actor.id,
-      });
-    }
-    return loadProduct(tx, product.id);
-  });
+  }
+  if (input.initialStock > 0) {
+    recordAdjustment(tx, {
+      productId: product.id,
+      qtyChange: input.initialStock,
+      reason: 'lainnya',
+      note: stockNote,
+      costPrice: product.costPrice,
+      userId: actor.id,
+      createdAt,
+    });
+  }
+  return product.id;
 }
 
 /**
