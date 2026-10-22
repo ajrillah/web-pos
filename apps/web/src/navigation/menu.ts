@@ -35,6 +35,13 @@ const settingsTabs: MenuEntry[] = [
   { label: 'Ubah PIN', path: '/pengaturan/ubah-pin' },
 ];
 
+// Sub-pages of Barang. Kategori is readable by everyone; changing categories needs owner PIN.
+const productTabs: MenuEntry[] = [
+  { label: 'Daftar', path: '/barang' },
+  { label: 'Kategori', path: '/barang/kategori' },
+  { label: 'Impor', path: '/barang/impor' },
+];
+
 function forRole(entries: MenuEntry[], role: Role): MenuItem[] {
   return entries.map(({ ownerPin = false, ...entry }) => ({
     ...entry,
@@ -50,6 +57,11 @@ export function menuFor(role: Role): MenuItem[] {
 /** Pengaturan tabs for a role, marked like the sidebar. */
 export function settingsTabsFor(role: Role): MenuItem[] {
   return forRole(settingsTabs, role);
+}
+
+/** Barang tabs for a role. */
+export function productTabsFor(role: Role): MenuItem[] {
+  return forRole(productTabs, role);
 }
 
 /** First Pengaturan tab a role can open without approval. */

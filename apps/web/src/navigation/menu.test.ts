@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { type MenuItem, menuFor, requiresOwnerPin, settingsHomeFor, settingsTabsFor } from './menu';
+import {
+  type MenuItem,
+  menuFor,
+  productTabsFor,
+  requiresOwnerPin,
+  settingsHomeFor,
+  settingsTabsFor,
+} from './menu';
 
 const labels = (items: MenuItem[]) =>
   items.map((i) => (i.requiresOwnerPin ? `${i.label} (PIN)` : i.label));
@@ -58,6 +65,12 @@ describe('settingsTabsFor', () => {
   it('opens Pengaturan on the first tab the role can use', () => {
     expect(settingsHomeFor('owner')).toBe('/pengaturan/pengguna');
     expect(settingsHomeFor('cashier')).toBe('/pengaturan/ubah-pin');
+  });
+});
+
+describe('productTabsFor', () => {
+  it('opens every Barang tab to cashiers (approval is per action)', () => {
+    expect(labels(productTabsFor('cashier'))).toEqual(['Daftar', 'Kategori', 'Impor']);
   });
 });
 
