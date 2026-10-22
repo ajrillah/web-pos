@@ -13,6 +13,10 @@ import { SetupPage } from './pages/auth/SetupPage';
 import { HomePage } from './pages/HomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ComingSoonPage, OwnerPinGate } from './pages/PlaceholderPages';
+import { CategoriesPage } from './pages/products/CategoriesPage';
+import { ProductFormPage } from './pages/products/ProductFormPage';
+import { ProductListPage } from './pages/products/ProductListPage';
+import { ProductsLayout } from './pages/products/ProductsLayout';
 import { ChangePinPage } from './pages/settings/ChangePinPage';
 import { SettingsIndex, SettingsLayout } from './pages/settings/SettingsLayout';
 import { UsersPage } from './pages/settings/UsersPage';
@@ -39,7 +43,17 @@ export const router = createBrowserRouter([
           { index: true, element: <HomePage /> },
           { path: '/kasir', element: <ComingSoonPage title="Kasir" stage={3} /> },
           { path: '/riwayat', element: <ComingSoonPage title="Riwayat Transaksi" stage={3} /> },
-          { path: '/barang', element: <ComingSoonPage title="Barang" stage={2} /> },
+          {
+            path: '/barang',
+            element: <ProductsLayout />,
+            children: [
+              { index: true, element: <ProductListPage /> },
+              { path: 'kategori', element: <CategoriesPage /> },
+              { path: 'impor', element: <ComingSoonPage title="Impor barang" stage={9} /> },
+            ],
+          },
+          { path: '/barang/baru', element: <ProductFormPage /> },
+          { path: '/barang/:id', element: <ProductFormPage /> },
           { path: '/stok', element: <ComingSoonPage title="Stok" stage={7} /> },
           { path: '/pelanggan', element: <ComingSoonPage title="Pelanggan" stage={4} /> },
           { path: '/pemasok', element: <ComingSoonPage title="Pemasok" stage={7} /> },
