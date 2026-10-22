@@ -31,6 +31,8 @@ export const createSaleRequestSchema = z.object({
   qris: moneySchema,
   /** Rounded total the cashier saw; the server recomputes and refuses if it differs. */
   expectedTotal: moneySchema,
+  /** Required for kasbon (paid < total); the shortfall becomes the customer's receivable. */
+  customerId: z.string().min(1).optional(),
 });
 export type CreateSaleRequest = z.infer<typeof createSaleRequestSchema>;
 
@@ -72,6 +74,10 @@ export const saleSummarySchema = z.object({
   changeAmount: z.number().int(),
   debtAmount: z.number().int(),
   itemCount: z.number().int(),
+  customerId: z.string().nullable(),
+  customerName: z.string().nullable(),
+  /** Customer's remaining kasbon right after the sale (receipt snapshot). */
+  customerBalanceAfter: z.number().int().nullable(),
   receiptCount: z.number().int(),
   completedAt: z.string().nullable(),
   voidedAt: z.string().nullable(),
