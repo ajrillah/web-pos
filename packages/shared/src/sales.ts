@@ -197,11 +197,30 @@ export const updateSettingsRequestSchema = z
   .refine((v) => Object.keys(v).length > 0);
 export type UpdateSettingsRequest = z.infer<typeof updateSettingsRequestSchema>;
 
-/** Void a sale or a customer payment (owner approval for cashiers). */
-export const voidRequestSchema = z.object({
-  reason: z.string().trim().max(200).optional(),
-});
+export const voidReasonSchema = z.enum(['salah_input', 'pembeli_batal', 'lainnya']);
+export type VoidReason = z.infer<typeof voidReasonSchema>;
+
+export const VOID_REASON_LABELS: Record<VoidReason, string> = {
+  salah_input: 'Salah input',
+  pembeli_batal: 'Pembeli batal',
+  lainnya: 'Lainnya',
+};
+
+/** Void a sale or a customer payment (owner approval for cashiers). A note is required for `lainnya`. */
+export const voidRequestSchema = z
+  .object({
+    reason: voidReasonSchema,
+    note: z.string().trim().max(200).optional(),
+  })
+  .refine((v) => v.reason !== 'lainnya' || Boolean(v.note), { path: ['note'] });
 export type VoidRequest = z.infer<typeof voidRequestSchema>;
+
+/** Stored `void_reason`: the label, plus the note for "Lainnya". */
+export function voidReasonText({ reason, note }: VoidRequest): string {
+  return reason === 'lainnya'
+    ? `${VOID_REASON_LABELS.lainnya}: ${note ?? ''}`
+    : VOID_REASON_LABELS[reason];
+}
 
 // --- Cash helpers ---
 

@@ -179,20 +179,24 @@ export async function unlock(ctx: ServiceContext, session: ResolvedSession, pin:
 }
 
 /**
- * A cashier asks an owner to type their PIN. The PIN is tried against every active owner;
- * the matching owner approves. Grants are audit-logged; failures too.
+ * A cashier asks an owner to type their PIN: the only active owner, or the owner chosen on the
+ * tiles when there are several. Grants are audit-logged; failures too.
  */
 export async function approve(
   ctx: ServiceContext,
   session: ResolvedSession,
   input: ApproveRequest,
 ): Promise<ApproveResponse> {
-  let owner: UserRow | undefined;
-  for (const candidate of listActiveOwners(ctx.db)) {
-    if (await verifySecret(input.pin, candidate.pinHash)) {
-      owner = candidate;
-      break;
-    }
+  // One active owner: PIN only. Several: the cashier picked an owner tile first.
+  const owners = listActiveOwners(ctx.db);
+  if (!input.ownerId && owners.length > 1) {
+    throw appErrors.ownerRequired();
+  }
+  const candidate = input.ownerId ? owners.find((o) => o.id === input.ownerId) : owners[0];
+  const owner =
+    candidate && (await verifySecret(input.pin, candidate.pinHash)) ? candidate : undefined;
+  if (!candidate) {
+    await verifyAgainstDummy(input.pin);
   }
   const targetId = input.targetId ?? null;
   if (!owner) {

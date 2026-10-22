@@ -10,6 +10,7 @@ import {
   type ReceivablesResponse,
   receivablesQuerySchema,
   updateCustomerRequestSchema,
+  voidReasonText,
   voidRequestSchema,
 } from '@toko-podomoro/shared';
 import type { FastifyPluginAsync } from 'fastify';
@@ -95,8 +96,10 @@ export const customerRoutes: FastifyPluginAsync<{ ctx: ServiceContext }> = async
     },
     async (request): Promise<CustomerPaymentResponse> => {
       const { id } = idParamsSchema.parse(request.params);
-      const { reason } = voidRequestSchema.parse(request.body ?? {});
-      return { payment: voidCustomerPayment(ctx, currentActor(request), id, reason || null) };
+      const input = voidRequestSchema.parse(request.body ?? {});
+      return {
+        payment: voidCustomerPayment(ctx, currentActor(request), id, voidReasonText(input)),
+      };
     },
   );
 

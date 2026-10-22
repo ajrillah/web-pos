@@ -10,6 +10,7 @@ import {
   type SaleResponse,
   type SalesResponse,
   salesQuerySchema,
+  voidReasonText,
   voidRequestSchema,
 } from '@toko-podomoro/shared';
 import type { FastifyPluginAsync } from 'fastify';
@@ -93,8 +94,8 @@ export const saleRoutes: FastifyPluginAsync<{ ctx: ServiceContext }> = async (ap
     },
     async (request): Promise<SaleResponse> => {
       const { id } = idParamsSchema.parse(request.params);
-      const { reason } = voidRequestSchema.parse(request.body ?? {});
-      return { sale: voidSale(ctx, currentActor(request), id, reason || null) };
+      const input = voidRequestSchema.parse(request.body ?? {});
+      return { sale: voidSale(ctx, currentActor(request), id, voidReasonText(input)) };
     },
   );
 

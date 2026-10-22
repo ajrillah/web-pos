@@ -99,6 +99,8 @@ export const approveRequestSchema = z.object({
   scope: approvalScopeSchema,
   /** The sale, payment, product, or category the action applies to. */
   targetId: z.string().min(1).optional(),
+  /** The owner chosen on the tiles; required when several owners are active. */
+  ownerId: z.string().min(1).optional(),
 });
 export type ApproveRequest = z.infer<typeof approveRequestSchema>;
 

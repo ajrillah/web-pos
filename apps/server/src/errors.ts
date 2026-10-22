@@ -42,6 +42,8 @@ export const appErrors = {
     new AppError(403, 'SESSION_LOCKED', 'Layar terkunci. Masukkan PIN untuk membuka.'),
   wrongPin: () => new AppError(401, 'WRONG_PIN', 'PIN salah.'),
   wrongOwnerPin: () => new AppError(401, 'WRONG_OWNER_PIN', 'PIN pemilik salah.'),
+  ownerRequired: () =>
+    new AppError(400, 'OWNER_REQUIRED', 'Pilih pemilik yang memberi persetujuan.'),
   saleNotVoidable: () =>
     new AppError(409, 'SALE_NOT_VOIDABLE', 'Hanya transaksi selesai yang dapat dibatalkan.'),
   saleHasPayments: () =>
