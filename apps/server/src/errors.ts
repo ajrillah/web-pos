@@ -210,6 +210,10 @@ export const appErrors = {
     ),
   opnameUnknownItem: () =>
     new AppError(400, 'OPNAME_UNKNOWN_ITEM', 'Barang tidak termasuk dalam sesi opname ini.'),
+  invalidPeriod: () =>
+    new AppError(400, 'INVALID_PERIOD', 'Tanggal akhir tidak boleh sebelum tanggal awal.'),
+  periodTooLong: (days: number) =>
+    new AppError(400, 'PERIOD_TOO_LONG', `Periode laporan paling lama ${days} hari.`),
   /** Unit rows break a rule; `message` says which. */
   invalidUnits: (message: string) => new AppError(400, 'INVALID_UNITS', message),
 };

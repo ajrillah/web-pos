@@ -415,8 +415,11 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `GET stock-movements` (productId, type, from, to, page, limit; newest first, each with the product's `balanceAfter`)
 
 ### Reports (PIN)
+- All need the `laporan` menu approval for cashiers.
 - `GET reports/summary`, `reports/categories`, `reports/products`, `reports/stock-value`, `reports/cash`, `reports/debts`, `reports/losses`, `reports/activity`
-- `GET reports/:type/export?format=pdf|xlsx`
+  - Dated reports (summary, categories, products, cash, losses, activity) take `from`, `to` (local days, default today, at most 366 days; 400 `INVALID_PERIOD` / `PERIOD_TOO_LONG`). `stock-value` and `debts` are a snapshot of now.
+  - `categoryId` only on categories, products, stock-value, losses; any other report refuses it (400 `VALIDATION_ERROR`). `products` takes `limit` (default 20); `activity` takes `page`, `limit`.
+- `GET reports/:type/export?format=pdf|xlsx` with the same query -> file download `Laporan-<type>-<from>_<to>.<ext>` (A4 PDF; Excel workbook with a "Ringkasan" sheet plus one sheet per table, numbers as numbers).
 
 ### Settings
 - `GET settings` (any user), `PUT settings` (PIN menu `profil-toko`; only sent fields change; each changed key audit-logged)
