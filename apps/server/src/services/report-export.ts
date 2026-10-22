@@ -169,6 +169,8 @@ export function renderReportPdf(report: ReportDocument): Promise<Buffer> {
   const range = doc.bufferedPageRange();
   for (let i = 0; i < range.count; i++) {
     doc.switchToPage(range.start + i);
+    // Below the bottom margin pdfkit would start a new page; the footer sits in the margin.
+    doc.page.margins.bottom = 0;
     doc
       .font(FONT)
       .fontSize(8)

@@ -481,6 +481,8 @@ describe('report exports', () => {
       'attachment; filename="Laporan-summary-2026-10-20_2026-10-21.pdf"',
     );
     expect(res.rawPayload.subarray(0, 5).toString()).toBe('%PDF-');
+    // A short report fits one page (the page footer must not start a new one).
+    expect(res.rawPayload.toString('latin1').match(/\/Type \/Page\b/g)).toHaveLength(1);
   });
 
   it('saves every report as PDF and Excel', async () => {
