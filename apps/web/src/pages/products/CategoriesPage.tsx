@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import { api } from '../../api/endpoints';
+import { useApproval } from '../../approval/ApprovalProvider';
 import { useCurrentUser } from '../../auth/AuthProvider';
 import { FormDialog } from '../../components/FormDialog';
 import { ErrorAlert, TextField } from '../../components/forms';
@@ -26,7 +27,9 @@ type OpenDialog = { kind: 'create' } | { kind: 'rename'; category: Category } | 
 /** Barang > Kategori: everyone reads; adding and changing categories is owner-only (PIN). */
 export function CategoriesPage() {
   const user = useCurrentUser();
-  const locked = user.role !== 'owner';
+  // Category changes need the owner's PIN for cashiers (asked when saving).
+  const needsPin = user.role !== 'owner';
+  const { withApproval } = useApproval();
   const [categories, setCategories] = useState<Category[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<OpenDialog>(null);
@@ -59,7 +62,10 @@ export function CategoriesPage() {
 
   async function toggleActive(category: Category) {
     const problem = await save(
-      () => api.updateCategory(category.id, { active: !category.active }),
+      () =>
+        withApproval('category.manage', category.id, (token) =>
+          api.updateCategory(category.id, { active: !category.active }, token),
+        ),
       category.active ? `${category.name} dinonaktifkan.` : `${category.name} diaktifkan.`,
     );
     if (problem) setError(problem);
@@ -71,14 +77,10 @@ export function CategoriesPage() {
         title="Kategori"
         description="Kategori bawaan tidak dapat dinonaktifkan."
         actions={
-          <Button
-            onClick={locked ? undefined : () => setDialog({ kind: 'create' })}
-            aria-disabled={locked || undefined}
-            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
-          >
+          <Button onClick={() => setDialog({ kind: 'create' })}>
             <FolderPlus className="size-[18px]" aria-hidden />
             Tambah kategori
-            {locked && <PinHint />}
+            {needsPin && <PinHint />}
           </Button>
         }
       />
@@ -114,7 +116,7 @@ export function CategoriesPage() {
                     <Badge variant="neutral">{category.active ? 'Aktif' : 'Nonaktif'}</Badge>
                   </TableCell>
                   <TableCell>
-                    {!locked && (
+                    {
                       <div className="flex justify-end gap-1 whitespace-nowrap">
                         <Button
                           variant="ghost"
@@ -138,7 +140,7 @@ export function CategoriesPage() {
                           </Button>
                         )}
                       </div>
-                    )}
+                    }
                   </TableCell>
                 </TableRow>
               ))}
@@ -157,10 +159,19 @@ export function CategoriesPage() {
           onSave={(name) =>
             dialog.kind === 'rename'
               ? save(
-                  () => api.updateCategory(dialog.category.id, { name }),
+                  () =>
+                    withApproval('category.manage', dialog.category.id, (token) =>
+                      api.updateCategory(dialog.category.id, { name }, token),
+                    ),
                   'Nama kategori diperbarui.',
                 )
-              : save(() => api.createCategory({ name }), `Kategori ${name} ditambahkan.`)
+              : save(
+                  () =>
+                    withApproval('category.manage', undefined, (token) =>
+                      api.createCategory({ name }, token),
+                    ),
+                  `Kategori ${name} ditambahkan.`,
+                )
           }
         />
       )}

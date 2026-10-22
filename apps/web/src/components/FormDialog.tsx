@@ -16,6 +16,7 @@ export function FormDialog({
   title,
   description,
   submitLabel,
+  destructive = false,
   onClose,
   onSubmit,
   children,
@@ -24,6 +25,8 @@ export function FormDialog({
   title: string;
   description?: string;
   submitLabel: string;
+  /** Red submit button (void, cancel). */
+  destructive?: boolean;
   onClose: () => void;
   /** Returns an error message to show, or null on success. */
   onSubmit: () => Promise<string | null>;
@@ -61,7 +64,7 @@ export function FormDialog({
             <Button variant="secondary" onClick={onClose}>
               Batal
             </Button>
-            <Button type="submit" disabled={busy}>
+            <Button type="submit" variant={destructive ? 'destructive' : 'default'} disabled={busy}>
               {busy ? 'Memproses…' : submitLabel}
             </Button>
           </DialogFooter>

@@ -5,7 +5,8 @@ export type ShortcutAction =
   | { kind: 'navigate'; path: string }
   | { kind: 'search' }
   | { kind: 'pay' }
-  | { kind: 'hold' };
+  | { kind: 'hold' }
+  | { kind: 'lock' };
 
 export const SHORTCUTS: Record<string, ShortcutAction> = {
   F1: { kind: 'navigate', path: '/kasir' },
@@ -46,6 +47,10 @@ export function matchShortcut(
   altFallbackKeys: readonly string[] = ALT_FALLBACK_KEYS,
 ): ShortcutMatch {
   const plain = !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
+  // Ctrl+L locks the screen (instead of Edge's address bar).
+  if (event.ctrlKey && !event.altKey && !event.metaKey && event.key.toLowerCase() === 'l') {
+    return { capture: true, action: { kind: 'lock' } };
+  }
   if (CAPTURED.has(event.key)) {
     return { capture: true, action: plain ? (SHORTCUTS[event.key] ?? null) : null };
   }

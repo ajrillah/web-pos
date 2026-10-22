@@ -1,4 +1,6 @@
 import {
+  type ApproveRequest,
+  approveResponseSchema,
   type ChangePinRequest,
   type CreateCategoryRequest,
   type CreateCustomerPaymentRequest,
@@ -19,6 +21,7 @@ import {
   type HoldSaleRequest,
   heldSalesResponseSchema,
   type LoginRequest,
+  loginUsersResponseSchema,
   meResponseSchema,
   type ProductsQuery,
   productResponseSchema,
@@ -35,12 +38,15 @@ import {
   salesResponseSchema,
   settingsResponseSchema,
   setupStatusResponseSchema,
+  type UnlockRequest,
   type UpdateCategoryRequest,
   type UpdateCustomerRequest,
   type UpdateProductRequest,
+  type UpdateSettingsRequest,
   type UpdateUserRequest,
   userResponseSchema,
   usersResponseSchema,
+  type VoidRequest,
 } from '@toko-podomoro/shared';
 import { apiRequest } from './client';
 
@@ -50,6 +56,14 @@ export const api = {
   login: (body: LoginRequest) => apiRequest('POST', '/auth/login', meResponseSchema, body),
   logout: () => apiRequest('POST', '/auth/logout', null),
   me: () => apiRequest('GET', '/auth/me', meResponseSchema),
+  loginUsers: () => apiRequest('GET', '/auth/users', loginUsersResponseSchema),
+  lock: () => apiRequest('POST', '/auth/lock', null),
+  unlock: (body: UnlockRequest) => apiRequest('POST', '/auth/unlock', meResponseSchema, body),
+  approve: (body: ApproveRequest) =>
+    apiRequest('POST', '/auth/approve', approveResponseSchema, body),
+  releaseApproval: (token: string) => apiRequest('POST', '/auth/approve/release', null, { token }),
+  updateSettings: (body: UpdateSettingsRequest) =>
+    apiRequest('PUT', '/settings', settingsResponseSchema, body),
   changePin: (body: ChangePinRequest) =>
     apiRequest('PUT', '/auth/me/pin', changePinResponseSchema, body),
   recover: (body: RecoverRequest) =>
@@ -60,10 +74,12 @@ export const api = {
     apiRequest('PUT', `/users/${encodeURIComponent(id)}`, userResponseSchema, body),
 
   listCategories: () => apiRequest('GET', '/categories', categoriesResponseSchema),
-  createCategory: (body: CreateCategoryRequest) =>
-    apiRequest('POST', '/categories', categoryResponseSchema, body),
-  updateCategory: (id: string, body: UpdateCategoryRequest) =>
-    apiRequest('PUT', `/categories/${encodeURIComponent(id)}`, categoryResponseSchema, body),
+  createCategory: (body: CreateCategoryRequest, approvalToken?: string) =>
+    apiRequest('POST', '/categories', categoryResponseSchema, body, { approvalToken }),
+  updateCategory: (id: string, body: UpdateCategoryRequest, approvalToken?: string) =>
+    apiRequest('PUT', `/categories/${encodeURIComponent(id)}`, categoryResponseSchema, body, {
+      approvalToken,
+    }),
 
   listProducts: (query: ProductsQuery) =>
     apiRequest('GET', `/products?${toSearchParams(query)}`, productsResponseSchema),
@@ -71,14 +87,20 @@ export const api = {
     apiRequest('GET', `/products/${encodeURIComponent(id)}`, productResponseSchema),
   createProduct: (body: CreateProductRequest) =>
     apiRequest('POST', '/products', productResponseSchema, body),
-  updateProduct: (id: string, body: UpdateProductRequest) =>
-    apiRequest('PUT', `/products/${encodeURIComponent(id)}`, productResponseSchema, body),
+  updateProduct: (id: string, body: UpdateProductRequest, approvalToken?: string) =>
+    apiRequest('PUT', `/products/${encodeURIComponent(id)}`, productResponseSchema, body, {
+      approvalToken,
+    }),
   productByCode: (code: string) =>
     apiRequest('GET', `/products/by-code/${encodeURIComponent(code)}`, productResponseSchema),
-  setProductActive: (id: string, active: boolean) =>
-    apiRequest('PATCH', `/products/${encodeURIComponent(id)}/active`, productResponseSchema, {
-      active,
-    }),
+  setProductActive: (id: string, active: boolean, approvalToken?: string) =>
+    apiRequest(
+      'PATCH',
+      `/products/${encodeURIComponent(id)}/active`,
+      productResponseSchema,
+      { active },
+      { approvalToken },
+    ),
 
   settings: () => apiRequest('GET', '/settings', settingsResponseSchema),
 
@@ -120,6 +142,18 @@ export const api = {
     apiRequest('GET', `/receivables?${toSearchParams(query)}`, receivablesResponseSchema),
   createCustomerPayment: (body: CreateCustomerPaymentRequest) =>
     apiRequest('POST', '/customer-payments', customerPaymentResponseSchema, body),
+  voidSale: (id: string, body: VoidRequest, approvalToken?: string) =>
+    apiRequest('POST', `/sales/${encodeURIComponent(id)}/void`, saleResponseSchema, body, {
+      approvalToken,
+    }),
+  voidCustomerPayment: (id: string, body: VoidRequest, approvalToken?: string) =>
+    apiRequest(
+      'POST',
+      `/customer-payments/${encodeURIComponent(id)}/void`,
+      customerPaymentResponseSchema,
+      body,
+      { approvalToken },
+    ),
   getCustomerPayment: (id: string) =>
     apiRequest(
       'GET',

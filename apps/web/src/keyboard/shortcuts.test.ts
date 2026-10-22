@@ -31,6 +31,17 @@ describe('matchShortcut', () => {
     expect(matchShortcut(key('F5', { ctrlKey: true }))).toEqual({ capture: true, action: null });
   });
 
+  it('locks the screen with Ctrl+L', () => {
+    expect(matchShortcut(key('l', { ctrlKey: true }))).toEqual({
+      capture: true,
+      action: { kind: 'lock' },
+    });
+    expect(matchShortcut(key('L', { ctrlKey: true, shiftKey: true })).action).toEqual({
+      kind: 'lock',
+    });
+    expect(matchShortcut(key('l')).capture).toBe(false);
+  });
+
   it('never touches F11 and F12', () => {
     expect(matchShortcut(key('F11'))).toEqual({ capture: false, action: null });
     expect(matchShortcut(key('F12'))).toEqual({ capture: false, action: null });
