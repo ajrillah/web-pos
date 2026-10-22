@@ -9,6 +9,8 @@ export interface AuditEntry {
   action: string;
   oldValue?: unknown;
   newValue?: unknown;
+  /** Defaults to the current time; voids pass their own `voided_at`. */
+  createdAt?: string;
 }
 
 const toJson = (value: unknown) => (value === undefined ? null : JSON.stringify(value));
@@ -23,6 +25,7 @@ export function insertAudit(db: Executor, entry: AuditEntry): void {
       action: entry.action,
       oldValue: toJson(entry.oldValue),
       newValue: toJson(entry.newValue),
+      ...(entry.createdAt ? { createdAt: entry.createdAt } : {}),
     })
     .run();
 }

@@ -110,6 +110,8 @@ function itemRows(saleId: string, lines: PricedLine[], createdAt: string) {
     unitId: line.unit.id,
     productCode: line.product.code,
     productName: line.product.name,
+    categoryId: line.product.categoryId,
+    categoryName: line.product.categoryName,
     unitName: line.unit.name,
     qtyBase: line.qtyBase,
     unitFactor: line.unit.factor,
@@ -500,6 +502,7 @@ export function voidSale(ctx: ServiceContext, actor: Actor, id: string, reason: 
       action: 'void',
       oldValue: voidSnapshot(row),
       newValue: { status: 'voided', reason },
+      createdAt: now,
     });
     return loadSale(tx, id);
   });

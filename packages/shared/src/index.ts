@@ -4,6 +4,7 @@ export * from './catalog';
 export * from './customers';
 export * from './dates';
 export * from './money';
+export * from './reports';
 export * from './rupiah';
 export * from './sales';
 export * from './stock';

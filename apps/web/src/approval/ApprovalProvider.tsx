@@ -1,4 +1,4 @@
-import type { ApprovalScope, LoginUser } from '@toko-podomoro/shared';
+import { APPROVAL_SCOPE_LABELS, type ApprovalScope, type LoginUser } from '@toko-podomoro/shared';
 import { ShieldCheck } from 'lucide-react';
 import { createContext, type ReactNode, useCallback, useContext, useRef, useState } from 'react';
 import { ApiRequestError, errorMessage } from '../api/client';
@@ -18,20 +18,6 @@ import {
 
 // Owner approval for cashiers (docs/design.md 5): the owner types their PIN on the cashier's
 // screen; the server returns a token for that scope (and target).
-
-export const SCOPE_LABELS: Record<ApprovalScope, string> = {
-  'sale.void': 'membatalkan transaksi',
-  'payment.void': 'membatalkan pembayaran kasbon',
-  'product.price': 'mengubah harga atau menambah satuan barang',
-  'product.deactivate': 'menonaktifkan barang',
-  'category.manage': 'mengubah kategori',
-  'purchase.void': 'membatalkan stok masuk',
-  'purchase.cost': 'mengubah harga modal dari stok masuk',
-  'supplier-payment.void': 'membatalkan pembayaran hutang',
-  laporan: 'membuka Laporan',
-  pengguna: 'membuka Pengguna',
-  'profil-toko': 'membuka Profil Toko',
-};
 
 /** The cashier closed the approval dialog. */
 export class ApprovalCancelled extends Error {
@@ -115,7 +101,7 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
             </DialogTitle>
             <DialogDescription>
               {owner ? `${owner.name} memasukkan PIN` : 'Pilih pemilik yang menyetujui'} untuk{' '}
-              {pending ? SCOPE_LABELS[pending.scope] : ''}.
+              {pending ? APPROVAL_SCOPE_LABELS[pending.scope] : ''}.
             </DialogDescription>
           </DialogHeader>
           <ErrorAlert message={loadError} />

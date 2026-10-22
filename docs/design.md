@@ -87,7 +87,8 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - Product `code` is unique across all products, including inactive ones, ignoring case (`COLLATE NOCASE` index). Category names are unique the same way.
 
 ### 4.3 Sales snapshots
-- Sale items snapshot: product code, product name, unit name, sell price, cost price (and factors), computed `subtotal` and `cost_total`.
+- Sale items snapshot: product code, product name, category (id and name), unit name, sell price, cost price (and factors), computed `subtotal` and `cost_total`.
+- Reports group sales by the category snapshot, so moving a product to another category (or renaming a category) never changes past reports. Lines sold before the snapshot existed (migration 0008) took the product's category at migration time.
 - Historical sales are never recomputed from current product data.
 
 ### 4.4 Stock
@@ -263,7 +264,11 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Stock losses.
 - Activity log (includes voided records).
 - Category filter only on product-based reports: category sales, top/slow products, stock value, stock losses.
-- Voided sales, purchases, and payments are excluded from all totals.
+- Category sales and top products use the category at sale time (sale line snapshot); slow movers, stock value, and stock losses use the product's current category.
+- Voided sales, purchases, and payments are excluded from all totals. How a void on a later day is dated depends on the report:
+  - Sales and profit, category, and product reports: a voided sale is removed from its original sale date, even when voided on a later day. These reports only ever show valid sales.
+  - Cash reports (cash vs QRIS, daily cash flow) follow the date money moved: a sale's money in stays on the sale date and the refund is money out on the void date. Voided customer and supplier payments work the same way (payment on its date, reversal on the void date). This keeps each day's drawer count correct.
+  - Activity report: voids appear on the void date.
 - Export to PDF and Excel.
 
 ## 7. Pages
@@ -321,7 +326,7 @@ All tables have `id` (UUID) and `created_at`; mutable tables also have `updated_
   - `number`: `TRX-YYYYMMDD-NNNN`, nullable while held.
   - `status`: `held` | `completed` | `voided`.
   - `total` is after rounding.
-- `sale_items`(sale_id, line_no, product_id, unit_id, product_code, product_name, unit_name, qty_base, unit_factor, unit_price, cost_price, pricing_factor, subtotal, cost_total)
+- `sale_items`(sale_id, line_no, product_id, unit_id, product_code, product_name, category_id, category_name, unit_name, qty_base, unit_factor, unit_price, cost_price, pricing_factor, subtotal, cost_total)
 - `sale_payments`(sale_id, method, amount) — `method`: `cash` | `qris`; cash `amount` is the cash received, change is `sales.change_amount`
 
 ### 9.4 Customers and receivables
@@ -412,8 +417,11 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `GET stock-movements` (productId, type, from, to, page, limit; newest first, each with the product's `balanceAfter`)
 
 ### Reports (PIN)
+- All need the `laporan` menu approval for cashiers.
 - `GET reports/summary`, `reports/categories`, `reports/products`, `reports/stock-value`, `reports/cash`, `reports/debts`, `reports/losses`, `reports/activity`
-- `GET reports/:type/export?format=pdf|xlsx`
+  - Dated reports (summary, categories, products, cash, losses, activity) take `from`, `to` (local days, default today, at most 366 days; 400 `INVALID_PERIOD` / `PERIOD_TOO_LONG`). `stock-value` and `debts` are a snapshot of now.
+  - `categoryId` only on categories, products, stock-value, losses; any other report refuses it (400 `VALIDATION_ERROR`). `products` takes `limit` (default 20); `activity` takes `page`, `limit`.
+- `GET reports/:type/export?format=pdf|xlsx` with the same query -> file download `Laporan-<type>-<from>_<to>.<ext>` (A4 PDF; Excel workbook with a "Ringkasan" sheet plus one sheet per table, numbers as numbers).
 
 ### Settings
 - `GET settings` (any user), `PUT settings` (PIN menu `profil-toko`; only sent fields change; each changed key audit-logged)
@@ -453,6 +461,4 @@ Tracked with checkboxes in `../production_checklist.md`. Stages run in table ord
 
 ## 13. Open questions
 
-Not decided. Do not implement a choice without asking. Tagged with the stage that needs the answer.
-
-1. [Stage 8] A sale voided on a later day: is it removed from its original day's totals (reports change retroactively) or shown as a negative on the void day?
+None open. Add new ones here, tagged with the stage that needs the answer; do not implement a choice without asking.

@@ -88,6 +88,8 @@ Kasbon: in Bayar, `press Enter` with less than the total opens the kasbon step; 
 
 Stok and Pemasok: Stok Masuk form `/stok/masuk/baru` (supplier picker `#supplier-search`, rows `[data-supplier]`; product picker `#purchase-product`, rows `[data-product=<code>]`; per line `[data-qty-input=<code>]`, `[data-buy-input=<code>]`, `[data-cost-input=<code>]`; `#purchase-paid`; submit opens `/stok?buka=<id>`). Penyesuaian `/stok/penyesuaian` (`#adjust-product`, `#adjust-qty`), Opname `/stok/opname` and `/stok/opname/<id>` (counts `[data-count-input=<code>]`, saved on blur/Enter), Riwayat `/stok/riwayat` (`[data-movement]`). Pemasok `/pemasok`, `/pemasok/kartu?id=<supplierId>`, `/pemasok/hutang`; Bayar hutang amount `#supplier-amount`. Void reasons are visually hidden radios: click their label (`click label:has([data-void-reason=salah_input])`); a click on the radio itself can land outside the dialog and close it.
 
+Laporan: `/laporan?tab=<summary|categories|products|stock-value|cash|debts|losses|activity>` with `dari`, `sampai`, `kategori` params; tabs `[data-report-tab=<type>]`; buttons "Simpan PDF" / "Simpan Excel" download through `fetch` (toast "Laporan disimpan: <file>"). Cashiers get "Persetujuan pemilik" on entry. Exports by curl: `GET /api/reports/<type>/export?format=pdf|xlsx`; render a PDF with `pdftoppm -r 70 -png file.pdf out` to look at it.
+
 API smoke (server running):
 
 ```bash

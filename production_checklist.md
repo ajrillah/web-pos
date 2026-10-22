@@ -111,19 +111,19 @@ Order: stages run 0-5, 7, 8, 9, 6, 10. Stage numbers are kept; Distribution (6) 
 
 ## Stage 8 — Reports
 
-- [ ] Sales & profit
-- [ ] Per category (revenue, profit, margin, share)
-- [ ] Top / slow products
-- [ ] Stock value (negative stock counted as 0; negative items listed separately)
-- [ ] Negative-stock items
-- [ ] Cash vs QRIS
-- [ ] Daily cash flow (cash sales - change + cash kasbon payments - cash supplier payments)
-- [ ] Receivables / payables
-- [ ] Stock losses
-- [ ] Activity log (includes voids and approvals)
-- [ ] Category filter on product-based reports only (category sales, top/slow, stock value, losses)
-- [ ] Voided records excluded from all totals
-- [ ] Export PDF and Excel
+- [x] Sales & profit
+- [x] Per category (revenue, profit, margin, share)
+- [x] Top / slow products
+- [x] Stock value (negative stock counted as 0; negative items listed separately)
+- [x] Negative-stock items
+- [x] Cash vs QRIS
+- [x] Daily cash flow (cash sales - change + cash kasbon payments - cash supplier payments)
+- [x] Receivables / payables
+- [x] Stock losses
+- [x] Activity log (includes voids and approvals)
+- [x] Category filter on product-based reports only (category sales, top/slow, stock value, losses)
+- [x] Voided records excluded from all totals
+- [x] Export PDF and Excel
 
 **Done when:** totals match raw data on a seeded dataset.
 

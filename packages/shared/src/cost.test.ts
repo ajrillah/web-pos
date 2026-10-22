@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { costFromBuyPrice, marginBasisPoints, weightedAverageCost } from './money';
+import {
+  costFromBuyPrice,
+  marginBasisPoints,
+  ratioBasisPoints,
+  weightedAverageCost,
+} from './money';
 import { formatPercentBp } from './rupiah';
 
 describe('costFromBuyPrice', () => {
@@ -106,5 +111,16 @@ describe('formatPercentBp', () => {
     expect(formatPercentBp(2000)).toBe('20%');
     expect(formatPercentBp(-305)).toBe('-3,05%');
     expect(formatPercentBp(0)).toBe('0%');
+  });
+});
+
+describe('ratioBasisPoints', () => {
+  it('rounds half away from zero and keeps the sign', () => {
+    expect(ratioBasisPoints(1, 3)).toBe(3333);
+    expect(ratioBasisPoints(2, 3)).toBe(6667);
+    expect(ratioBasisPoints(-1, 8)).toBe(-1250);
+    expect(ratioBasisPoints(5, 5)).toBe(10_000);
+    expect(ratioBasisPoints(0, 5)).toBe(0);
+    expect(ratioBasisPoints(5, 0)).toBeNull();
   });
 });
