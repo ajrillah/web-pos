@@ -331,16 +331,16 @@ All tables have `id` (UUID) and `created_at`; mutable tables also have `updated_
 
 ### 9.5 Suppliers and purchases
 - `suppliers`(name, phone, note, active)
-- `purchases`(supplier_id, date, total, paid_amount, remaining, status, voided_at, voided_by, user_id, note) — `status`: `completed` | `voided`
-- `purchase_items`(purchase_id, product_id, unit_id, qty_base, unit_factor, buy_price, subtotal, new_cost_price)
-- `supplier_payments`(supplier_id, method, amount, user_id, status, voided_at, voided_by) — `status`: `active` | `voided`
+- `purchases`(number, supplier_id, date, total, paid_amount, remaining, status, voided_at, voided_by, void_reason, user_id, note) — `id` is the client UUID; `number` `BLI-YYYYMMDD-NNNN` (local date of recording, same rules as TRX); `date` is the purchase (invoice) local day; `status`: `completed` | `voided`; `remaining = total - sum(allocations of active payments)`, `paid_amount = total - remaining`
+- `purchase_items`(purchase_id, line_no, product_id, unit_id, product_code, product_name, unit_name, qty_base, unit_factor, buy_price, subtotal, pricing_factor, old_cost_price, new_cost_price) — `buy_price` is for `unit_factor` base units; `subtotal = round(qty_base * buy_price / unit_factor)`; cost prices per `pricing_factor` base units
+- `supplier_payments`(number, supplier_id, method, amount, initial_purchase_id, user_id, status, voided_at, voided_by, void_reason) — `id` is the client UUID (server UUID for an initial payment); `number` `BYH-YYYYMMDD-NNNN`; `initial_purchase_id` set on a purchase's initial payment; `status`: `active` | `voided`
 - `supplier_allocations`(payment_id, purchase_id, amount)
 
 ### 9.6 Stock
 - `stock_adjustments`(product_id, qty_change, reason, note, cost_price, user_id)
 - `stock_movements`(product_id, qty_change, type, ref_id, user_id) — `type`: `sale` | `void` | `purchase` | `purchase_void` | `adjustment`
-- `stock_opnames`(status, started_at, completed_at, user_id) — `status`: `open` | `completed` | `cancelled`
-- `stock_opname_items`(opname_id, product_id, system_qty_at_start, counted_qty)
+- `stock_opnames`(category_id, status, started_at, closed_at, user_id, closed_by) — `status`: `open` | `completed` | `cancelled`; `closed_at`/`closed_by` set on complete or cancel
+- `stock_opname_items`(opname_id, product_id, system_qty_at_start, counted_qty, adjustment_id) — `counted_qty` null until counted (uncounted items are skipped on completion); `adjustment_id` is the `opname` adjustment written on completion when the delta is not 0
 
 ### 9.7 Settings keys
 - `store_name`, `store_address`, `store_phone`, `receipt_footer`

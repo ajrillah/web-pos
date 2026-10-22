@@ -351,3 +351,181 @@ export const paymentAllocations = sqliteTable(
     index('payment_allocations_receivable_idx').on(t.receivableId),
   ],
 );
+
+export const suppliers = sqliteTable(
+  'suppliers',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    phone: text('phone'),
+    note: text('note'),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('suppliers_name_idx').on(t.name)],
+);
+
+export const purchases = sqliteTable(
+  'purchases',
+  {
+    // Client-generated UUID (idempotency).
+    id: text('id').primaryKey(),
+    // BLI-YYYYMMDD-NNNN (local date of recording).
+    number: text('number').notNull().unique(),
+    supplierId: text('supplier_id')
+      .notNull()
+      .references(() => suppliers.id),
+    // Purchase (invoice) date: local day YYYY-MM-DD.
+    date: text('date').notNull(),
+    // Sum of purchase_items.subtotal; no rounding.
+    total: integer('total').notNull(),
+    // total - remaining: sum of allocations from active payments.
+    paidAmount: integer('paid_amount').notNull(),
+    // Debt left on this purchase; kept in the same transaction as allocations.
+    remaining: integer('remaining').notNull(),
+    status: text('status', { enum: ['completed', 'voided'] }).notNull(),
+    voidedAt: text('voided_at'),
+    voidedBy: text('voided_by').references(() => users.id),
+    voidReason: text('void_reason'),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    note: text('note'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('purchases_supplier_idx').on(t.supplierId, t.status, t.createdAt),
+    index('purchases_created_at_idx').on(t.createdAt),
+  ],
+);
+
+export const purchaseItems = sqliteTable(
+  'purchase_items',
+  {
+    id: id(),
+    purchaseId: text('purchase_id')
+      .notNull()
+      .references(() => purchases.id),
+    lineNo: integer('line_no').notNull(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id),
+    unitId: text('unit_id')
+      .notNull()
+      .references(() => productUnits.id),
+    // Snapshot at purchase time.
+    productCode: text('product_code').notNull(),
+    productName: text('product_name').notNull(),
+    unitName: text('unit_name').notNull(),
+    qtyBase: integer('qty_base').notNull(),
+    unitFactor: integer('unit_factor').notNull(),
+    // Buy price for `unit_factor` base units.
+    buyPrice: integer('buy_price').notNull(),
+    // round(qty_base * buy_price / unit_factor).
+    subtotal: integer('subtotal').notNull(),
+    pricingFactor: integer('pricing_factor').notNull(),
+    // Product cost_price before and after this purchase (per pricing_factor base units).
+    oldCostPrice: integer('old_cost_price').notNull(),
+    newCostPrice: integer('new_cost_price').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('purchase_items_purchase_id_idx').on(t.purchaseId),
+    index('purchase_items_product_id_idx').on(t.productId),
+  ],
+);
+
+export const supplierPayments = sqliteTable(
+  'supplier_payments',
+  {
+    // Client-generated UUID (idempotency); the purchase's initial payment gets a server UUID.
+    id: text('id').primaryKey(),
+    // BYH-YYYYMMDD-NNNN (local date).
+    number: text('number').notNull().unique(),
+    supplierId: text('supplier_id')
+      .notNull()
+      .references(() => suppliers.id),
+    method: text('method', { enum: ['cash', 'qris'] }).notNull(),
+    // Sum of allocations.
+    amount: integer('amount').notNull(),
+    // Set when this is the initial payment recorded with a purchase.
+    initialPurchaseId: text('initial_purchase_id').references(() => purchases.id),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    status: text('status', { enum: ['active', 'voided'] }).notNull(),
+    voidedAt: text('voided_at'),
+    voidedBy: text('voided_by').references(() => users.id),
+    voidReason: text('void_reason'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('supplier_payments_supplier_idx').on(t.supplierId, t.createdAt)],
+);
+
+export const supplierAllocations = sqliteTable(
+  'supplier_allocations',
+  {
+    id: id(),
+    paymentId: text('payment_id')
+      .notNull()
+      .references(() => supplierPayments.id),
+    purchaseId: text('purchase_id')
+      .notNull()
+      .references(() => purchases.id),
+    amount: integer('amount').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('supplier_allocations_payment_idx').on(t.paymentId),
+    index('supplier_allocations_purchase_idx').on(t.purchaseId),
+  ],
+);
+
+export const stockOpnames = sqliteTable(
+  'stock_opnames',
+  {
+    id: id(),
+    // One session per category; a product is in at most one open session.
+    categoryId: text('category_id')
+      .notNull()
+      .references(() => categories.id),
+    status: text('status', { enum: ['open', 'completed', 'cancelled'] }).notNull(),
+    startedAt: text('started_at').notNull(),
+    // Completed or cancelled.
+    closedAt: text('closed_at'),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    closedBy: text('closed_by').references(() => users.id),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('stock_opnames_status_idx').on(t.status, t.startedAt)],
+);
+
+export const stockOpnameItems = sqliteTable(
+  'stock_opname_items',
+  {
+    id: id(),
+    opnameId: text('opname_id')
+      .notNull()
+      .references(() => stockOpnames.id),
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id),
+    systemQtyAtStart: integer('system_qty_at_start').notNull(),
+    // Null until counted; uncounted items are skipped on completion.
+    countedQty: integer('counted_qty'),
+    // The `opname` adjustment written on completion (only when delta != 0).
+    adjustmentId: text('adjustment_id').references(() => stockAdjustments.id),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('stock_opname_items_opname_product_unique').on(t.opnameId, t.productId),
+    index('stock_opname_items_product_idx').on(t.productId),
+  ],
+);
