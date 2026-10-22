@@ -1,10 +1,13 @@
-import type { ApprovalScope } from '@toko-podomoro/shared';
+import type { ApprovalScope, LoginUser } from '@toko-podomoro/shared';
 import { ShieldCheck } from 'lucide-react';
 import { createContext, type ReactNode, useCallback, useContext, useRef, useState } from 'react';
 import { ApiRequestError, errorMessage } from '../api/client';
 import { api } from '../api/endpoints';
 import { useCurrentUser } from '../auth/AuthProvider';
+import { ErrorAlert } from '../components/forms';
 import { PinPad } from '../components/PinPad';
+import { UserTile } from '../components/UserTile';
+import { Button } from '../components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -50,10 +53,27 @@ const ApprovalContext = createContext<ApprovalContextValue | null>(null);
 
 export function ApprovalProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState<Pending | null>(null);
+  // Several active owners: the cashier first picks whose PIN will be typed.
+  const [owners, setOwners] = useState<LoginUser[] | null>(null);
+  const [owner, setOwner] = useState<LoginUser | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const requestApproval = useCallback(
     (scope: ApprovalScope, targetId?: string) =>
-      new Promise<string | null>((resolve) => setPending({ scope, targetId, resolve })),
+      new Promise<string | null>((resolve) => {
+        setOwner(null);
+        setOwners(null);
+        setLoadError(null);
+        setPending({ scope, targetId, resolve });
+        api
+          .loginUsers()
+          .then((r) => {
+            const active = r.users.filter((u) => u.role === 'owner');
+            setOwners(active);
+            if (active.length === 1) setOwner(active[0] ?? null);
+          })
+          .catch((err: unknown) => setLoadError(errorMessage(err)));
+      }),
     [],
   );
 
@@ -62,6 +82,8 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
     setPending(null);
   }
 
+  const severalOwners = owners !== null && owners.length > 1;
+
   async function approve(pin: string): Promise<string | null> {
     if (!pending) return null;
     try {
@@ -69,6 +91,7 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
         pin,
         scope: pending.scope,
         ...(pending.targetId ? { targetId: pending.targetId } : {}),
+        ...(severalOwners && owner ? { ownerId: owner.id } : {}),
       });
       finish(token);
       return null;
@@ -81,22 +104,40 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
     <ApprovalContext.Provider value={{ requestApproval }}>
       {children}
       <Dialog open={pending !== null} onOpenChange={(next) => !next && finish(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldCheck className="size-6 text-primary" aria-hidden />
               Persetujuan pemilik
             </DialogTitle>
             <DialogDescription>
-              Pemilik memasukkan PIN untuk {pending ? SCOPE_LABELS[pending.scope] : ''}.
+              {owner ? `${owner.name} memasukkan PIN` : 'Pilih pemilik yang menyetujui'} untuk{' '}
+              {pending ? SCOPE_LABELS[pending.scope] : ''}.
             </DialogDescription>
           </DialogHeader>
-          {pending && (
-            <PinPad
-              key={`${pending.scope}-${pending.targetId}`}
-              label="PIN pemilik"
-              onSubmit={approve}
-            />
+          <ErrorAlert message={loadError} />
+          {pending && severalOwners && !owner && (
+            <div className="flex flex-wrap justify-center gap-3">
+              {owners.map((o) => (
+                <UserTile key={o.id} user={o} onClick={() => setOwner(o)} />
+              ))}
+            </div>
+          )}
+          {pending && owner && (
+            <div className="space-y-3">
+              <PinPad
+                key={`${pending.scope}-${pending.targetId}-${owner.id}`}
+                label={`PIN ${owner.name}`}
+                onSubmit={approve}
+              />
+              {severalOwners && (
+                <div className="text-center">
+                  <Button variant="ghost" size="sm" onClick={() => setOwner(null)}>
+                    Pilih pemilik lain
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
         </DialogContent>
       </Dialog>
