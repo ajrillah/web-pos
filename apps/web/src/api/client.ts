@@ -21,7 +21,7 @@ type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 /** Fired when the server says the session is locked (another tab, or the idle timer). */
 export const SESSION_LOCKED_EVENT = 'toko:session-locked';
 
-// The menu approval of the PIN menu the cashier is in (Pengguna, Profil Toko, Laporan).
+// The menu approval of the PIN menu the cashier is in (Pengguna, Profil Toko, Laporan, Impor).
 let menuApprovalToken: string | null = null;
 
 /** Set while a cashier is inside a PIN menu; sent with every request until cleared. */

@@ -72,8 +72,9 @@ describe('settingsTabsFor', () => {
 });
 
 describe('productTabsFor', () => {
-  it('opens every Barang tab to cashiers (approval is per action)', () => {
-    expect(labels(productTabsFor('cashier'))).toEqual(['Daftar', 'Kategori', 'Impor']);
+  it('lists the Barang sub-pages; Impor needs the owner PIN for cashiers', () => {
+    expect(labels(productTabsFor('cashier'))).toEqual(['Daftar', 'Kategori', 'Impor (PIN)']);
+    expect(labels(productTabsFor('owner'))).toEqual(['Daftar', 'Kategori', 'Impor']);
   });
 });
 
@@ -106,5 +107,7 @@ describe('requiresOwnerPin', () => {
     expect(requiresOwnerPin('owner', '/pengaturan/pengguna')).toBe(false);
     expect(requiresOwnerPin('cashier', '/pengaturan/ubah-pin')).toBe(false);
     expect(requiresOwnerPin('cashier', '/laporan')).toBe(true);
+    expect(requiresOwnerPin('cashier', '/barang/impor')).toBe(true);
+    expect(requiresOwnerPin('owner', '/barang/impor')).toBe(false);
   });
 });
