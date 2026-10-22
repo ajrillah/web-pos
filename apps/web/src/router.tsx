@@ -19,8 +19,8 @@ import { ReceivablesPage } from './pages/customers/ReceivablesPage';
 import { HistoryPage } from './pages/history/HistoryPage';
 import { KasirPage } from './pages/kasir/KasirPage';
 import { NotFoundPage } from './pages/NotFoundPage';
-import { ComingSoonPage } from './pages/PlaceholderPages';
 import { CategoriesPage } from './pages/products/CategoriesPage';
+import { ImportPage } from './pages/products/ImportPage';
 import { ProductFormPage } from './pages/products/ProductFormPage';
 import { ProductListPage } from './pages/products/ProductListPage';
 import { ProductsLayout } from './pages/products/ProductsLayout';
@@ -73,7 +73,14 @@ export const router = createBrowserRouter([
                 children: [
                   { index: true, element: <ProductListPage /> },
                   { path: 'kategori', element: <CategoriesPage /> },
-                  { path: 'impor', element: <ComingSoonPage title="Impor barang" stage={9} /> },
+                  {
+                    path: 'impor',
+                    element: (
+                      <OwnerPinGate scope="impor" title="Impor barang">
+                        <ImportPage />
+                      </OwnerPinGate>
+                    ),
+                  },
                 ],
               },
               { path: '/barang/baru', element: <ProductFormPage /> },

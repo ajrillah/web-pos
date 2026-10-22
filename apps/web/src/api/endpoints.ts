@@ -30,6 +30,9 @@ import {
   type ExportFormat,
   type HoldSaleRequest,
   heldSalesResponseSchema,
+  type ImportRequest,
+  importCommitResponseSchema,
+  importPreviewResponseSchema,
   type LoginRequest,
   loginUsersResponseSchema,
   type MovementsQuery,
@@ -276,6 +279,15 @@ export const reports = {
     ),
   download: <T extends ReportType>(type: T, format: ExportFormat, query: ReportQuery<T>) =>
     apiDownload(`/reports/${type}/export?${toSearchParams({ ...query, format })}`),
+};
+
+/** Barang > Impor (PIN menu `impor` for cashiers; the menu token is sent automatically). */
+export const productImport = {
+  downloadTemplate: () => apiDownload('/products/import/template'),
+  preview: (body: ImportRequest) =>
+    apiRequest('POST', '/products/import/preview', importPreviewResponseSchema, body),
+  commit: (body: ImportRequest) =>
+    apiRequest('POST', '/products/import', importCommitResponseSchema, body),
 };
 
 export type ReceiptKind = 'sale' | 'payment';

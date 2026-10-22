@@ -36,10 +36,11 @@ const settingsTabs: MenuEntry[] = [
 ];
 
 // Sub-pages of Barang. Kategori is readable by everyone; changing categories needs owner PIN.
+// Impor is a PIN menu.
 const productTabs: MenuEntry[] = [
   { label: 'Daftar', path: '/barang' },
   { label: 'Kategori', path: '/barang/kategori' },
-  { label: 'Impor', path: '/barang/impor' },
+  { label: 'Impor', path: '/barang/impor', ownerPin: true },
 ];
 
 // Sub-pages of Pelanggan.
@@ -81,7 +82,7 @@ export function settingsTabsFor(role: Role): MenuItem[] {
   return forRole(settingsTabs, role);
 }
 
-/** Barang tabs for a role. */
+/** Barang tabs for a role, marked like the sidebar. */
 export function productTabsFor(role: Role): MenuItem[] {
   return forRole(productTabs, role);
 }
@@ -108,7 +109,7 @@ export function settingsHomeFor(role: Role): string {
 
 /** Whether this role needs owner approval for the page at `path`. */
 export function requiresOwnerPin(role: Role, path: string): boolean {
-  return [...menuFor(role), ...settingsTabsFor(role)].some(
+  return [...menuFor(role), ...settingsTabsFor(role), ...productTabsFor(role)].some(
     (item) => item.path === path && item.requiresOwnerPin,
   );
 }
