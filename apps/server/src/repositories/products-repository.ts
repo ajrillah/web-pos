@@ -109,6 +109,15 @@ export function searchProducts(
   return { rows, total };
 }
 
+/** Every product code (active and inactive), for checking many codes at once. */
+export function listProductCodes(db: Executor): string[] {
+  return db
+    .select({ code: products.code })
+    .from(products)
+    .all()
+    .map((r) => r.code);
+}
+
 export function insertProduct(db: Executor, row: NewProductRow): ProductRow {
   return db.insert(products).values(row).returning().get();
 }
