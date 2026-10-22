@@ -132,14 +132,27 @@ describe('owner approval', () => {
     ]);
   });
 
-  it('records the owner whose PIN matched, with every grant audit-logged', async () => {
+  it('with several owners, checks the PIN of the chosen owner only; grants audit-logged', async () => {
     await createUserAs(h, ownerToken, {
       username: 'pak',
       name: 'Pak Joko',
       role: 'owner',
       pin: '424242',
     });
-    const res = await approve('pengguna', undefined, '424242');
+    const withoutOwner = await approve('pengguna', undefined, '424242');
+    expect(withoutOwner.json().error.code).toBe('OWNER_REQUIRED');
+    // Bu Sari's PIN does not approve for Pak Joko.
+    const wrongOwner = await api('POST', '/api/auth/approve', cashierToken, {
+      pin: OWNER.pin,
+      scope: 'pengguna',
+      ownerId: userIdOf(h, 'pak'),
+    });
+    expect(wrongOwner.json().error.code).toBe('WRONG_OWNER_PIN');
+    const res = await api('POST', '/api/auth/approve', cashierToken, {
+      pin: '424242',
+      scope: 'pengguna',
+      ownerId: userIdOf(h, 'pak'),
+    });
     expect(res.json()).toMatchObject({ ownerName: 'Pak Joko' });
     const grants = h.handle.sqlite
       .prepare("select user_id, approved_by, action from audit_logs where entity = 'approval'")
@@ -357,7 +370,7 @@ describe('sale void', () => {
   });
 
   const voidSale = (sale: Sale, token = ownerToken, approval?: string) =>
-    api('POST', `/api/sales/${sale.id}/void`, token, { reason: 'Salah input' }, approval);
+    api('POST', `/api/sales/${sale.id}/void`, token, { reason: 'salah_input' }, approval);
 
   it('returns stock, voids the kasbon, and is audit-logged', async () => {
     const sale = await sell(2, 40000, customer);
@@ -380,6 +393,23 @@ describe('sale void', () => {
     ]);
     const lines = receiptLines(res.json().sale, getSettings(h.handle.db), { copy: true });
     expect(lines).toContain('       *** DIBATALKAN ***');
+  });
+
+  it('requires a reason, and a note for "Lainnya"', async () => {
+    const sale = await sell(1, 70000);
+    const missing = await api('POST', `/api/sales/${sale.id}/void`, ownerToken, {});
+    expect(missing.json().error.code).toBe('VALIDATION_ERROR');
+    const noNote = await api('POST', `/api/sales/${sale.id}/void`, ownerToken, {
+      reason: 'lainnya',
+    });
+    expect(noNote.json().error.message).toBe('Data tidak valid pada kolom "note".');
+    const ok = await api('POST', `/api/sales/${sale.id}/void`, ownerToken, {
+      reason: 'lainnya',
+      note: 'Barang rusak',
+    });
+    expect(ok.statusCode).toBe(200);
+    const row = h.handle.sqlite.prepare('select void_reason from sales where id = ?').get(sale.id);
+    expect(row).toEqual({ void_reason: 'Lainnya: Barang rusak' });
   });
 
   it('cannot void twice', async () => {
@@ -407,7 +437,11 @@ describe('sale void', () => {
     expect(refused.json().error.code).toBe('SALE_HAS_PAYMENTS');
 
     expect(
-      (await api('POST', `/api/customer-payments/${payment.id}/void`, ownerToken, {})).statusCode,
+      (
+        await api('POST', `/api/customer-payments/${payment.id}/void`, ownerToken, {
+          reason: 'pembeli_batal',
+        })
+      ).statusCode,
     ).toBe(200);
     expect((await voidSale(sale)).statusCode).toBe(200);
     expect(
@@ -465,15 +499,18 @@ describe('customer payment void', () => {
     expect(await balance()).toBe(5000);
 
     expect(
-      (await api('POST', `/api/customer-payments/${payment.id}/void`, cashierToken, {})).json()
-        .error.code,
+      (
+        await api('POST', `/api/customer-payments/${payment.id}/void`, cashierToken, {
+          reason: 'pembeli_batal',
+        })
+      ).json().error.code,
     ).toBe('OWNER_APPROVAL_REQUIRED');
     const token = await approvalToken('payment.void', payment.id);
     const res = await api(
       'POST',
       `/api/customer-payments/${payment.id}/void`,
       cashierToken,
-      { reason: 'Uang palsu' },
+      { reason: 'lainnya', note: 'Uang palsu' },
       token,
     );
     expect(res.statusCode).toBe(200);
@@ -489,15 +526,18 @@ describe('customer payment void', () => {
       [10000, 'open'],
     ]);
     expect(auditRows(h, 'customer_payment')).toMatchObject([
-      { entityId: payment.id, action: 'void', newValue: { reason: 'Uang palsu' } },
+      { entityId: payment.id, action: 'void', newValue: { reason: 'Lainnya: Uang palsu' } },
     ]);
     const lines = paymentReceiptLines(res.json().payment, getSettings(h.handle.db), {
       copy: false,
     });
     expect(lines).toContain('       *** DIBATALKAN ***');
     expect(
-      (await api('POST', `/api/customer-payments/${payment.id}/void`, ownerToken, {})).json().error
-        .code,
+      (
+        await api('POST', `/api/customer-payments/${payment.id}/void`, ownerToken, {
+          reason: 'pembeli_batal',
+        })
+      ).json().error.code,
     ).toBe('PAYMENT_NOT_VOIDABLE');
 
     // remaining = amount - active allocations still holds after the void.

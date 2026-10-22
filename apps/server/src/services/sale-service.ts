@@ -459,12 +459,7 @@ const voidSnapshot = (row: SaleWithCashier) => ({
  * movements and its kasbon is voided. Refused while the kasbon has active payments.
  * Audit-logged with the approving owner.
  */
-export function voidSale(
-  ctx: ServiceContext,
-  actor: Actor,
-  id: string,
-  reason: string | null,
-): Sale {
+export function voidSale(ctx: ServiceContext, actor: Actor, id: string, reason: string): Sale {
   if (!isApproved(actor)) {
     throw appErrors.ownerApprovalRequired();
   }

@@ -130,7 +130,7 @@ export function voidCustomerPayment(
   ctx: ServiceContext,
   actor: Actor,
   id: string,
-  reason: string | null,
+  reason: string,
 ): CustomerPayment {
   if (!isApproved(actor)) {
     throw appErrors.ownerApprovalRequired();
