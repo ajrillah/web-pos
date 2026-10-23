@@ -6,6 +6,8 @@ import { invalidConfigMessage, StartupError } from './errors';
 export const DATA_DIR_ENV = 'TOKO_PODOMORO_DATA_DIR';
 export const CONFIG_FILE = 'config.json';
 export const DB_FILE = 'toko-podomoro.db';
+/** Written when the server cannot start, so the windowless launcher can show the message. */
+export const STARTUP_ERROR_FILE = 'startup-error.txt';
 export const DEFAULT_PORT = 4747;
 
 export const configSchema = z.object({
