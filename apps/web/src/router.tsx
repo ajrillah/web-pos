@@ -1,3 +1,4 @@
+import { lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router';
 import { OwnerPinGate } from './approval/OwnerPinGate';
 import {
@@ -12,34 +13,97 @@ import { ForcedChangePinPage } from './pages/auth/ForcedChangePinPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RecoverPinPage } from './pages/auth/RecoverPinPage';
 import { SetupPage } from './pages/auth/SetupPage';
-import { CustomersLayout } from './pages/customers/CustomersLayout';
-import { CustomersPage } from './pages/customers/CustomersPage';
-import { LedgerPage } from './pages/customers/LedgerPage';
-import { ReceivablesPage } from './pages/customers/ReceivablesPage';
-import { HistoryPage } from './pages/history/HistoryPage';
 import { KasirPage } from './pages/kasir/KasirPage';
 import { NotFoundPage } from './pages/NotFoundPage';
-import { CategoriesPage } from './pages/products/CategoriesPage';
-import { ImportPage } from './pages/products/ImportPage';
-import { ProductFormPage } from './pages/products/ProductFormPage';
-import { ProductListPage } from './pages/products/ProductListPage';
-import { ProductsLayout } from './pages/products/ProductsLayout';
-import { ReportsPage } from './pages/reports/ReportsPage';
-import { ChangePinPage } from './pages/settings/ChangePinPage';
-import { SettingsIndex, SettingsLayout } from './pages/settings/SettingsLayout';
-import { StoreSettingsPage } from './pages/settings/StoreSettingsPage';
-import { UsersPage } from './pages/settings/UsersPage';
-import { AdjustmentsPage } from './pages/stock/AdjustmentsPage';
-import { MovementsPage } from './pages/stock/MovementsPage';
-import { OpnameListPage } from './pages/stock/OpnameListPage';
-import { OpnameSessionPage } from './pages/stock/OpnameSessionPage';
-import { PurchaseFormPage } from './pages/stock/PurchaseFormPage';
-import { PurchasesPage } from './pages/stock/PurchasesPage';
-import { StockLayout } from './pages/stock/StockLayout';
-import { PayablesPage } from './pages/suppliers/PayablesPage';
-import { SupplierLedgerPage } from './pages/suppliers/SupplierLedgerPage';
-import { SuppliersLayout } from './pages/suppliers/SuppliersLayout';
-import { SuppliersPage } from './pages/suppliers/SuppliersPage';
+
+// Pages load on first visit (code splitting). Auth pages and Kasir stay in the main bundle.
+const CustomersLayout = lazy(() =>
+  import('./pages/customers/CustomersLayout').then((m) => ({ default: m.CustomersLayout })),
+);
+const CustomersPage = lazy(() =>
+  import('./pages/customers/CustomersPage').then((m) => ({ default: m.CustomersPage })),
+);
+const LedgerPage = lazy(() =>
+  import('./pages/customers/LedgerPage').then((m) => ({ default: m.LedgerPage })),
+);
+const ReceivablesPage = lazy(() =>
+  import('./pages/customers/ReceivablesPage').then((m) => ({ default: m.ReceivablesPage })),
+);
+const HistoryPage = lazy(() =>
+  import('./pages/history/HistoryPage').then((m) => ({ default: m.HistoryPage })),
+);
+const CategoriesPage = lazy(() =>
+  import('./pages/products/CategoriesPage').then((m) => ({ default: m.CategoriesPage })),
+);
+const ImportPage = lazy(() =>
+  import('./pages/products/ImportPage').then((m) => ({ default: m.ImportPage })),
+);
+const ProductFormPage = lazy(() =>
+  import('./pages/products/ProductFormPage').then((m) => ({ default: m.ProductFormPage })),
+);
+const ProductListPage = lazy(() =>
+  import('./pages/products/ProductListPage').then((m) => ({ default: m.ProductListPage })),
+);
+const ProductsLayout = lazy(() =>
+  import('./pages/products/ProductsLayout').then((m) => ({ default: m.ProductsLayout })),
+);
+const ReportsPage = lazy(() =>
+  import('./pages/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
+);
+const BackupPage = lazy(() =>
+  import('./pages/settings/BackupPage').then((m) => ({ default: m.BackupPage })),
+);
+const ChangePinPage = lazy(() =>
+  import('./pages/settings/ChangePinPage').then((m) => ({ default: m.ChangePinPage })),
+);
+const OwnerOnly = lazy(() =>
+  import('./pages/settings/SettingsLayout').then((m) => ({ default: m.OwnerOnly })),
+);
+const SettingsIndex = lazy(() =>
+  import('./pages/settings/SettingsLayout').then((m) => ({ default: m.SettingsIndex })),
+);
+const SettingsLayout = lazy(() =>
+  import('./pages/settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })),
+);
+const StoreSettingsPage = lazy(() =>
+  import('./pages/settings/StoreSettingsPage').then((m) => ({ default: m.StoreSettingsPage })),
+);
+const UsersPage = lazy(() =>
+  import('./pages/settings/UsersPage').then((m) => ({ default: m.UsersPage })),
+);
+const AdjustmentsPage = lazy(() =>
+  import('./pages/stock/AdjustmentsPage').then((m) => ({ default: m.AdjustmentsPage })),
+);
+const MovementsPage = lazy(() =>
+  import('./pages/stock/MovementsPage').then((m) => ({ default: m.MovementsPage })),
+);
+const OpnameListPage = lazy(() =>
+  import('./pages/stock/OpnameListPage').then((m) => ({ default: m.OpnameListPage })),
+);
+const OpnameSessionPage = lazy(() =>
+  import('./pages/stock/OpnameSessionPage').then((m) => ({ default: m.OpnameSessionPage })),
+);
+const PurchaseFormPage = lazy(() =>
+  import('./pages/stock/PurchaseFormPage').then((m) => ({ default: m.PurchaseFormPage })),
+);
+const PurchasesPage = lazy(() =>
+  import('./pages/stock/PurchasesPage').then((m) => ({ default: m.PurchasesPage })),
+);
+const StockLayout = lazy(() =>
+  import('./pages/stock/StockLayout').then((m) => ({ default: m.StockLayout })),
+);
+const PayablesPage = lazy(() =>
+  import('./pages/suppliers/PayablesPage').then((m) => ({ default: m.PayablesPage })),
+);
+const SupplierLedgerPage = lazy(() =>
+  import('./pages/suppliers/SupplierLedgerPage').then((m) => ({ default: m.SupplierLedgerPage })),
+);
+const SuppliersLayout = lazy(() =>
+  import('./pages/suppliers/SuppliersLayout').then((m) => ({ default: m.SuppliersLayout })),
+);
+const SuppliersPage = lazy(() =>
+  import('./pages/suppliers/SuppliersPage').then((m) => ({ default: m.SuppliersPage })),
+);
 
 export const router = createBrowserRouter([
   { element: <RequireSetup />, children: [{ path: '/setup', element: <SetupPage /> }] },
@@ -145,6 +209,14 @@ export const router = createBrowserRouter([
                     ),
                   },
                   { path: 'ubah-pin', element: <ChangePinPage /> },
+                  {
+                    path: 'data',
+                    element: (
+                      <OwnerOnly>
+                        <BackupPage />
+                      </OwnerOnly>
+                    ),
+                  },
                 ],
               },
               { path: '*', element: <NotFoundPage /> },
