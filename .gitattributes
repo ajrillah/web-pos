@@ -1,0 +1,3 @@
+# Windows Script Host and NSIS scripts are edited and run on Windows.
+*.vbs text eol=crlf
+*.nsi text eol=crlf

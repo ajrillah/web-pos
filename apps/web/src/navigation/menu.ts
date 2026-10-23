@@ -14,6 +14,8 @@ interface MenuEntry {
   path: string;
   shortcut?: string;
   ownerPin?: boolean;
+  /** Hidden from cashiers entirely (no approval can open it). */
+  ownerOnly?: boolean;
 }
 
 // Sidebar per docs/ui-style.md section 5 (8 items). Kasir moves to its own full-screen layout in Stage 3.
@@ -33,6 +35,7 @@ const settingsTabs: MenuEntry[] = [
   { label: 'Pengguna', path: '/pengaturan/pengguna', ownerPin: true },
   { label: 'Profil Toko', path: '/pengaturan/toko', ownerPin: true },
   { label: 'Ubah PIN', path: '/pengaturan/ubah-pin' },
+  { label: 'Cadangan Data', path: '/pengaturan/data', ownerOnly: true },
 ];
 
 // Sub-pages of Barang. Kategori is readable by everyone; changing categories needs owner PIN.
@@ -66,10 +69,12 @@ const supplierTabs: MenuEntry[] = [
 ];
 
 function forRole(entries: MenuEntry[], role: Role): MenuItem[] {
-  return entries.map(({ ownerPin = false, ...entry }) => ({
-    ...entry,
-    requiresOwnerPin: ownerPin && role === 'cashier',
-  }));
+  return entries
+    .filter((entry) => !entry.ownerOnly || role === 'owner')
+    .map(({ ownerPin = false, ownerOnly: _ownerOnly, ...entry }) => ({
+      ...entry,
+      requiresOwnerPin: ownerPin && role === 'cashier',
+    }));
 }
 
 /** Sidebar menu for a role: owners open everything directly; cashiers see PIN-gated items marked. */

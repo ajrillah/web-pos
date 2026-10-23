@@ -92,7 +92,7 @@ export async function apiDownload(path: string): Promise<string> {
       : new ApiRequestError(res.status, 'UNEXPECTED_RESPONSE', UNEXPECTED_MESSAGE);
   }
   const fileName =
-    /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? 'laporan';
+    /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? 'unduhan';
   const url = URL.createObjectURL(await res.blob());
   const link = document.createElement('a');
   link.href = url;
@@ -100,6 +100,33 @@ export async function apiDownload(path: string): Promise<string> {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
   return fileName;
+}
+
+/** Sends a file as the raw request body (e.g. a backup .zip) and validates the JSON response. */
+export async function apiUpload<T>(
+  path: string,
+  file: Blob,
+  contentType: string,
+  schema: z.ZodType<T>,
+): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': contentType },
+      body: file,
+    });
+  } catch {
+    throw new ApiRequestError(0, 'NETWORK_ERROR', NETWORK_MESSAGE);
+  }
+  if (!res.ok) {
+    const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
+    throw parsed.success
+      ? new ApiRequestError(res.status, parsed.data.error.code, parsed.data.error.message)
+      : new ApiRequestError(res.status, 'UNEXPECTED_RESPONSE', UNEXPECTED_MESSAGE);
+  }
+  return schema.parse(await res.json());
 }
 
 /** Message to show for any thrown value. */

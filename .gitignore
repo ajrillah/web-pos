@@ -16,6 +16,8 @@ data/
 .env*
 *.log
 installer/output/
+installer/build/
+installer/node/
 
 # OS files
 .DS_Store

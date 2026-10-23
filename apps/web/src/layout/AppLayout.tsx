@@ -11,6 +11,7 @@ import {
   Truck,
   Users,
 } from 'lucide-react';
+import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import { useAuth, useCurrentUser } from '../auth/AuthProvider';
 import { BrandMark } from '../components/BrandMark';
@@ -100,7 +101,10 @@ export function AppLayout() {
         </div>
       </aside>
       <main className="min-w-0 flex-1 px-8 py-7">
-        <Outlet />
+        {/* Pages are loaded on first visit (router.tsx). */}
+        <Suspense fallback={<p className="text-muted-foreground">Memuat…</p>}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );

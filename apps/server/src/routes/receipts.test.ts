@@ -159,6 +159,8 @@ describe('receipt endpoints', () => {
     });
 
   it('saves the original, then copies, to the receipt folder', async () => {
+    // The folder does not exist yet: the first save creates it.
+    expect(fs.existsSync(h.receiptDir)).toBe(false);
     const first = await api('POST', `/api/sales/${saleId}/receipt`);
     expect(first.json()).toEqual({ fileName: `${number}.pdf`, folder: h.receiptDir, copy: false });
     const file = path.join(h.receiptDir, `${number}.pdf`);

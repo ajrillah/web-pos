@@ -1,5 +1,6 @@
 export * from './api-error';
 export * from './auth';
+export * from './backup';
 export * from './catalog';
 export * from './customers';
 export * from './dates';
