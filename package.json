@@ -15,7 +15,8 @@
     "typecheck": "pnpm -r typecheck",
     "check": "biome check .",
     "db:generate": "pnpm --filter @toko-podomoro/server db:generate",
-    "db:migrate": "pnpm --filter @toko-podomoro/server db:migrate"
+    "db:migrate": "pnpm --filter @toko-podomoro/server db:migrate",
+    "installer:prepare": "pnpm build && node installer/prepare.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
