@@ -2,9 +2,26 @@ node_modules/
 dist/
 build/
 coverage/
+.vite/
+*.tsbuildinfo
+
+# Dev runtime data dir (config.json + SQLite DB)
 data/
 *.db
+*.db-wal
+*.db-shm
 *.db-*
+
+.env
 .env*
 *.log
 installer/output/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local agent setup and planning (kept on disk, not versioned)
+.claude/
+CLAUDE.md
+production_checklist.md
