@@ -9,7 +9,7 @@ import { PageHeader } from '../layout/PageHeader';
 import { useApproval } from './ApprovalProvider';
 
 /**
- * PIN menu (Laporan, Pengguna, Profil Toko). Owners pass. Cashiers get the owner PIN dialog;
+ * PIN menu (Laporan, Pengguna, Profil Toko, Impor barang). Owners pass. Cashiers get the owner PIN dialog;
  * the menu token is sent with every request while the page is open and released on leaving.
  */
 export function OwnerPinGate({

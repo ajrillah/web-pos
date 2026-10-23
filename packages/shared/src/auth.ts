@@ -89,7 +89,7 @@ export const actionScopeSchema = z.enum([
 export type ActionScope = z.infer<typeof actionScopeSchema>;
 
 /** Approvals that last while the cashier stays in a menu (max 15 minutes). */
-export const menuScopeSchema = z.enum(['laporan', 'pengguna', 'profil-toko']);
+export const menuScopeSchema = z.enum(['laporan', 'pengguna', 'profil-toko', 'impor']);
 export type MenuScope = z.infer<typeof menuScopeSchema>;
 
 export const approvalScopeSchema = z.union([actionScopeSchema, menuScopeSchema]);
@@ -108,6 +108,7 @@ export const APPROVAL_SCOPE_LABELS: Record<ApprovalScope, string> = {
   laporan: 'membuka Laporan',
   pengguna: 'membuka Pengguna',
   'profil-toko': 'membuka Profil Toko',
+  impor: 'membuka Impor barang',
 };
 
 export const APPROVAL_HEADER = 'x-approval-token';
