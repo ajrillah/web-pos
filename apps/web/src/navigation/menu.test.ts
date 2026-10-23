@@ -57,7 +57,12 @@ describe('menuFor', () => {
 
 describe('settingsTabsFor', () => {
   it('marks user management and store settings as PIN-gated for cashiers', () => {
-    expect(labels(settingsTabsFor('owner'))).toEqual(['Pengguna', 'Profil Toko', 'Ubah PIN']);
+    expect(labels(settingsTabsFor('owner'))).toEqual([
+      'Pengguna',
+      'Profil Toko',
+      'Ubah PIN',
+      'Cadangan Data',
+    ]);
     expect(labels(settingsTabsFor('cashier'))).toEqual([
       'Pengguna (PIN)',
       'Profil Toko (PIN)',

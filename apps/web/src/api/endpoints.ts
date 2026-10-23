@@ -29,6 +29,7 @@ import {
   deletedCountResponseSchema,
   type ExportFormat,
   type HoldSaleRequest,
+  healthResponseSchema,
   heldSalesResponseSchema,
   type ImportRequest,
   importCommitResponseSchema,
@@ -58,6 +59,7 @@ import {
   receivablesResponseSchema,
   recoveryCodeResponseSchema,
   reportResponseSchemas,
+  restoreResponseSchema,
   resumeHeldSaleResponseSchema,
   type SalesQuery,
   type SetupRequest,
@@ -85,7 +87,7 @@ import {
   voidPurchaseResponseSchema,
 } from '@toko-podomoro/shared';
 import type { z } from 'zod';
-import { apiDownload, apiRequest } from './client';
+import { apiDownload, apiRequest, apiUpload } from './client';
 
 export const api = {
   setupStatus: () => apiRequest('GET', '/setup/status', setupStatusResponseSchema),
@@ -288,6 +290,15 @@ export const productImport = {
     apiRequest('POST', '/products/import/preview', importPreviewResponseSchema, body),
   commit: (body: ImportRequest) =>
     apiRequest('POST', '/products/import', importCommitResponseSchema, body),
+};
+
+/** Server version (Pengaturan footer). */
+export const health = () => apiRequest('GET', '/health', healthResponseSchema);
+
+/** Pengaturan > Cadangan Data (owners only). */
+export const dataBackup = {
+  download: () => apiDownload('/backup'),
+  restore: (file: Blob) => apiUpload('/restore', file, 'application/zip', restoreResponseSchema),
 };
 
 export type ReceiptKind = 'sale' | 'payment';

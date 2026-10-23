@@ -1,3 +1,4 @@
+import type { RestoreResponse } from '@toko-podomoro/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { requireOwner } from '../auth/session';
 import { createBackup, prepareRestore, type SystemContext } from '../services/backup-service';
@@ -26,10 +27,14 @@ export const backupRoutes: FastifyPluginAsync<{
       .send(file.body);
   });
 
-  app.post('/restore', { bodyLimit: RESTORE_BODY_LIMIT }, async (request, reply) => {
-    const { apply } = await prepareRestore(ctx, system, request.body as Buffer);
-    // Replace the files only after the response is out; the restart ends this process.
-    reply.raw.once('finish', () => system.restart(apply));
-    return { restarting: true };
-  });
+  app.post(
+    '/restore',
+    { bodyLimit: RESTORE_BODY_LIMIT },
+    async (request, reply): Promise<RestoreResponse> => {
+      const { apply } = await prepareRestore(ctx, system, request.body as Buffer);
+      // Replace the files only after the response is out; the restart ends this process.
+      reply.raw.once('finish', () => system.restart(apply));
+      return { restarting: true };
+    },
+  );
 };
