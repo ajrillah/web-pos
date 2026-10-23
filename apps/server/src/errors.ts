@@ -36,6 +36,8 @@ export const appErrors = {
     new AppError(409, 'SETUP_ALREADY_DONE', 'Pengaturan awal sudah dilakukan.'),
   pinChangeRequired: () =>
     new AppError(403, 'PIN_CHANGE_REQUIRED', 'Anda harus mengganti PIN terlebih dahulu.'),
+  ownerOnly: () =>
+    new AppError(403, 'OWNER_ONLY', 'Hanya pemilik yang dapat melakukan tindakan ini.'),
   ownerApprovalRequired: () =>
     new AppError(403, 'OWNER_APPROVAL_REQUIRED', 'Tindakan ini memerlukan persetujuan pemilik.'),
   sessionLocked: () =>

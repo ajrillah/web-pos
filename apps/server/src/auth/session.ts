@@ -107,6 +107,14 @@ export function requireApproval(
   };
 }
 
+/** preHandler for owner-only endpoints: no approval token can stand in for an owner session. */
+export async function requireOwner(request: FastifyRequest): Promise<void> {
+  await requireUser(request);
+  if (request.auth?.user.role !== 'owner') {
+    throw appErrors.ownerOnly();
+  }
+}
+
 /** The acting user, with the approving owner when a cashier presented an approval. */
 export function currentActor(request: FastifyRequest): Actor {
   const user = currentUser(request);

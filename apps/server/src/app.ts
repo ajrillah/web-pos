@@ -8,6 +8,7 @@ import { registerSession } from './auth/session';
 import type { AppDatabase } from './db/client';
 import { AppError, errorMessages, validationMessage } from './errors';
 import { authRoutes } from './routes/auth';
+import { backupRoutes } from './routes/backup';
 import { categoryRoutes } from './routes/categories';
 import { customerRoutes } from './routes/customers';
 import { healthRoutes } from './routes/health';
@@ -21,6 +22,7 @@ import { stockRoutes } from './routes/stock';
 import { supplierRoutes } from './routes/suppliers';
 import { userRoutes } from './routes/users';
 import { ApprovalStore } from './security/approvals';
+import type { SystemContext } from './services/backup-service';
 import type { ServiceContext } from './services/context';
 import { openWithSystem } from './system/open-path';
 
@@ -33,6 +35,8 @@ export interface AppOptions {
   now?: () => Date;
   /** Opens receipts and the receipt folder; tests inject a fake. */
   openPath?: (target: string) => void;
+  /** Data directory, raw SQLite handle, and restart hook for backup / restore. */
+  system?: SystemContext;
 }
 
 // Blocks DNS-rebinding: browsers send the attacker's hostname, not one of these.
@@ -48,6 +52,7 @@ export async function buildApp({
   logger = false,
   now = () => new Date(),
   openPath = openWithSystem,
+  system,
 }: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger });
   const ctx: ServiceContext = { db, now, openPath, approvals: new ApprovalStore(now) };
@@ -96,6 +101,9 @@ export async function buildApp({
   await app.register(stockRoutes, { prefix: '/api', ctx });
   await app.register(reportRoutes, { prefix: '/api', ctx });
   await app.register(settingsRoutes, { prefix: '/api', ctx });
+  if (system) {
+    await app.register(backupRoutes, { prefix: '/api', ctx, system });
+  }
 
   const hasWeb = webDir !== undefined && fs.existsSync(path.join(webDir, 'index.html'));
   if (hasWeb) {

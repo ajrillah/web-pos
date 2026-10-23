@@ -7,8 +7,10 @@ import { StartupError } from './errors';
 import { migrationsDir, webDir } from './paths';
 import { ApprovalStore } from './security/approvals';
 import { listenLocal } from './server';
+import type { SystemContext } from './services/backup-service';
 import { deleteExpiredHeldSales } from './services/sale-service';
 import { openWithSystem } from './system/open-path';
+import { restartServer } from './system/restart';
 
 async function main(): Promise<void> {
   const dataDir = resolveDataDir({
@@ -28,7 +30,13 @@ async function main(): Promise<void> {
     approvals: new ApprovalStore(now),
   });
 
-  const app = await buildApp({ db, webDir, logger: true });
+  const system: SystemContext = {
+    dataDir,
+    sqlite,
+    migrationsDir,
+    restart: (apply) => void restartServer(app, apply),
+  };
+  const app = await buildApp({ db, webDir, logger: true, system });
   app.addHook('onClose', async () => {
     sqlite.close();
   });

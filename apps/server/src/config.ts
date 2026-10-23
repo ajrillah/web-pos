@@ -8,7 +8,7 @@ export const CONFIG_FILE = 'config.json';
 export const DB_FILE = 'toko-podomoro.db';
 export const DEFAULT_PORT = 4747;
 
-const configSchema = z.object({
+export const configSchema = z.object({
   port: z.number().int().min(1).max(65_535),
 });
 export type AppConfig = z.infer<typeof configSchema>;

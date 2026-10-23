@@ -5,6 +5,7 @@ import type { Product } from '@toko-podomoro/shared';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { buildApp } from '../app';
 import { SESSION_COOKIE } from '../auth/session';
+import { DB_FILE } from '../config';
 import { type DatabaseHandle, openDatabase } from '../db/client';
 import { runMigrations } from '../db/migrate';
 import { migrationsDir } from '../paths';
@@ -22,14 +23,18 @@ export interface Harness {
   opened: string[];
   /** Directory the receipt_folder setting points at. */
   receiptDir: string;
-  /** Rebuilds the app on the same DB file, like a server restart. */
-  restart(): Promise<void>;
+  /** Data directory (holds the DB file and config.json). */
+  dataDir: string;
+  /** File-replacing steps the app handed to its restart hook (restore), not yet run. */
+  restarts: (() => void)[];
+  /** Rebuilds the app on the same DB file, like a server restart; `between` runs while stopped. */
+  restart(between?: () => void): Promise<void>;
   close(): Promise<void>;
 }
 
 export async function createHarness(): Promise<Harness> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'toko-test-'));
-  const dbFile = path.join(dir, 'test.db');
+  const dbFile = path.join(dir, DB_FILE);
   const clock = {
     now: new Date('2026-10-22T08:00:00.000Z'),
     advance(ms: number) {
@@ -38,6 +43,7 @@ export async function createHarness(): Promise<Harness> {
   };
   const opened: string[] = [];
   const receiptDir = path.join(dir, 'Nota');
+  const restarts: (() => void)[] = [];
   const open = async () => {
     const handle = openDatabase(dbFile);
     runMigrations(handle.db, migrationsDir);
@@ -46,6 +52,12 @@ export async function createHarness(): Promise<Harness> {
       db: handle.db,
       now: () => clock.now,
       openPath: (target) => opened.push(target),
+      system: {
+        dataDir: dir,
+        sqlite: handle.sqlite,
+        migrationsDir,
+        restart: (apply) => restarts.push(apply),
+      },
     });
     return { app, handle };
   };
@@ -55,9 +67,12 @@ export async function createHarness(): Promise<Harness> {
     clock,
     opened,
     receiptDir,
-    async restart() {
+    dataDir: dir,
+    restarts,
+    async restart(between) {
       await harness.app.close();
       harness.handle.sqlite.close();
+      between?.();
       Object.assign(harness, await open());
     },
     async close() {
