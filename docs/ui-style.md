@@ -95,7 +95,8 @@ Target: desktop only, minimum 1366x768. Nothing may require horizontal scrolling
 - Sidebar 232px with 8 items: Kasir `F1`, Riwayat `F6`, Barang `F3`, Stok `F4`, Pelanggan `F5`, Pemasok, Laporan, Pengaturan.
 - Sidebar bottom: user card + Keluar.
 - PIN-gated items show a gold "PIN" hint for cashiers.
-- Sub-pages are tabs above the content (e.g. Pengaturan: Pengguna, Profil Toko, Ubah PIN; Barang: Daftar, Impor, Kategori).
+- Sub-pages are tabs above the content (e.g. Pengaturan: Pengguna, Profil Toko, Ubah PIN, Cadangan Data (owners only); Barang: Daftar, Impor, Kategori).
+- Pengaturan shows the app version in a muted footer below the tab content.
 - `/` opens Kasir.
 
 ### Login and lock

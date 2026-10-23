@@ -4,7 +4,7 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 
 - UI text: Indonesian. Code, comments, commits: English.
 - Roadmap and progress: `../production_checklist.md`.
-- Items in section 13 are undecided; do not implement a choice without asking.
+- Items in section 14 are undecided; do not implement a choice without asking.
 
 ---
 
@@ -16,16 +16,16 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 
 ## 2. Packaging and distribution (Stage 6)
 
-- Windows installer built with Inno Setup; bundles a portable `node.exe` (no system Node needed).
+- Windows installer built with NSIS; bundles a portable `node.exe` (no system Node needed). Details: section 11.
 - The server runs under the logged-in Windows user, started by the launcher (not a Windows service).
-- Launcher:
+- Launcher (`launcher.vbs`, section 11.1):
   - Starts the server; prevents a duplicate server (if already running, only opens the window).
   - Opens Microsoft Edge with `--app=http://127.0.0.1:<port>`.
   - Autostarts on user login.
 - Port: default `4747`, set in the config file (not in the `settings` table). If the port is busy, show a clear Indonesian error.
 - Data directory: `C:\ProgramData\TokoPodomoro\` (database, config, logs).
 - Uninstall keeps the data directory.
-- Manual backup (Stage 6). Auto backup and safe upgrade flow deferred (Stage 10).
+- Manual backup and restore (Stage 6, section 11.4). Auto backup and safe upgrade flow deferred (Stage 10).
 
 ### 2.1 Data directory and config
 - Data directory resolution, first match wins:
@@ -148,6 +148,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
   - Lock screen unlocks only for the same user.
   - "Ganti pengguna" ends the session and goes to the login page.
 - No lockout on wrong PIN.
+- Backup and restore are owner only (section 11.4); no approval lets a cashier use them.
 - Cashier needs owner PIN for: all voids, reports, user management, store settings, product price changes and product deactivation (6.5), category management, product import (6.5). Everything else is open.
 
 ## 6. Features
@@ -300,7 +301,7 @@ Sidebar layout on all pages except Kasir. Visual design and locked layouts: `ui-
 | Pelanggan | Daftar, Kartu Piutang, Daftar Piutang |
 | Pemasok | Daftar, Kartu Hutang, Daftar Hutang |
 | Laporan | Reports (owner PIN) |
-| Pengaturan | Pengguna (PIN); Profil Toko, pembulatan, lebar nota, folder nota (PIN); Ubah PIN |
+| Pengaturan | Pengguna (PIN); Profil Toko, pembulatan, lebar nota, folder nota (PIN); Ubah PIN; Cadangan Data (owner only, hidden from cashiers); app version in the footer |
 
 ## 8. Keyboard shortcuts
 
@@ -446,7 +447,61 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `GET settings` (any user), `PUT settings` (PIN menu `profil-toko`; only sent fields change; each changed key audit-logged)
 - Defaults until set: `store_name` "TOKO PODOMORO", `rounding` `none`, `receipt_width` `58`, `receipt_footer` "Terima kasih atas kunjungan Anda", `auto_lock_minutes` 5.
 
-## 11. Roadmap
+### Backup and restore (owner only)
+- Owner session required; cashiers get 403 `OWNER_ONLY` (no approval token can stand in). Rules in 11.4.
+- `GET backup` -> `TokoPodomoro_YYYY-MM-DD_HHmmss.zip` (local time)
+- `POST restore` (body: the .zip, `Content-Type: application/zip`, max 1 GB) -> `{ restarting: true }`, then the server replaces the data and restarts; 400 `RESTORE_INVALID` when the zip is unusable (nothing changed)
+
+## 11. Distribution
+
+Stage 6. Windows only (10 / 11, 64-bit).
+
+### 11.1 Launcher (`installer/launcher.vbs`)
+- VBScript run by `wscript.exe`, so no console window. Desktop, Start Menu, and Startup shortcuts all point at it.
+- Flow:
+  1. Port: from `C:\ProgramData\TokoPodomoro\config.json` (`"port"`), default `4747`.
+  2. If `GET http://127.0.0.1:<port>/api/health` answers `"status":"ok"`, the server already runs: only open the window. This prevents a duplicate server.
+  3. Otherwise start `node\node.exe app\main.js` hidden, with `NODE_ENV=production` (data in ProgramData, section 2.1) and output to `server.log` in the data folder.
+  4. Poll `/api/health` every 250 ms for up to 15 s. When it answers, open the window.
+  5. Window: `msedge.exe --app=http://127.0.0.1:<port>` (Edge found via App Paths or its usual folders); if Edge is not installed, the default browser.
+- Errors are shown in a message box (Indonesian):
+  - The server writes a startup failure (busy port, invalid `config.json`, ...) to `startup-error.txt` in the data folder; the launcher shows that message. If two launchers start at once, the loser re-checks health first and just opens the window.
+  - No answer after 15 s: ask to try again and name `server.log`.
+- ASCII only (Windows Script Host reads it as ANSI); CRLF line endings (`.gitattributes`).
+
+### 11.2 Installer (`installer/toko-podomoro.nsi`, NSIS 3)
+- Requires 64-bit Windows and admin rights. Indonesian UI. Output `installer/output/TokoPodomoro-Setup-<version>.exe`.
+- Installs to `C:\Program Files\TokoPodomoro\`: `launcher.vbs`, `node\node.exe` (portable Node 26 x64), `app\` (server bundle `main.js`, `drizzle\` migrations, `public\` web app, `node_modules\` with `better-sqlite3` and `pdfkit`, kept external by esbuild).
+- Creates `C:\ProgramData\TokoPodomoro\` and grants local Users modify rights: the server runs as the logged-in user, not as the admin who installed it.
+- Shortcuts (all users): desktop, Start Menu (app + uninstall), Startup (autostart on login).
+- Upgrade: stops the running server (only the `node.exe` of this install folder), replaces `app\` and `node\`; data untouched. Migrations run on the next start (no automatic backup before migrate yet; Stage 10).
+- Uninstall: stops the server, removes program files, shortcuts, and the registry entry; keeps `C:\ProgramData\TokoPodomoro\`.
+- Not code-signed: Windows SmartScreen warns on first run ("More info" -> "Run anyway"); see `README.md`.
+
+### 11.3 Building the installer
+1. `pnpm installer:prepare`: builds everything and runs `installer/prepare.mjs`, which stages `installer/build/app` from `apps/server/dist` plus `better-sqlite3` and `pdfkit` and their dependencies copied from the pnpm install (versions as in `pnpm-lock.yaml`). `better-sqlite3` ships prebuilt binaries for win32-x64, so staging works on Linux too.
+2. Put the Node 26 Windows x64 `node.exe` in `installer/node/`.
+3. `makensis /DVERSION=<version> installer/toko-podomoro.nsi` (Windows or Linux). The script stops with an error if `node.exe` or the staged app is missing.
+- `installer/build/`, `installer/node/`, and `installer/output/` are git-ignored.
+
+### 11.4 Backup and restore
+- Owner only, from Pengaturan > Cadangan Data (tab hidden from cashiers). Not an approval scope.
+- Backup (`GET backup`): a zip with
+  - `toko.db`: consistent copy made with SQLite's online backup (`better-sqlite3` `.backup()`), safe while the app runs;
+  - `config.json`;
+  - `Nota/...`: every file in the receipt folder (current `receipt_folder` setting);
+  - `backup.json`: app version and time.
+- Restore (`POST restore`), after the UI confirms that all current data will be replaced:
+  1. Checks the zip: contains `toko.db` and `config.json`; `config.json` valid; `toko.db` opens, passes `integrity_check`, is a TOKO PODOMORO database (`users` and the migrations table), and is not from a newer app version (more applied migrations than this app has). Otherwise 400 `RESTORE_INVALID` and nothing changes.
+  2. Copies the current database to `cadangan-sebelum-pulihkan\toko-podomoro_<date>_<time>.db` in the data folder.
+  3. Responds, then stops the server, replaces the database (and its `-wal`/`-shm`) and `config.json`, adds back receipts into the restored `receipt_folder` (existing files are kept, paths cannot leave the folder), and starts a new server process with the same command. Pending migrations run on that start.
+  4. The page waits for `/api/health` (up to 30 s) and reloads; sessions are those of the backup, so the owner usually logs in again.
+- A backup is a single file meant to be copied off the PC (flashdisk). Automatic backups are Stage 10.
+
+### 11.5 Version
+- `GET health` returns `version` (root `package.json`, inlined in the bundle). The Pengaturan footer shows it.
+
+## 12. Roadmap
 
 Tracked with checkboxes in `../production_checklist.md`. Stages run in table order (0-5, 7, 8, 9, 6, 10); numbers are kept.
 
@@ -461,10 +516,10 @@ Tracked with checkboxes in `../production_checklist.md`. Stages run in table ord
 | 7 Stock & suppliers | Purchases, cost suggestions, supplier debt, purchase and supplier payment void, adjustments, opname sessions, movement history | Stock and payables reconcile with movements/allocations |
 | 8 Reports | All reports + PDF/Excel export | Totals match raw data on a seeded dataset |
 | 9 Import | CSV/Excel product import (may move earlier) | 500-row file imports; invalid rows reported, none saved partially |
-| 6 Distribution | Installer, portable Node, launcher, autostart, port config, manual backup | Runs on clean PC; pilot store; tag `v0.2.0-pilot` |
+| 6 Distribution | Installer (NSIS), portable Node, launcher, autostart, port config, manual backup and restore, code-split web bundle | Runs on clean PC; pilot store; tag `v0.2.0-pilot` |
 | 10 Deferred | See below | — |
 
-## 12. Deferred (Stage 10)
+## 13. Deferred (Stage 10)
 
 - Safe upgrade flow: backup before migrate (required before 2nd store)
 - Auto backup
@@ -478,6 +533,6 @@ Tracked with checkboxes in `../production_checklist.md`. Stages run in table ord
 - WhatsApp kasbon reminder text
 - Licensing (required before wide sale)
 
-## 13. Open questions
+## 14. Open questions
 
 None open. Add new ones here, tagged with the stage that needs the answer; do not implement a choice without asking.
