@@ -129,9 +129,9 @@ Order: stages run 0-5, 7, 8, 9, 6, 10. Stage numbers are kept; Distribution (6) 
 
 ## Stage 9 — Import
 
-- [ ] Downloadable CSV/Excel template
-- [ ] Upload with validation preview (errors per row)
-- [ ] Commit import in one transaction; audit logged
+- [x] Downloadable CSV/Excel template
+- [x] Upload with validation preview (errors per row)
+- [x] Commit import in one transaction; audit logged
 
 **Done when:** a 500-row file imports; invalid rows reported, none saved partially.
 
