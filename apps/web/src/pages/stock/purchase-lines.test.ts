@@ -17,9 +17,25 @@ const base = {
   categoryName: 'Sembako',
   hasStockMovements: true,
   active: true,
+  unitMode: 'flat' as const,
+  unitChain: [],
   createdAt: '',
   updatedAt: '',
 };
+
+/** A flat unit row as the API returns it (docs/design.md 4.1.1). */
+const unit = (id: string, name: string, factor: number, sellPrice: number, isBase = false) => ({
+  id,
+  name,
+  parentUnitId: null,
+  level: isBase ? 2 : 1,
+  isi: factor,
+  factor,
+  costPrice: 0,
+  sellPrice,
+  isBase,
+  active: true,
+});
 
 const indomie: Product = {
   ...base,
@@ -31,10 +47,7 @@ const indomie: Product = {
   pricingFactor: 1,
   costPrice: 2500,
   stock: 10,
-  units: [
-    { id: 'pcs', name: 'pcs', factor: 1, sellPrice: 3500, isBase: true, active: true },
-    { id: 'dus', name: 'dus', factor: 40, sellPrice: 130000, isBase: false, active: true },
-  ],
+  units: [unit('pcs', 'pcs', 1, 3500, true), unit('dus', 'dus', 40, 130_000)],
 };
 
 const gula: Product = {
@@ -47,7 +60,7 @@ const gula: Product = {
   pricingFactor: 1000,
   costPrice: 14000,
   stock: 2000,
-  units: [{ id: 'kg', name: 'kg', factor: 1000, sellPrice: 17000, isBase: true, active: true }],
+  units: [unit('kg', 'kg', 1000, 17_000, true)],
 };
 
 describe('purchase lines', () => {
