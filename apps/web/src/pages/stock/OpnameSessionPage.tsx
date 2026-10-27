@@ -182,7 +182,7 @@ export function OpnameSessionPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {formatQty(item.systemQtyAtStart, item.baseUnit)}
+                      {formatQty(item.systemQtyAtStart, item.baseUnit, item.unitChain)}
                     </TableCell>
                     <TableCell
                       className={cn(
@@ -190,7 +190,7 @@ export function OpnameSessionPage() {
                         item.currentStock < 0 && 'font-semibold text-destructive',
                       )}
                     >
-                      {formatQty(item.currentStock, item.baseUnit)}
+                      {formatQty(item.currentStock, item.baseUnit, item.unitChain)}
                     </TableCell>
                     <TableCell>
                       {open ? (

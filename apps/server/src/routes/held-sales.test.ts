@@ -2,6 +2,7 @@ import type { Product, Sale } from '@toko-podomoro/shared';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { deleteExpiredHeldSales } from '../services/sale-service';
 import {
+  asProductInput,
   auditRows,
   createHarness,
   createProductAs,
@@ -33,7 +34,7 @@ beforeEach(async () => {
     type: 'unit',
     baseUnit: 'pcs',
     costPrice: 2900,
-    units: [{ name: 'pcs', factor: 1, sellPrice: 3500, isBase: true }],
+    units: [{ name: 'pcs', isi: 1, sellPrice: 3500, isBase: true }],
     initialStock: 10,
   });
   kopi = await createProductAs(h, ownerToken, {
@@ -43,7 +44,7 @@ beforeEach(async () => {
     type: 'unit',
     baseUnit: 'sachet',
     costPrice: 1200,
-    units: [{ name: 'sachet', factor: 1, sellPrice: 1500, isBase: true }],
+    units: [{ name: 'sachet', isi: 1, sellPrice: 1500, isBase: true }],
     initialStock: 10,
   });
 });
@@ -89,17 +90,9 @@ describe('POST /api/sales/held/:id/resume', () => {
   it('returns lines with current prices and the held price, and removes the held sale', async () => {
     const held = await hold();
     const input = {
-      code: kopi.code,
-      name: kopi.name,
-      categoryId: kopi.categoryId,
-      type: kopi.type,
-      baseUnit: kopi.baseUnit,
-      costPrice: kopi.costPrice,
-      units: kopi.units.map(({ id, name, factor, isBase }) => ({
-        id,
-        name,
-        factor,
-        isBase,
+      ...asProductInput(kopi),
+      units: (asProductInput(kopi).units as Record<string, unknown>[]).map((u) => ({
+        ...u,
         sellPrice: 1700,
       })),
     };

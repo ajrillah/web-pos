@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { MAX_PYRAMID_LEVELS, type UnitMode, unitChainSchema, unitModeSchema } from './units';
 
-// Contracts for categories and products. See docs/design.md sections 4.1, 6.5, and 10.
+// Contracts for categories and products. See docs/design.md sections 4.1, 4.1.1, 6.5, and 10.
 
 export const MAX_MONEY = 1_000_000_000;
 export const MAX_QTY = 1_000_000_000;
@@ -68,11 +69,19 @@ export type UpdateCategoryRequest = z.infer<typeof updateCategoryRequestSchema>;
 export const productUnitSchema = z.object({
   id: z.string(),
   name: z.string(),
-  /** Base units in one of this unit. */
+  /** Unit one level up in the pyramid; null for a level 1 or flat row. */
+  parentUnitId: z.string().nullable(),
+  /** 1 = largest; the deepest level is the stock unit (docs/design.md 4.1.1). */
+  level: z.number().int(),
+  /** Units of this kind in one of the parent; a flat row: base units in one of this unit. */
+  isi: z.number().int(),
+  /** Base units in one of this unit; computed from `isi`. */
   factor: z.number().int(),
-  /** Price for `factor` base units. */
+  /** Cost for one of this unit. */
+  costPrice: z.number().int(),
+  /** Price for one of this unit (`factor` base units). */
   sellPrice: z.number().int(),
-  /** Primary sell unit (not the stock unit). */
+  /** Primary sell unit: the deepest level (not the stock unit of a flat product). */
   isBase: z.boolean(),
   active: z.boolean(),
 });
@@ -92,25 +101,36 @@ export const productSchema = z.object({
   costPrice: z.number().int(),
   /** Cached stock in base units; may be negative. */
   stock: z.number().int(),
-  /** Has stock movements: type and stock unit kind are then fixed (docs/design.md 6.5). */
+  /** Has stock movements: type, stock unit kind, and smallest unit are fixed (design 6.5). */
   hasStockMovements: z.boolean(),
   active: z.boolean(),
-  /** Active unit rows, primary first, then by factor. */
+  /** Shape of `units`: one pyramid chain, or independent flat rows. */
+  unitMode: unitModeSchema,
+  /** Active unit rows, by level (largest first). */
   units: z.array(productUnitSchema),
+  /** Levels top-down for the stock breakdown; empty for a flat product. */
+  unitChain: unitChainSchema,
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 export type Product = z.infer<typeof productSchema>;
 
-/** A unit row in a create/update request. `id` refers to an existing row of the product. */
+/**
+ * A unit row in a create/update request. `id` refers to an existing row of the product.
+ * `pyramid` requests send the levels top-down: `isi` is left out on the first row and tells how
+ * many fit in one of the row above on the others, `costPrice` is given on the first row only, and
+ * `isBase` is ignored (the deepest level is primary). `flat` requests send independent rows with
+ * `isi` = base units in one of the unit and exactly one `isBase` (docs/design.md 4.1.1).
+ */
 export const productUnitInputSchema = z.object({
   id: z.string().min(1).optional(),
   name: unitNameSchema,
-  factor: z.number().int().min(1).max(MAX_UNIT_FACTOR),
+  isi: z.number().int().min(1).max(MAX_UNIT_FACTOR).default(1),
+  costPrice: moneySchema.optional(),
   sellPrice: moneySchema,
-  isBase: z.boolean(),
+  isBase: z.boolean().default(false),
 });
-export type ProductUnitInput = z.infer<typeof productUnitInputSchema>;
+export type ProductUnitInput = z.output<typeof productUnitInputSchema>;
 
 const productFields = {
   code: productCodeSchema,
@@ -118,22 +138,49 @@ const productFields = {
   categoryId: z.string().min(1),
   type: productTypeSchema,
   baseUnit: unitNameSchema,
-  costPrice: moneySchema,
+  /** Flat products: cost for `pricingFactor` base units. Pyramid: left out, it comes per level. */
+  costPrice: moneySchema.optional(),
+  unitMode: unitModeSchema.default('flat'),
   /** The full set of active unit rows; existing rows left out are deactivated. */
   units: z.array(productUnitInputSchema).min(1).max(MAX_UNITS_PER_PRODUCT),
 };
 
-export const createProductRequestSchema = z.object({
-  ...productFields,
-  /** Recorded as a stock adjustment (reason `lainnya`, note "Stok awal") with a movement. */
-  initialStock: z.number().int().min(0).max(MAX_QTY).default(0),
-});
+/** Where the cost price belongs: on the product (flat) or on the first level (pyramid). */
+function checkCostFields(
+  value: { unitMode: UnitMode; costPrice?: number | undefined; units: ProductUnitInput[] },
+  ctx: z.RefinementCtx,
+): void {
+  if (value.unitMode === 'pyramid') {
+    if (value.units.length > MAX_PYRAMID_LEVELS) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['units'],
+        message: `max ${MAX_PYRAMID_LEVELS} levels`,
+      });
+    }
+    if (value.units[0]?.costPrice === undefined) {
+      ctx.addIssue({ code: 'custom', path: ['units', 0, 'costPrice'], message: 'required' });
+    }
+  } else if (value.costPrice === undefined) {
+    ctx.addIssue({ code: 'custom', path: ['costPrice'], message: 'required' });
+  }
+}
+
+export const createProductRequestSchema = z
+  .object({
+    ...productFields,
+    /** Recorded as a stock adjustment (reason `lainnya`, note "Stok awal") with a movement. */
+    initialStock: z.number().int().min(0).max(MAX_QTY).default(0),
+  })
+  .superRefine(checkCostFields);
 export type CreateProductRequest = z.input<typeof createProductRequestSchema>;
 /** Parsed request (defaults applied), as services receive it. */
 export type CreateProductInput = z.output<typeof createProductRequestSchema>;
 
-export const updateProductRequestSchema = z.object(productFields);
-export type UpdateProductRequest = z.infer<typeof updateProductRequestSchema>;
+export const updateProductRequestSchema = z.object(productFields).superRefine(checkCostFields);
+export type UpdateProductRequest = z.input<typeof updateProductRequestSchema>;
+/** Parsed request (defaults applied), as services receive it. */
+export type UpdateProductInput = z.output<typeof updateProductRequestSchema>;
 
 export const setProductActiveRequestSchema = z.object({ active: z.boolean() });
 export type SetProductActiveRequest = z.infer<typeof setProductActiveRequestSchema>;

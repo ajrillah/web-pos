@@ -36,8 +36,8 @@ beforeEach(async () => {
     baseUnit: 'pcs',
     costPrice: 2900,
     units: [
-      { name: 'pcs', factor: 1, sellPrice: 3500, isBase: true },
-      { name: 'dus', factor: 40, sellPrice: 130000, isBase: false },
+      { name: 'pcs', isi: 1, sellPrice: 3500, isBase: true },
+      { name: 'dus', isi: 40, sellPrice: 130000, isBase: false },
     ],
     initialStock: 100,
   });
@@ -48,7 +48,7 @@ beforeEach(async () => {
     type: 'bulk',
     baseUnit: 'gram',
     costPrice: 15000,
-    units: [{ name: 'kg', factor: 1000, sellPrice: 17500, isBase: true }],
+    units: [{ name: 'kg', isi: 1000, sellPrice: 17500, isBase: true }],
     initialStock: 10000,
   });
   rokok = await createProductAs(h, ownerToken, {
@@ -59,8 +59,8 @@ beforeEach(async () => {
     baseUnit: 'batang',
     costPrice: 1900,
     units: [
-      { name: 'bungkus', factor: 16, sellPrice: 33000, isBase: true },
-      { name: 'batang', factor: 1, sellPrice: 2200, isBase: false },
+      { name: 'bungkus', isi: 16, sellPrice: 33000, isBase: true },
+      { name: 'batang', isi: 1, sellPrice: 2200, isBase: false },
     ],
     initialStock: 32,
   });

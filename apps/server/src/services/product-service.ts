@@ -1,15 +1,12 @@
 import {
-  BULK_FACTOR,
-  bulkBaseUnitSchema,
-  bulkSellUnit,
   type CreateProductInput,
   type Product,
   type ProductsQuery,
   type ProductsResponse,
-  type ProductUnitInput,
   pricingFactorFor,
   productsQuerySchema,
-  type UpdateProductRequest,
+  type UnitChainItem,
+  type UpdateProductInput,
 } from '@toko-podomoro/shared';
 import type { Executor } from '../db/client';
 import { appErrors } from '../errors';
@@ -34,14 +31,25 @@ import {
 import { productIdsWithMovements } from '../repositories/stock-repository';
 import { type Actor, isApproved, type ServiceContext } from './context';
 import { recordAdjustment } from './stock-service';
+import { checkBaseUnitKept, planUnits, storedFactors, type UnitPlan } from './unit-pyramid';
 
 // Rules: docs/design.md 4.1 and 6.5. Cashier limits: 6.5 "Cashier permissions".
 
+/**
+ * API shape of a product. `factor`, the primary unit, and the unit mode are computed from the
+ * stored pyramid (docs/design.md 4.1.1); units come back level 1 first.
+ */
 function toProduct(
   row: ProductWithCategory,
   units: UnitRow[],
   withMovements: Set<string>,
 ): Product {
+  const rows = units
+    .filter((u) => u.productId === row.id && u.active)
+    .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+  const factors = storedFactors(rows);
+  const deepest = rows[rows.length - 1];
+  const pyramid = rows.some((u) => u.parentUnitId !== null);
   return {
     id: row.id,
     code: row.code,
@@ -55,20 +63,44 @@ function toProduct(
     stock: row.stock,
     hasStockMovements: withMovements.has(row.id),
     active: row.active,
-    units: units
-      .filter((u) => u.productId === row.id && u.active)
-      .sort((a, b) => Number(b.isBase) - Number(a.isBase) || a.factor - b.factor)
-      .map((u) => ({
-        id: u.id,
-        name: u.name,
-        factor: u.factor,
-        sellPrice: u.sellPrice,
-        isBase: u.isBase,
-        active: u.active,
-      })),
+    unitMode: pyramid ? 'pyramid' : 'flat',
+    units: rows.map((u) => ({
+      id: u.id,
+      name: u.name,
+      parentUnitId: u.parentUnitId,
+      level: u.level,
+      isi: u.isi,
+      factor: factors.get(u.id) ?? u.isi,
+      costPrice: u.costPrice,
+      sellPrice: u.sellPrice,
+      isBase: u.id === deepest?.id,
+      active: u.active,
+    })),
+    unitChain: pyramid
+      ? rows.map((u) => ({ name: u.name, factor: factors.get(u.id) ?? u.isi }))
+      : [],
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+/** Levels top-down for a stock breakdown, by product id; empty for a flat product (4.1.1). */
+export function stockChains(db: Executor, productIds: string[]): Map<string, UnitChainItem[]> {
+  const chains = new Map<string, UnitChainItem[]>();
+  const rows = listUnits(db, [...new Set(productIds)]).filter((u) => u.active);
+  const factors = storedFactors(rows);
+  for (const id of new Set(rows.map((r) => r.productId))) {
+    const units = rows
+      .filter((r) => r.productId === id)
+      .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+    chains.set(
+      id,
+      units.some((u) => u.parentUnitId !== null)
+        ? units.map((u) => ({ name: u.name, factor: factors.get(u.id) ?? u.isi }))
+        : [],
+    );
+  }
+  return chains;
 }
 
 const productSnapshot = (row: ProductRow) => ({
@@ -85,9 +117,11 @@ const productSnapshot = (row: ProductRow) => ({
 const unitSnapshot = (row: UnitRow) => ({
   productId: row.productId,
   name: row.name,
-  factor: row.factor,
+  parentUnitId: row.parentUnitId,
+  level: row.level,
+  isi: row.isi,
+  costPrice: row.costPrice,
   sellPrice: row.sellPrice,
-  isBase: row.isBase,
   active: row.active,
 });
 
@@ -111,48 +145,6 @@ function loadProduct(db: Executor, id: string): Product {
     throw appErrors.productNotFound();
   }
   return toProducts(db, [row])[0] as Product;
-}
-
-/**
- * Checks the unit rows against the product type and returns them normalized.
- * Bulk: base unit gram/ml and exactly one primary row kg/liter with factor 1000.
- */
-function checkUnits(
-  type: CreateProductInput['type'],
-  baseUnit: string,
-  units: ProductUnitInput[],
-): ProductUnitInput[] {
-  const bulkBase = bulkBaseUnitSchema.safeParse(baseUnit.toLowerCase());
-  if (type === 'bulk') {
-    if (!bulkBase.success) {
-      throw appErrors.invalidUnits('Satuan stok barang curah harus gram atau ml.');
-    }
-    const sellUnit = bulkSellUnit[bulkBase.data];
-    const [only] = units;
-    if (
-      units.length !== 1 ||
-      !only ||
-      only.name.toLowerCase() !== sellUnit ||
-      only.factor !== BULK_FACTOR ||
-      !only.isBase
-    ) {
-      throw appErrors.invalidUnits(
-        `Barang curah hanya punya satu satuan jual: ${sellUnit} (isi ${BULK_FACTOR} ${bulkBase.data}).`,
-      );
-    }
-    return [{ ...only, name: sellUnit }];
-  }
-  if (bulkBase.success) {
-    throw appErrors.invalidUnits('Satuan stok gram atau ml hanya untuk barang curah.');
-  }
-  if (units.filter((u) => u.isBase).length !== 1) {
-    throw appErrors.invalidUnits('Pilih tepat satu satuan utama.');
-  }
-  const names = units.map((u) => u.name.toLowerCase());
-  if (new Set(names).size !== names.length) {
-    throw appErrors.invalidUnits('Nama satuan tidak boleh sama.');
-  }
-  return units;
 }
 
 /** Category for a product: must exist; must be active unless it is unchanged. */
@@ -204,21 +196,45 @@ export function createProduct(
   actor: Actor,
   input: CreateProductInput,
 ): Product {
-  const units = checkUnits(input.type, input.baseUnit, input.units);
+  const plan = planUnits(input);
   return ctx.db.transaction((tx) => {
     checkCategory(tx, input.categoryId);
     checkCodeFree(tx, input.code);
-    const id = insertNewProduct(
-      tx,
-      actor,
-      { ...input, units },
-      {
-        stockNote: 'Stok awal',
-        createdAt: ctx.now().toISOString(),
-      },
-    );
+    const id = insertNewProduct(tx, actor, input, {
+      stockNote: 'Stok awal',
+      createdAt: ctx.now().toISOString(),
+      plan,
+    });
     return loadProduct(tx, id);
   });
+}
+
+/** Adds a planned unit row and its audit row; `parents` holds the ids of the levels above. */
+function addUnit(
+  tx: Executor,
+  actor: Actor,
+  productId: string,
+  unit: UnitPlan['units'][number],
+  parents: (string | undefined)[],
+): UnitRow {
+  const row = insertUnit(tx, {
+    productId,
+    name: unit.name,
+    parentUnitId: unit.parentIndex === null ? null : (parents[unit.parentIndex] ?? null),
+    level: unit.level,
+    isi: unit.isi,
+    costPrice: unit.costPrice,
+    sellPrice: unit.sellPrice,
+  });
+  insertAudit(tx, {
+    userId: actor.id,
+    approvedBy: actor.approvedBy ?? null,
+    entity: 'product_unit',
+    entityId: row.id,
+    action: 'create',
+    newValue: unitSnapshot(row),
+  });
+  return row;
 }
 
 /**
@@ -230,17 +246,20 @@ export function insertNewProduct(
   tx: Executor,
   actor: Actor,
   input: CreateProductInput,
-  { stockNote, createdAt }: { stockNote: string; createdAt: string },
+  {
+    stockNote,
+    createdAt,
+    plan = planUnits(input),
+  }: { stockNote: string; createdAt: string; plan?: UnitPlan },
 ): string {
-  const baseUnit = input.type === 'bulk' ? input.baseUnit.toLowerCase() : input.baseUnit;
   const product = insertProduct(tx, {
     code: input.code,
     name: input.name,
     categoryId: input.categoryId,
     type: input.type,
-    baseUnit,
+    baseUnit: plan.baseUnit,
     pricingFactor: pricingFactorFor(input.type),
-    costPrice: input.costPrice,
+    costPrice: plan.costPrice,
   });
   insertAudit(tx, {
     userId: actor.id,
@@ -250,22 +269,10 @@ export function insertNewProduct(
     action: 'create',
     newValue: productSnapshot(product),
   });
-  for (const unit of input.units) {
-    const row = insertUnit(tx, {
-      productId: product.id,
-      name: unit.name,
-      factor: unit.factor,
-      sellPrice: unit.sellPrice,
-      isBase: unit.isBase,
-    });
-    insertAudit(tx, {
-      userId: actor.id,
-      approvedBy: actor.approvedBy ?? null,
-      entity: 'product_unit',
-      entityId: row.id,
-      action: 'create',
-      newValue: unitSnapshot(row),
-    });
+  // Level 1 first, so a level can reference the row above it.
+  const parents: (string | undefined)[] = [];
+  for (const unit of plan.units) {
+    parents.push(addUnit(tx, actor, product.id, unit, parents).id);
   }
   if (input.initialStock > 0) {
     recordAdjustment(tx, {
@@ -290,40 +297,46 @@ export function updateProductById(
   ctx: ServiceContext,
   actor: Actor,
   id: string,
-  input: UpdateProductRequest,
+  input: UpdateProductInput,
 ): Product {
-  const units = checkUnits(input.type, input.baseUnit, input.units);
-  const baseUnit = input.type === 'bulk' ? input.baseUnit.toLowerCase() : input.baseUnit;
+  const plan = planUnits(input);
   return ctx.db.transaction((tx) => {
     const product = findProductById(tx, id);
     if (!product) {
       throw appErrors.productNotFound();
     }
     checkCategory(tx, input.categoryId, product.categoryId);
+    const storedUnits = listUnits(tx, [product.id]);
     // Existing stock is counted in the current unit; it cannot be converted (design 6.5).
     const unitKindChanged =
-      input.type !== product.type || (input.type === 'bulk' && baseUnit !== product.baseUnit);
-    if (unitKindChanged && productIdsWithMovements(tx, [product.id]).size > 0) {
-      throw appErrors.stockUnitLocked();
+      input.type !== product.type || (input.type === 'bulk' && plan.baseUnit !== product.baseUnit);
+    if (productIdsWithMovements(tx, [product.id]).size > 0) {
+      if (unitKindChanged) {
+        throw appErrors.stockUnitLocked();
+      }
+      checkBaseUnitKept(
+        plan,
+        storedUnits.filter((u) => u.active),
+      );
     }
     if (input.code !== product.code) {
       checkCodeFree(tx, input.code, product.id);
     }
 
-    const existing = new Map(listUnits(tx, [product.id]).map((u) => [u.id, u]));
-    for (const unit of units) {
+    const existing = new Map(storedUnits.map((u) => [u.id, u]));
+    for (const unit of plan.units) {
       if (unit.id !== undefined && !existing.has(unit.id)) {
         throw appErrors.invalidUnits('Satuan tidak ditemukan pada barang ini.');
       }
     }
-    const keptIds = new Set(units.flatMap((u) => (u.id === undefined ? [] : [u.id])));
+    const keptIds = new Set(plan.units.flatMap((u) => (u.id === undefined ? [] : [u.id])));
 
     // A row that is new or was inactive brings a new sell price.
     const priceChanged =
-      input.costPrice !== product.costPrice ||
-      units.some((u) => {
+      plan.costPrice !== product.costPrice ||
+      plan.units.some((u) => {
         const row = u.id === undefined ? undefined : existing.get(u.id);
-        return !row?.active || row.sellPrice !== u.sellPrice;
+        return !row?.active || row.sellPrice !== u.sellPrice || row.costPrice !== u.costPrice;
       });
     if (priceChanged && !isApproved(actor)) {
       throw appErrors.ownerApprovalRequired();
@@ -334,9 +347,9 @@ export function updateProductById(
       name: input.name,
       categoryId: input.categoryId,
       type: input.type,
-      baseUnit,
+      baseUnit: plan.baseUnit,
       pricingFactor: pricingFactorFor(input.type),
-      costPrice: input.costPrice,
+      costPrice: plan.costPrice,
     };
     const changed = (Object.keys(next) as (keyof ProductPatch)[]).some(
       (key) => next[key] !== product[key],
@@ -365,40 +378,55 @@ export function updateProductById(
         newValue: unitSnapshot(after),
       });
 
+    // A dropped row leaves the pyramid; the rows that stay get their parent from the plan.
     for (const row of existing.values()) {
       if (row.active && !keptIds.has(row.id)) {
-        auditUnit('deactivate', row, updateUnit(tx, row.id, { active: false, isBase: false }));
+        auditUnit('deactivate', row, updateUnit(tx, row.id, { active: false, parentUnitId: null }));
       }
     }
-    for (const unit of units) {
+    const parents: (string | undefined)[] = [];
+    for (const unit of plan.units) {
       const row = unit.id === undefined ? undefined : existing.get(unit.id);
       if (!row) {
-        auditUnit(
-          'create',
-          undefined,
-          insertUnit(tx, {
-            productId: product.id,
-            name: unit.name,
-            factor: unit.factor,
-            sellPrice: unit.sellPrice,
-            isBase: unit.isBase,
-          }),
-        );
+        parents.push(addUnit(tx, actor, product.id, unit, parents).id);
         continue;
       }
       const patch: UnitPatch = {
         name: unit.name,
-        factor: unit.factor,
+        parentUnitId: unit.parentIndex === null ? null : (parents[unit.parentIndex] ?? null),
+        level: unit.level,
+        isi: unit.isi,
+        costPrice: unit.costPrice,
         sellPrice: unit.sellPrice,
-        isBase: unit.isBase,
         active: true,
       };
       if ((Object.keys(patch) as (keyof UnitPatch)[]).some((key) => patch[key] !== row[key])) {
         auditUnit(row.active ? 'update' : 'activate', row, updateUnit(tx, row.id, patch));
       }
+      parents.push(row.id);
     }
     return loadProduct(tx, product.id);
   });
+}
+
+/**
+ * Keeps the per-level costs in step with a new `products.cost_price` (a purchase can change it):
+ * one of a unit costs its factor worth of base units. The product's audit row covers the change.
+ */
+export function syncUnitCosts(
+  tx: Executor,
+  productId: string,
+  costPrice: number,
+  pricingFactor: number,
+): void {
+  const rows = listUnits(tx, [productId]).filter((u) => u.active);
+  const factors = storedFactors(rows);
+  for (const row of rows) {
+    const next = Math.round(((factors.get(row.id) ?? row.isi) * costPrice) / pricingFactor);
+    if (next !== row.costPrice) {
+      updateUnit(tx, row.id, { costPrice: next });
+    }
+  }
 }
 
 /** Deactivating needs owner approval for cashiers; reactivating is open. */

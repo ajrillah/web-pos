@@ -19,6 +19,7 @@ import {
   type StockValueRow,
   type SummaryReport,
   startOfLocalDay,
+  type UnitChainItem,
 } from '@toko-podomoro/shared';
 import { appErrors } from '../errors';
 import {
@@ -39,6 +40,7 @@ import {
 } from '../repositories/reports-repository';
 import { describeAudit } from './activity-descriptions';
 import type { ServiceContext } from './context';
+import { stockChains } from './product-service';
 
 // Laporan (docs/design.md 6.8). Sales reports count completed sales only, on their sale date, so a
 // sale voided later disappears from its original day. Cash reports follow the date money moved.
@@ -146,18 +148,21 @@ export function categoriesReport(
   };
 }
 
-const toProductRow = (r: ProductSalesRaw): ProductSalesRow => ({
-  productId: r.product_id,
-  productCode: r.product_code,
-  productName: r.product_name,
-  categoryName: r.category_name,
-  baseUnit: r.base_unit,
-  qtyBase: r.qty_base,
-  revenue: r.revenue,
-  cost: r.cost,
-  profit: r.revenue - r.cost,
-  stock: r.stock,
-});
+const toProductRow =
+  (chains: Map<string, UnitChainItem[]>) =>
+  (r: ProductSalesRaw): ProductSalesRow => ({
+    productId: r.product_id,
+    productCode: r.product_code,
+    productName: r.product_name,
+    categoryName: r.category_name,
+    baseUnit: r.base_unit,
+    unitChain: chains.get(r.product_id) ?? [],
+    qtyBase: r.qty_base,
+    revenue: r.revenue,
+    cost: r.cost,
+    profit: r.revenue - r.cost,
+    stock: r.stock,
+  });
 
 export function productsReport(
   ctx: ServiceContext,
@@ -174,12 +179,20 @@ export function productsReport(
       a.revenue - b.revenue ||
       a.product_name.localeCompare(b.product_name),
   );
+  const top = sold.slice(0, q.limit);
+  const slowest = slow.slice(0, q.limit);
+  const row = toProductRow(
+    stockChains(
+      ctx.db,
+      [...top, ...slowest].map((r) => r.product_id),
+    ),
+  );
   return {
     from: period.fromDay,
     to: period.toDay,
     categoryId: q.categoryId ?? null,
-    top: sold.slice(0, q.limit).map(toProductRow),
-    slow: slow.slice(0, q.limit).map(toProductRow),
+    top: top.map(row),
+    slow: slowest.map(row),
     soldProducts: new Set(sold.map((r) => r.product_id)).size,
   };
 }
@@ -189,12 +202,18 @@ export function stockValueReport(
   query: ReportQuery<'stock-value'>,
 ): StockValueReport {
   const q = reportQuerySchemas['stock-value'].parse(query);
-  const all: StockValueRow[] = stockedProducts(ctx.db, q.categoryId).map((r) => ({
+  const stocked = stockedProducts(ctx.db, q.categoryId);
+  const chains = stockChains(
+    ctx.db,
+    stocked.map((r) => r.product_id),
+  );
+  const all: StockValueRow[] = stocked.map((r) => ({
     productId: r.product_id,
     productCode: r.product_code,
     productName: r.product_name,
     categoryName: r.category_name,
     baseUnit: r.base_unit,
+    unitChain: chains.get(r.product_id) ?? [],
     active: r.active === 1,
     stock: r.stock,
     costPrice: r.cost_price,

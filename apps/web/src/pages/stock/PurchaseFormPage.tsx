@@ -315,7 +315,7 @@ function LineEditor({
           <div className="truncate font-semibold">{product.name}</div>
           <div className="text-sm text-muted-foreground">
             <span className="font-mono">{product.code}</span> · stok{' '}
-            {formatQty(product.stock, product.baseUnit)}
+            {formatQty(product.stock, product.baseUnit, product.unitChain)}
           </div>
         </div>
         <div className="space-y-1">

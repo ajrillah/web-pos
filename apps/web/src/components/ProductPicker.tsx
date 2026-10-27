@@ -144,7 +144,7 @@ export function ProductPicker({
                   product.stock < 0 ? 'font-semibold text-destructive' : 'text-muted-foreground',
                 )}
               >
-                {formatQty(product.stock, product.baseUnit)}
+                {formatQty(product.stock, product.baseUnit, product.unitChain)}
               </span>
             </div>
           ))}

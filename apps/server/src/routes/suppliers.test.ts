@@ -35,8 +35,8 @@ beforeEach(async () => {
     baseUnit: 'pcs',
     costPrice: 2500,
     units: [
-      { name: 'pcs', factor: 1, sellPrice: 3500, isBase: true },
-      { name: 'dus', factor: 40, sellPrice: 130000, isBase: false },
+      { name: 'pcs', isi: 1, sellPrice: 3500, isBase: true },
+      { name: 'dus', isi: 40, sellPrice: 130000, isBase: false },
     ],
     initialStock: 10,
   });
@@ -47,7 +47,7 @@ beforeEach(async () => {
     type: 'bulk',
     baseUnit: 'gram',
     costPrice: 14000,
-    units: [{ name: 'kg', factor: 1000, sellPrice: 17000, isBase: true }],
+    units: [{ name: 'kg', isi: 1000, sellPrice: 17000, isBase: true }],
   });
 });
 

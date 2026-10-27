@@ -326,10 +326,10 @@ function PreviewRow({ row }: { row: ImportRow }) {
           ? product.units.map((u) => (
               <span key={u.name} className="block tabular-nums">
                 {u.name}
-                {u.factor > 1 && product.type === 'unit' && (
+                {u.isi > 1 && product.type === 'unit' && (
                   <span className="text-muted-foreground">
                     {' '}
-                    ({formatInteger(u.factor)} {product.baseUnit})
+                    ({formatInteger(u.isi)} {product.baseUnit})
                   </span>
                 )}{' '}
                 {formatRupiah(u.sellPrice)}

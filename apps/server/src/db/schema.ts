@@ -1,5 +1,12 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+  type AnySQLiteColumn,
+  index,
+  integer,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 import { createdAt, id, updatedAt } from './columns';
 
 export const settings = sqliteTable('settings', {
@@ -106,6 +113,8 @@ export const products = sqliteTable(
   ],
 );
 
+// A product's units form a pyramid: one chain of levels for products edited since MS1, or
+// independent flat rows for older ones and bulk products (docs/design.md 4.1.1).
 export const productUnits = sqliteTable(
   'product_units',
   {
@@ -114,17 +123,25 @@ export const productUnits = sqliteTable(
       .notNull()
       .references(() => products.id),
     name: text('name').notNull(),
-    // Base units in one of this unit.
-    factor: integer('factor').notNull(),
-    // Price for `factor` base units.
+    // Unit one level up; null for level 1 and for flat rows.
+    parentUnitId: text('parent_unit_id').references((): AnySQLiteColumn => productUnits.id),
+    // 1 = largest. The deepest level is the stock unit; it also orders a flat product's rows.
+    level: integer('level').notNull().default(1),
+    // Units of this kind in one of the parent; a flat row: base units in one of this unit.
+    // `factor` (base units in one) and the primary unit are computed from the chain, not stored.
+    isi: integer('isi').notNull().default(1),
+    // Cost for one of this unit; below level 1 it is ceil(parent cost / isi).
+    costPrice: integer('cost_price').notNull().default(0),
+    // Price for one of this unit.
     sellPrice: integer('sell_price').notNull(),
-    // Primary sell unit (exactly one active per product); not the stock unit.
-    isBase: integer('is_base', { mode: 'boolean' }).notNull().default(false),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index('product_units_product_id_idx').on(t.productId)],
+  (t) => [
+    index('product_units_product_id_idx').on(t.productId),
+    index('product_units_parent_unit_id_idx').on(t.parentUnitId),
+  ],
 );
 
 export const stockAdjustments = sqliteTable(

@@ -33,7 +33,7 @@ beforeEach(async () => {
     type: 'unit',
     baseUnit: 'karung',
     costPrice: 60000,
-    units: [{ name: 'karung', factor: 1, sellPrice: 70000, isBase: true }],
+    units: [{ name: 'karung', isi: 1, sellPrice: 70000, isBase: true }],
     initialStock: 1000,
   });
 });

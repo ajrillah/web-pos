@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { adjustmentReasonSchema, MAX_QTY } from './catalog';
 import { localDaySchemaPattern } from './dates';
 import { stockWarningSchema } from './sales';
+import { unitChainSchema } from './units';
 
 // Contracts for stock adjustments, opname sessions, and movement history. See docs/design.md 6.6.
 
@@ -106,6 +107,8 @@ export const opnameItemSchema = z.object({
   productName: z.string(),
   type: z.enum(['unit', 'bulk']),
   baseUnit: z.string(),
+  /** Levels top-down for the stock breakdown; empty for a flat product (design 4.1.1). */
+  unitChain: unitChainSchema,
   systemQtyAtStart: z.number().int(),
   /** Current cached stock (sales continue during the session). */
   currentStock: z.number().int(),
@@ -185,6 +188,8 @@ export const movementSchema = z.object({
   productCode: z.string(),
   productName: z.string(),
   baseUnit: z.string(),
+  /** Levels top-down for the stock breakdown; empty for a flat product (design 4.1.1). */
+  unitChain: unitChainSchema,
   type: movementTypeSchema,
   qtyChange: z.number().int(),
   /** Sale, purchase, or adjustment id. */

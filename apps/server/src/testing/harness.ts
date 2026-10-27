@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { Product } from '@toko-podomoro/shared';
+import type { Product, UpdateProductRequest } from '@toko-podomoro/shared';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { buildApp } from '../app';
 import { SESSION_COOKIE } from '../auth/session';
@@ -193,6 +193,28 @@ export function serviceContext(h: Harness): ServiceContext {
     now,
     openPath: (t) => h.opened.push(t),
     approvals: new ApprovalStore(now),
+  };
+}
+
+/** A product's current state as a `PUT products/:id` body (either unit shape, design 4.1.1). */
+export function asProductInput(p: Product): UpdateProductRequest {
+  const pyramid = p.unitMode === 'pyramid';
+  return {
+    code: p.code,
+    name: p.name,
+    categoryId: p.categoryId,
+    type: p.type,
+    baseUnit: p.baseUnit,
+    unitMode: p.unitMode,
+    ...(pyramid ? {} : { costPrice: p.costPrice }),
+    units: p.units.map((u, index) => ({
+      id: u.id,
+      name: u.name,
+      isi: u.isi,
+      sellPrice: u.sellPrice,
+      isBase: u.isBase,
+      ...(pyramid && index === 0 ? { costPrice: u.costPrice } : {}),
+    })),
   };
 }
 

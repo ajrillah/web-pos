@@ -191,7 +191,7 @@ function checkRow(
     if (usedExtras.length > 0) errors.push('Barang curah tidak boleh punya satuan tambahan.');
     // Same as manual creation: one kg/liter row, factor 1000, primary (docs/design.md 4.1).
     if (sellUnit && sellPrice !== undefined) {
-      units.push({ name: sellUnit, factor: BULK_FACTOR, sellPrice, isBase: true });
+      units.push({ name: sellUnit, isi: BULK_FACTOR, sellPrice, isBase: true });
     }
   } else if (type === 'unit') {
     baseUnit = unitName(values.satuan_stok, 'Satuan stok');
@@ -200,7 +200,7 @@ function checkRow(
     }
     const primary = unitName(values.satuan_jual, 'Satuan jual');
     if (primary && sellPrice !== undefined) {
-      units.push({ name: primary, factor: 1, sellPrice, isBase: true });
+      units.push({ name: primary, isi: 1, sellPrice, isBase: true });
     }
     for (const extra of usedExtras) {
       const label = `Satuan ${extra.n}`;
@@ -222,7 +222,7 @@ function checkRow(
         );
       }
       if (extraName && factor && price !== null && price !== undefined) {
-        units.push({ name: extraName, factor, sellPrice: price, isBase: false });
+        units.push({ name: extraName, isi: factor, sellPrice: price, isBase: false });
       }
     }
     const names = units.map((u) => u.name.toLowerCase());
@@ -252,9 +252,9 @@ function checkRow(
         type,
         baseUnit,
         costPrice,
-        units: input.units.map(({ name, factor, sellPrice, isBase }) => ({
+        units: input.units.map(({ name, isi, sellPrice, isBase }) => ({
           name,
-          factor,
+          isi,
           sellPrice,
           isBase,
         })),

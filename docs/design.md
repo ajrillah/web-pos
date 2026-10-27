@@ -62,9 +62,9 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
 - `products.base_unit` is the stock unit (pcs, gram, ml). Quantity is stored in this unit.
 - `pricing_factor`: `1000` for bulk items (prices per kg / per liter), `1` for normal items.
 - `products.cost_price` is the cost for `pricing_factor` base units.
-- `product_units.sell_price` is the price for `factor` base units.
-- `product_units.is_base` marks the primary sell unit (exactly one per product). It is not the stock unit.
-- Bulk products: exactly one unit row, `kg` or `liter`, factor `1000`, `is_base = true`. No per-gram/ml price.
+- `product_units.sell_price` is the price for one of that unit (`factor` base units); `product_units.cost_price` is the cost for one of that unit.
+- Unit rows form a pyramid per product; `factor` (base units in one of the unit) is computed, never stored. See 4.1.1.
+- Bulk products: exactly one unit row, `kg` or `liter`, `isi` `1000` (so factor `1000`). No per-gram/ml price.
 - Line formulas:
   - `subtotal = round(qty_base * unit_price / unit_factor)`
   - `cost_total = round(qty_base * cost_price / pricing_factor)`
@@ -77,6 +77,38 @@ Offline point-of-sale web app for Indonesian grocery stores (toko kelontong), so
   - Bulk items: integer grams / ml.
   - Normal items: whole numbers only (sell a smaller unit instead of fractions).
 - Negative stock is allowed with a warning and surfaced in reports.
+
+#### 4.1.1 Unit pyramid (MS1)
+
+A product's unit rows form a tree in `product_units`: `parent_unit_id` (nullable, self reference) and `level` (`1` = largest, up to `MAX_PYRAMID_LEVELS` = 5 = smallest). `level` also orders a flat product's rows, which are capped by `MAX_UNITS_PER_PRODUCT` (10) instead. A product is in one of two shapes, and `Product.unitMode` reports which:
+
+- **`pyramid`** (new and edited products): one chain of 1-5 levels, one unit per level. Level 1 has no parent; every deeper level has the level above as its parent. The deepest level is the stock unit: its name is `products.base_unit` and its factor is 1.
+- **`flat`** (products created before MS1, and every bulk product): every row has `parent_unit_id = NULL` and its own factor to the stock unit. Existing products are not converted; they keep working unchanged. Editing one through the product form turns it into a pyramid (unless its structure is locked, see 6.5).
+
+`isi` is the conversion stored per row:
+
+- A row with a parent: how many of **this** unit fit in **one** of its parent. Level 1 of a pyramid has no parent and stores `isi = 1`.
+- A flat row (no parent and no children): how many **base units** fit in one of this unit (what `factor` used to hold).
+
+Everything else is computed from `isi`:
+
+- `factor` (base units in one of the unit) = product of the `isi` values of the levels **below** this one, so the deepest level is 1; for a flat row, its own `isi`. All line math keeps using `factor` (see the line formulas above) and `sale_items` / `purchase_items` keep snapshotting it.
+- The **primary sell unit** (default unit on the cashier screen; `Product.units[].isBase` in the API) is the row with the highest `level`. For a pyramid that is the smallest unit; for a flat product it is the row the owner marked as primary, which the MS1 migration moved to the deepest level.
+- `isi` <= `MAX_UNIT_FACTOR` (1 000 000) per row, and a product's largest factor stays within it.
+
+Cost price (HPP) down a pyramid:
+
+- Level 1: entered by the user (`units[0].costPrice` in a `pyramid` request).
+- Level 2 and below: `cost = ceil(parent_cost / isi)` - rounded **up**, step by step down the chain, so a level is never priced below what it costs. The form shows "(dibulatkan)" next to a level whose cost was rounded.
+- `products.cost_price` is the deepest level's cost, i.e. the cost of one base unit (`pricing_factor` = 1 for pyramid products), so stock value and `cost_total` are unchanged.
+- Every level: `sell_price >= cost_price` (400 `INVALID_UNITS`). Flat products keep their own cost (`costPrice` on the product) and are not checked this way.
+
+Stock display:
+
+- Stock stays an integer count of base units everywhere (`products.stock`, `stock_movements.qty_change`, quantity input).
+- A pyramid product's stock is **shown** as a multi-unit breakdown, filled top-down by integer division: 3 806 base units over Ball (200) / Slop (10) / Bungkus (1) reads `1 Ball 19 Slop 6 Bungkus`. Levels with a zero count are left out; a stock of 0 reads `0 <deepest unit>`; negative stock keeps one leading minus (`-1 Slop 2 Bungkus`).
+- Flat products are shown as before: the number and the stock unit (`12 pcs`).
+- One implementation for both: `formatStockPyramid(qty, chain, baseUnit)` in `packages/shared`, with `chain` the product's levels top-down (empty for flat products). API rows that show a stock level carry that `unitChain`.
 
 ### 4.2 Identity, lifecycle, time
 - All ids are UUIDs.
@@ -200,14 +232,15 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - `name`.
 - Category; defaults: Rokok, Sembako, Lain-lain. Owner can add categories.
 - Cashier permissions (owner session passes directly; cashiers need owner approval, and until Stage 5 get 403 `OWNER_APPROVAL_REQUIRED`; the UI shows the PIN hint):
-  - Open to cashiers: create products (including their initial prices) and edit code, name, category, type, base unit, and unit rows (name, factor, primary flag, deactivate) except prices.
-  - Needs approval: changing any `sell_price` or `cost_price`, adding a unit row (it introduces a sell price), and deactivating a product. Reactivating is open.
+  - Open to cashiers: create products (including their initial prices) and edit code, name, category, type, base unit, and unit rows (name, `isi`, primary flag, deactivate) except prices.
+  - Needs approval: changing any `sell_price` or `cost_price`, adding a unit row or pyramid level (it introduces a sell price), and deactivating a product. Reactivating is open.
   - All product, unit, and category changes are audit-logged.
-- Stock unit lock: once a product has any stock movement, its type (`unit`/`bulk`) and stock unit kind (bulk `gram` <-> `ml`) cannot change (409 `STOCK_UNIT_LOCKED`; the message suggests deactivating it and creating a new product). Stock is never converted. Renaming the stock unit label of a normal product (e.g. `pcs` -> `bks`) is allowed. `Product.hasStockMovements` tells the UI to lock these fields.
+- Stock unit lock: once a product has any stock movement, its type (`unit`/`bulk`), its stock unit kind (bulk `gram` <-> `ml`), and the identity of its smallest unit cannot change (409 `STOCK_UNIT_LOCKED`; the message suggests deactivating it and creating a new product). Stock is never converted, so the deepest level keeps its row and its `isi`, and no level may be added below it. Levels above it may be added or changed, and renaming the stock unit label of a normal product (e.g. `pcs` -> `bks`) is allowed. `Product.hasStockMovements` tells the UI to lock these fields.
 - Type: `unit` | `bulk`.
 - Base (stock) unit; cost price.
-- Unit rows: name, factor, sell price; exactly one `is_base` (primary sell) row. Unit rows also serve as wholesale pricing (normal products only).
-- Bulk products: single `kg`/`liter` row, factor 1000 (see 4.1).
+- Unit rows: name, `isi`, cost price, sell price; the pyramid rules are in 4.1.1. Larger levels also serve as wholesale pricing (normal products only).
+- Product form, unit pyramid (MS1): filled top-down. The user enters level 1 (name, cost price, sell price), then adds the level below it (name, `isi` = how many fit in one of the level above, sell price; its cost price is filled in automatically and shown read-only, with "(dibulatkan)" when `ceil` changed it), up to 5 levels. Only the last level can be removed. The stock unit follows the deepest level's name. Bulk products keep their single `kg`/`liter` row (`isi` 1000, see 4.1) instead of a pyramid.
+- Flat (pre-MS1) products keep their rows until they are edited; a product whose smallest unit is locked by stock movements keeps its current shape, and only its prices can change.
 - Deactivate, never delete.
 - CSV/Excel import with downloadable template and validation preview (see Import below).
 
@@ -217,7 +250,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Category must already exist (name ignoring case) and be active; otherwise a row error.
 - Template columns, in order: `kode`, `nama`, `kategori`, `jenis` (`satuan` / `curah`), `satuan_stok`, `harga_pokok`, `satuan_jual` (primary unit name), `harga_jual`, `satuan2_nama`, `satuan2_isi`, `satuan2_harga`, `satuan3_nama`, `satuan3_isi`, `satuan3_harga`, `stok_awal`.
   - The extra-unit and `stok_awal` columns are optional (the columns may be left out). Columns are matched by header name in row 1; unknown columns are ignored.
-  - Normal products: the primary unit has factor 1; `harga_pokok` is per stock unit. An extra unit needs name, `isi` (factor), and price together; unit names must differ.
+  - Normal products: the primary unit has factor 1; `harga_pokok` is per stock unit. An extra unit needs name, `isi` (factor), and price together; unit names must differ. Import creates flat unit rows (`isi` = factor to the stock unit), not a pyramid.
   - Bulk (`curah`): `satuan_stok` is `gram` (also `g`, `gr`) or `ml`, `pricing_factor` 1000, `harga_pokok` and `harga_jual` per kg / liter. One unit row (`kg` / `liter`, factor 1000, primary) is created automatically, as in manual creation; `satuan_jual` may be blank or must match it; extra units are refused.
   - Money and quantities are whole numbers: plain digits or dot thousands (`12.500`).
   - `stok_awal` (stock unit; grams / ml for bulk) is recorded as a stock adjustment, reason `lainnya`, note "Stok awal (impor)".
@@ -333,7 +366,7 @@ All tables have `id` (UUID) and `created_at`; mutable tables also have `updated_
 ### 9.2 Catalog
 - `categories`(name, is_default, active)
 - `products`(code, name, category_id, type, base_unit, pricing_factor, cost_price, stock, active)
-- `product_units`(product_id, name, factor, sell_price, is_base, active)
+- `product_units`(product_id, name, parent_unit_id, level, isi, cost_price, sell_price, active) — pyramid rows (4.1.1); `factor` and `is_base` are computed, not stored
 
 ### 9.3 Sales
 - `sales`(number, cashier_id, customer_id, status, total, rounding_amount, paid_total, change_amount, debt_amount, completed_at, voided_at, voided_by, void_reason, receipt_count, receipt_file)
@@ -398,6 +431,8 @@ Base path `/api`, JSON bodies, httpOnly session cookie. **(PIN)** = cashier need
 - `GET products` (q, categoryId, status `active|inactive|all` default active, page, limit <= 100) -> `{ products, total, page, limit }`. Every word of `q` must appear in the code or name; exact code match first.
 - `GET products/by-code/:code` (active only, ignoring case), `GET products/:id`
 - `POST products` (optional `initialStock` -> stock adjustment `lainnya`, note "Stok awal"), `PUT products/:id` (full field set; `units` is the full set of active rows: rows with `id` update, without `id` are added, left-out rows are deactivated), `PATCH products/:id/active`
+  - `unitMode` picks the shape of `units` (4.1.1). `pyramid`: ordered level 1 first, each row the child of the one before it, `costPrice` on the first row only, product `costPrice` left out. `flat`: independent rows with `isi` = factor to the stock unit, exactly one `isBase`, cost on the product. Response units carry `level`, `parentUnitId`, `isi`, computed `factor`, `costPrice`, and `isBase` (deepest level).
+  - A stock level in a response (products, movements, stock value and product reports) comes with `unitChain` (levels top-down, empty for flat products) for the multi-unit display.
 - Cashier approval rules for products: see 6.5.
 - Import (PIN menu `impor`; rules in 6.5 "Import"):
   - `GET products/import/template` -> `Template-Impor-Barang.xlsx`

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { sumMovements } from '../repositories/stock-repository';
 import {
   activeCashier,
+  asProductInput,
   auditRows,
   createHarness,
   type Harness,
@@ -40,8 +41,8 @@ const indomie = () => ({
   baseUnit: 'pcs',
   costPrice: 2900,
   units: [
-    { name: 'pcs', factor: 1, sellPrice: 3500, isBase: true },
-    { name: 'dus', factor: 40, sellPrice: 130000, isBase: false },
+    { name: 'pcs', isi: 1, sellPrice: 3500, isBase: true },
+    { name: 'dus', isi: 40, sellPrice: 130000, isBase: false },
   ],
 });
 
@@ -53,7 +54,22 @@ const gula = () => ({
   type: 'bulk',
   baseUnit: 'gram',
   costPrice: 15000,
-  units: [{ name: 'kg', factor: 1000, sellPrice: 17500, isBase: true }],
+  units: [{ name: 'kg', isi: 1000, sellPrice: 17500, isBase: true }],
+});
+
+/** Rokok: a pyramid of Ball > Slop > Bungkus, stock counted in bungkus (docs/design.md 4.1.1). */
+const rokok = () => ({
+  code: 'SRT-12',
+  name: 'Surya 12',
+  categoryId: categoryIds.Rokok,
+  type: 'unit',
+  baseUnit: 'Bungkus',
+  unitMode: 'pyramid',
+  units: [
+    { name: 'Ball', sellPrice: 420_000, costPrice: 400_000 },
+    { name: 'Slop', isi: 20, sellPrice: 21_500 },
+    { name: 'Bungkus', isi: 10, sellPrice: 2300 },
+  ],
 });
 
 const post = (token: string, payload: object) =>
@@ -82,21 +98,7 @@ async function created(payload: object, token = ownerToken): Promise<Product> {
 }
 
 /** The update body that keeps a product as it is. */
-const asInput = (p: Product) => ({
-  code: p.code,
-  name: p.name,
-  categoryId: p.categoryId,
-  type: p.type,
-  baseUnit: p.baseUnit,
-  costPrice: p.costPrice,
-  units: p.units.map(({ id, name, factor, sellPrice, isBase }) => ({
-    id,
-    name,
-    factor,
-    sellPrice,
-    isBase,
-  })),
-});
+const asInput = asProductInput;
 
 const count = (table: string) =>
   (h.handle.sqlite.prepare(`select count(*) as n from ${table}`).get() as { n: number }).n;
@@ -107,7 +109,7 @@ describe('POST /api/products', () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it('creates a multi-unit product, primary unit first', async () => {
+  it('creates a multi-unit product, largest unit first', async () => {
     const res = await post(ownerToken, indomie());
     expect(res.statusCode).toBe(201);
     expect(res.json().product).toMatchObject({
@@ -119,9 +121,11 @@ describe('POST /api/products', () => {
       costPrice: 2900,
       stock: 0,
       active: true,
+      unitMode: 'flat',
+      unitChain: [],
       units: [
-        { name: 'pcs', factor: 1, sellPrice: 3500, isBase: true },
-        { name: 'dus', factor: 40, sellPrice: 130000, isBase: false },
+        { name: 'dus', isi: 40, factor: 40, sellPrice: 130000, isBase: false, level: 1 },
+        { name: 'pcs', isi: 1, factor: 1, sellPrice: 3500, isBase: true, level: 2 },
       ],
     });
   });
@@ -135,7 +139,9 @@ describe('POST /api/products', () => {
     expect(product).toMatchObject({
       baseUnit: 'gram',
       pricingFactor: 1000,
-      units: [{ name: 'kg', factor: 1000, sellPrice: 17500, isBase: true }],
+      units: [
+        { name: 'kg', isi: 1000, factor: 1000, costPrice: 15000, sellPrice: 17500, isBase: true },
+      ],
     });
   });
 
@@ -168,8 +174,8 @@ describe('POST /api/products', () => {
       { entityId: product.id, action: 'create', newValue: { code: 'IDM-GRG', costPrice: 2900 } },
     ]);
     expect(auditRows(h, 'product_unit').map((r) => [r.action, r.newValue.name])).toEqual([
-      ['create', 'pcs'],
       ['create', 'dus'],
+      ['create', 'pcs'],
     ]);
   });
 
@@ -182,13 +188,13 @@ describe('POST /api/products', () => {
   });
 
   it.each([
-    ['no primary unit', { units: [{ name: 'pcs', factor: 1, sellPrice: 1, isBase: false }] }],
+    ['no primary unit', { units: [{ name: 'pcs', isi: 1, sellPrice: 1, isBase: false }] }],
     [
       'two primary units',
       {
         units: [
-          { name: 'pcs', factor: 1, sellPrice: 1, isBase: true },
-          { name: 'pak', factor: 10, sellPrice: 9, isBase: true },
+          { name: 'pcs', isi: 1, sellPrice: 1, isBase: true },
+          { name: 'pak', isi: 10, sellPrice: 9, isBase: true },
         ],
       },
     ],
@@ -196,8 +202,8 @@ describe('POST /api/products', () => {
       'duplicate unit names',
       {
         units: [
-          { name: 'pcs', factor: 1, sellPrice: 1, isBase: true },
-          { name: 'PCS', factor: 10, sellPrice: 9, isBase: false },
+          { name: 'pcs', isi: 1, sellPrice: 1, isBase: true },
+          { name: 'PCS', isi: 10, sellPrice: 9, isBase: false },
         ],
       },
     ],
@@ -214,18 +220,15 @@ describe('POST /api/products', () => {
       'a second unit',
       {
         units: [
-          { name: 'kg', factor: 1000, sellPrice: 17500, isBase: true },
-          { name: 'ons', factor: 100, sellPrice: 1800, isBase: false },
+          { name: 'kg', isi: 1000, sellPrice: 17500, isBase: true },
+          { name: 'ons', isi: 100, sellPrice: 1800, isBase: false },
         ],
       },
     ],
-    [
-      'a factor other than 1000',
-      { units: [{ name: 'kg', factor: 100, sellPrice: 1, isBase: true }] },
-    ],
+    ['a factor other than 1000', { units: [{ name: 'kg', isi: 100, sellPrice: 1, isBase: true }] }],
     [
       'liter on a gram product',
-      { units: [{ name: 'liter', factor: 1000, sellPrice: 1, isBase: true }] },
+      { units: [{ name: 'liter', isi: 1000, sellPrice: 1, isBase: true }] },
     ],
   ])('rejects a bulk product with %s', async (_, change) => {
     const res = await post(ownerToken, { ...gula(), ...change });
@@ -278,17 +281,234 @@ describe('POST /api/products', () => {
   });
 });
 
+describe('POST /api/products (unit pyramid)', () => {
+  it('stores one chain, computes every factor, and takes the stock unit from the deepest level', async () => {
+    const product = await created(rokok());
+    expect(product).toMatchObject({
+      type: 'unit',
+      baseUnit: 'Bungkus',
+      pricingFactor: 1,
+      unitMode: 'pyramid',
+      // Cost of one base unit: 400.000 / 20 / 10.
+      costPrice: 2000,
+      units: [
+        { name: 'Ball', level: 1, isi: 1, factor: 200, costPrice: 400_000, isBase: false },
+        { name: 'Slop', level: 2, isi: 20, factor: 10, costPrice: 20_000, isBase: false },
+        { name: 'Bungkus', level: 3, isi: 10, factor: 1, costPrice: 2000, isBase: true },
+      ],
+      unitChain: [
+        { name: 'Ball', factor: 200 },
+        { name: 'Slop', factor: 10 },
+        { name: 'Bungkus', factor: 1 },
+      ],
+    });
+    const parents = product.units.map((u) => u.parentUnitId);
+    expect(parents).toEqual([null, product.units[0]?.id, product.units[1]?.id]);
+  });
+
+  it('rounds the cost of a level up', async () => {
+    const product = await created({
+      ...rokok(),
+      units: [
+        { name: 'Dus', sellPrice: 100_000, costPrice: 10_000 },
+        { name: 'Pak', isi: 7, sellPrice: 20_000 },
+        { name: 'Sachet', isi: 3, sellPrice: 1000 },
+      ],
+      baseUnit: 'Sachet',
+    });
+    // 10.000 / 7 = 1428,57 -> 1429; 1429 / 3 = 476,33 -> 477.
+    expect(product.units.map((u) => u.costPrice)).toEqual([10_000, 1429, 477]);
+    expect(product.costPrice).toBe(477);
+  });
+
+  it('keeps a single-level pyramid as its own stock unit', async () => {
+    const product = await created({
+      ...rokok(),
+      baseUnit: 'pcs',
+      units: [{ name: 'pcs', sellPrice: 3500, costPrice: 2900 }],
+    });
+    expect(product).toMatchObject({
+      baseUnit: 'pcs',
+      costPrice: 2900,
+      units: [{ name: 'pcs', level: 1, isi: 1, factor: 1, isBase: true }],
+    });
+  });
+
+  it.each([
+    [
+      'a sell price below the level cost',
+      {
+        units: [
+          { name: 'Ball', sellPrice: 420_000, costPrice: 400_000 },
+          { name: 'Slop', isi: 20, sellPrice: 19_000 },
+        ],
+      },
+    ],
+    [
+      'an isi below 2',
+      {
+        units: [
+          { name: 'Ball', sellPrice: 420_000, costPrice: 400_000 },
+          { name: 'Slop', isi: 1, sellPrice: 21_500 },
+        ],
+      },
+    ],
+    [
+      'the same name twice',
+      {
+        units: [
+          { name: 'Slop', sellPrice: 420_000, costPrice: 400_000 },
+          { name: 'slop', isi: 20, sellPrice: 21_500 },
+        ],
+      },
+    ],
+    [
+      'a bulk stock unit',
+      {
+        units: [
+          { name: 'kg', sellPrice: 20_000, costPrice: 15_000 },
+          { name: 'gram', isi: 1000, sellPrice: 25 },
+        ],
+      },
+    ],
+  ])('refuses %s', async (_, patch) => {
+    const res = await post(ownerToken, { ...rokok(), ...patch });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('INVALID_UNITS');
+    expect(count('products')).toBe(0);
+  });
+
+  it('refuses more than five levels', async () => {
+    const res = await post(ownerToken, {
+      ...rokok(),
+      baseUnit: 'l6',
+      units: [
+        { name: 'l1', sellPrice: 100_000, costPrice: 90_000 },
+        ...[2, 3, 4, 5, 6].map((n) => ({ name: `l${n}`, isi: 2, sellPrice: 100_000 })),
+      ],
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('refuses a top unit larger than the factor limit', async () => {
+    const res = await post(ownerToken, {
+      ...rokok(),
+      baseUnit: 'l3',
+      units: [
+        { name: 'l1', sellPrice: 100_000, costPrice: 90_000 },
+        { name: 'l2', isi: 1000, sellPrice: 100 },
+        { name: 'l3', isi: 1001, sellPrice: 1 },
+      ],
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('INVALID_UNITS');
+  });
+
+  it('prices sales and purchases by the computed factor', async () => {
+    const product = await created({ ...rokok(), initialStock: 3806 });
+    expect(product.stock).toBe(3806);
+    const slop = product.units[1];
+    const sale = await h.app.inject({
+      method: 'POST',
+      url: '/api/sales',
+      headers: withSession(ownerToken),
+      payload: {
+        id: '7a4f3e6c-1d2b-4c8a-9f10-2a3b4c5d6e7f',
+        lines: [{ productId: product.id, unitId: slop?.id, qtyBase: 30 }],
+        cash: 100_000,
+        qris: 0,
+        expectedTotal: 64_500,
+      },
+    });
+    expect(sale.statusCode).toBe(201);
+    expect(sale.json().sale.items[0]).toMatchObject({
+      unitName: 'Slop',
+      unitFactor: 10,
+      qtyBase: 30,
+      subtotal: 64_500,
+    });
+    // Cost of goods sold follows the deepest level's cost: 30 bungkus x Rp 2.000.
+    expect(h.handle.sqlite.prepare('select cost_price, cost_total from sale_items').get()).toEqual({
+      cost_price: 2000,
+      cost_total: 60_000,
+    });
+  });
+});
+
+describe('PUT /api/products/:id (unit pyramid)', () => {
+  it('adds a level above the chain and recomputes the levels below it', async () => {
+    const product = await created(rokok());
+    const input = asInput(product);
+    const res = await put(ownerToken, product.id, {
+      ...input,
+      units: [
+        { name: 'Karton', isi: 1, sellPrice: 1_700_000, costPrice: 1_600_000 },
+        ...(input.units ?? [])
+          .map((u) => ({ ...u, costPrice: undefined, isi: u.isi ?? 1 }))
+          .map((u, index) => (index === 0 ? { ...u, isi: 4 } : u)),
+      ],
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().product).toMatchObject({
+      baseUnit: 'Bungkus',
+      costPrice: 2000,
+      units: [
+        { name: 'Karton', level: 1, factor: 800 },
+        { name: 'Ball', level: 2, isi: 4, factor: 200, costPrice: 400_000 },
+        { name: 'Slop', level: 3, isi: 20, factor: 10 },
+        { name: 'Bungkus', level: 4, isi: 10, factor: 1 },
+      ],
+    });
+  });
+
+  it('refuses a new level below the stock unit once the product has stock', async () => {
+    const product = await created({ ...rokok(), initialStock: 100 });
+    const input = asInput(product);
+    const res = await put(ownerToken, product.id, {
+      ...input,
+      baseUnit: 'Batang',
+      units: [...(input.units ?? []), { name: 'Batang', isi: 12, sellPrice: 250 }],
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.code).toBe('STOCK_UNIT_LOCKED');
+  });
+
+  it('turns a flat product into a pyramid while it has no stock', async () => {
+    const product = await created(indomie());
+    const res = await put(ownerToken, product.id, {
+      ...asInput(product),
+      unitMode: 'pyramid',
+      costPrice: undefined,
+      baseUnit: 'pcs',
+      units: [
+        { name: 'dus', isi: 1, sellPrice: 130_000, costPrice: 116_000 },
+        { name: 'pcs', isi: 40, sellPrice: 3500 },
+      ],
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().product).toMatchObject({
+      unitMode: 'pyramid',
+      baseUnit: 'pcs',
+      costPrice: 2900,
+      units: [
+        { name: 'dus', level: 1, factor: 40 },
+        { name: 'pcs', level: 2, factor: 1, costPrice: 2900, isBase: true },
+      ],
+    });
+  });
+});
+
 describe('PUT /api/products/:id', () => {
   it('updates fields and units; left-out rows are deactivated; all audited', async () => {
     const product = await created(indomie());
-    const [pcs] = product.units;
+    const pcs = product.units.find((u) => u.isBase);
     const res = await put(ownerToken, product.id, {
       ...asInput(product),
       name: 'Indomie Goreng Original',
       costPrice: 3000,
       units: [
-        { id: pcs?.id, name: 'pcs', factor: 1, sellPrice: 3700, isBase: true },
-        { name: 'pak', factor: 5, sellPrice: 17500, isBase: false },
+        { id: pcs?.id, name: 'pcs', isi: 1, sellPrice: 3700, isBase: true },
+        { name: 'pak', isi: 5, sellPrice: 17500, isBase: false },
       ],
     });
     expect(res.statusCode).toBe(200);
@@ -296,8 +516,8 @@ describe('PUT /api/products/:id', () => {
       name: 'Indomie Goreng Original',
       costPrice: 3000,
       units: [
+        { name: 'pak', isi: 5, sellPrice: 17500 },
         { id: pcs?.id, name: 'pcs', sellPrice: 3700 },
-        { name: 'pak', factor: 5, sellPrice: 17500 },
       ],
     });
     expect(auditRows(h, 'product').at(-1)).toMatchObject({
@@ -311,8 +531,8 @@ describe('PUT /api/products/:id', () => {
         .map((r) => [r.action, r.newValue.name]),
     ).toEqual([
       ['deactivate', 'dus'],
-      ['update', 'pcs'],
       ['create', 'pak'],
+      ['update', 'pcs'],
     ]);
   });
 
@@ -371,7 +591,7 @@ describe('stock unit lock', () => {
         ...asInput(product),
         type: 'bulk',
         baseUnit: 'gram',
-        units: [{ name: 'kg', factor: 1000, sellPrice: 20000, isBase: true }],
+        units: [{ name: 'kg', isi: 1000, sellPrice: 20000, isBase: true }],
       }),
     );
   });
@@ -401,7 +621,7 @@ describe('stock unit lock', () => {
       ...asInput(product),
       type: 'bulk',
       baseUnit: 'gram',
-      units: [{ name: 'kg', factor: 1000, sellPrice: 20000, isBase: true }],
+      units: [{ name: 'kg', isi: 1000, sellPrice: 20000, isBase: true }],
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().product).toMatchObject({ type: 'bulk', pricingFactor: 1000 });
@@ -417,9 +637,9 @@ describe('cashier limits', () => {
     product = await created(indomie());
   });
 
-  it('allows non-price edits: code, name, category, unit name and factor, removing a row', async () => {
+  it('allows non-price edits: code, name, category, unit name and isi, removing a row', async () => {
     const input = asInput(product);
-    const [pcs] = input.units;
+    const pcs = input.units.find((u) => u.isBase);
     const res = await put(cashierToken, product.id, {
       ...input,
       code: 'IDM-G',
@@ -449,7 +669,7 @@ describe('cashier limits', () => {
       'a new unit row',
       (i: ReturnType<typeof asInput>) => ({
         ...i,
-        units: [...i.units, { name: 'pak', factor: 5, sellPrice: 17000, isBase: false }],
+        units: [...i.units, { name: 'pak', isi: 5, sellPrice: 17000, isBase: false }],
       }),
     ],
   ])('needs owner approval to change %s', async (_, change) => {
@@ -518,7 +738,7 @@ describe('GET /api/products', () => {
         units: [
           {
             name: rokok ? 'bungkus' : 'pcs',
-            factor: rokok ? 16 : 1,
+            isi: rokok ? 16 : 1,
             sellPrice: 1500 + i,
             isBase: true,
           },

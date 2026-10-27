@@ -105,7 +105,7 @@ export function AdjustmentsPage() {
                   </span>
                   <span className="ml-2 text-sm text-muted-foreground">
                     <span className="font-mono">{product.code}</span> · stok{' '}
-                    {formatQty(product.stock, product.baseUnit)}
+                    {formatQty(product.stock, product.baseUnit, product.unitChain)}
                   </span>
                 </span>
                 <Button variant="link" size="sm" className="h-auto p-0" onClick={reset}>

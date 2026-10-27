@@ -15,7 +15,7 @@ export type ProductWithCategory = ProductRow & { categoryName: string };
 export type UnitRow = typeof productUnits.$inferSelect;
 export type NewUnitRow = typeof productUnits.$inferInsert;
 export type UnitPatch = Partial<
-  Pick<UnitRow, 'name' | 'factor' | 'sellPrice' | 'isBase' | 'active'>
+  Pick<UnitRow, 'name' | 'parentUnitId' | 'level' | 'isi' | 'costPrice' | 'sellPrice' | 'active'>
 >;
 
 const withCategory = {

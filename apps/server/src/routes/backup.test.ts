@@ -35,7 +35,7 @@ const product = (code: string) =>
     type: 'unit',
     baseUnit: 'pcs',
     costPrice: 1000,
-    units: [{ name: 'pcs', factor: 1, sellPrice: 1500, isBase: true }],
+    units: [{ name: 'pcs', isi: 1, sellPrice: 1500, isBase: true }],
     initialStock: 5,
   });
 
