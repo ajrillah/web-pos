@@ -45,6 +45,7 @@ import {
   searchMovements,
 } from '../repositories/stock-repository';
 import type { Actor, ServiceContext } from './context';
+import { stockChains } from './product-service';
 
 export interface AdjustmentInput {
   productId: string;
@@ -157,14 +158,20 @@ function loadOpname(db: Executor, id: string): Opname {
   if (!row) {
     throw appErrors.opnameNotFound();
   }
+  const items = listOpnameItems(db, id);
+  const chains = stockChains(
+    db,
+    items.map((i) => i.productId),
+  );
   return {
     ...toOpnameSummary(row),
-    items: listOpnameItems(db, id).map((i) => ({
+    items: items.map((i) => ({
       productId: i.productId,
       productCode: i.productCode,
       productName: i.productName,
       type: i.type,
       baseUnit: i.baseUnit,
+      unitChain: chains.get(i.productId) ?? [],
       systemQtyAtStart: i.systemQtyAtStart,
       currentStock: i.currentStock,
       countedQty: i.countedQty,
@@ -312,6 +319,10 @@ export function listMovements(ctx: ServiceContext, query: MovementsQuery): Movem
     limit: parsed.limit,
     offset: (parsed.page - 1) * parsed.limit,
   });
+  const chains = stockChains(
+    ctx.db,
+    rows.map((r) => r.productId),
+  );
   return {
     movements: rows.map((r) => ({
       id: r.id,
@@ -319,6 +330,7 @@ export function listMovements(ctx: ServiceContext, query: MovementsQuery): Movem
       productCode: r.productCode,
       productName: r.productName,
       baseUnit: r.baseUnit,
+      unitChain: chains.get(r.productId) ?? [],
       type: r.type,
       qtyChange: r.qtyChange,
       refId: r.refId,

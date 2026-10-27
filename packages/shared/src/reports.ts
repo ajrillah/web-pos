@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { adjustmentReasonSchema } from './catalog';
 import { localDaySchemaPattern } from './dates';
+import { unitChainSchema } from './units';
 
 // Contracts for Laporan (owner PIN). See docs/design.md 6.8: voided sales leave sales reports
 // on their original date; cash reports follow the date money moved; activity uses the void date.
@@ -147,6 +148,8 @@ export const productSalesRowSchema = z.object({
   productName: z.string(),
   categoryName: z.string(),
   baseUnit: z.string(),
+  /** Levels top-down for the stock breakdown; empty for a flat product (design 4.1.1). */
+  unitChain: unitChainSchema,
   /** Sold, in base units. */
   qtyBase: int,
   revenue: int,
@@ -175,6 +178,8 @@ export const stockValueRowSchema = z.object({
   productName: z.string(),
   categoryName: z.string(),
   baseUnit: z.string(),
+  /** Levels top-down for the stock breakdown; empty for a flat product (design 4.1.1). */
+  unitChain: unitChainSchema,
   active: z.boolean(),
   stock: int,
   costPrice: int,
