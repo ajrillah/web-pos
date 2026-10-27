@@ -65,7 +65,8 @@ export const importedProductSchema = z.object({
   units: z.array(
     z.object({
       name: z.string(),
-      factor: z.number().int(),
+      /** Base units in one of this unit; import creates flat rows (docs/design.md 4.1.1). */
+      isi: z.number().int(),
       sellPrice: z.number().int(),
       isBase: z.boolean(),
     }),

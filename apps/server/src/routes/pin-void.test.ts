@@ -6,6 +6,7 @@ import { paymentReceiptLines, receiptLines } from '../services/receipt-service';
 import { getSettings } from '../services/settings-service';
 import {
   activeCashier,
+  asProductInput,
   auditRows,
   createHarness,
   createProductAs,
@@ -41,7 +42,7 @@ beforeEach(async () => {
     type: 'unit',
     baseUnit: 'karung',
     costPrice: 60000,
-    units: [{ name: 'karung', factor: 1, sellPrice: 70000, isBase: true }],
+    units: [{ name: 'karung', isi: 1, sellPrice: 70000, isBase: true }],
     initialStock: 10,
   });
 });
@@ -200,21 +201,13 @@ describe('owner approval', () => {
   });
 
   describe('action tokens', () => {
-    const priceChange = (sellPrice: number) => ({
-      code: beras.code,
-      name: beras.name,
-      categoryId: beras.categoryId,
-      type: beras.type,
-      baseUnit: beras.baseUnit,
-      costPrice: beras.costPrice,
-      units: beras.units.map(({ id, name, factor, isBase }) => ({
-        id,
-        name,
-        factor,
-        isBase,
-        sellPrice,
-      })),
-    });
+    const priceChange = (sellPrice: number) => {
+      const body = asProductInput(beras);
+      return {
+        ...body,
+        units: (body.units as Record<string, unknown>[]).map((u) => ({ ...u, sellPrice })),
+      };
+    };
 
     it('let a cashier change a price once, recording the approving owner', async () => {
       const token = await approvalToken('product.price', beras.id);

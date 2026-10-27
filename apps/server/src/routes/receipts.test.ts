@@ -134,7 +134,7 @@ describe('receipt endpoints', () => {
       type: 'unit',
       baseUnit: 'pcs',
       costPrice: 2900,
-      units: [{ name: 'pcs', factor: 1, sellPrice: 3500, isBase: true }],
+      units: [{ name: 'pcs', isi: 1, sellPrice: 3500, isBase: true }],
     });
     const res = await api('POST', '/api/sales', {
       id: crypto.randomUUID(),

@@ -50,7 +50,7 @@ import {
 import { findSupplierById } from '../repositories/suppliers-repository';
 import { type Actor, isApproved, type ServiceContext } from './context';
 import { nextDocNumber } from './numbering';
-import { getProduct, productsByIds } from './product-service';
+import { getProduct, productsByIds, syncUnitCosts } from './product-service';
 
 // Rules: docs/design.md 6.6. Purchases and payments are not audit-logged (their tables are the
 // record); voids and the cost price changes they make to products are.
@@ -301,6 +301,7 @@ export function createPurchase(
     // Cost price is product master data: the change is audit-logged with its purchase.
     for (const l of costChanged) {
       updateProduct(tx, l.product.id, { costPrice: l.newCostPrice });
+      syncUnitCosts(tx, l.product.id, l.newCostPrice, l.product.pricingFactor);
       insertAudit(tx, {
         userId: actor.id,
         approvedBy: actor.approvedBy ?? null,

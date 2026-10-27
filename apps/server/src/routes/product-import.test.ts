@@ -64,7 +64,7 @@ const productByCode = (code: string) =>
 const unitsOf = (productId: unknown) =>
   h.handle.sqlite
     .prepare(
-      'select name, factor, sell_price, is_base from product_units where product_id = ? order by factor',
+      'select name, isi, level, cost_price, sell_price from product_units where product_id = ? order by level',
     )
     .all(productId);
 
@@ -90,17 +90,17 @@ describe('POST products/import/preview', () => {
       baseUnit: 'pcs',
       costPrice: 2900,
       units: [
-        { name: 'pcs', factor: 1, sellPrice: 3500, isBase: true },
-        { name: 'dus', factor: 40, sellPrice: 130000, isBase: false },
+        { name: 'pcs', isi: 1, sellPrice: 3500, isBase: true },
+        { name: 'dus', isi: 40, sellPrice: 130000, isBase: false },
       ],
       initialStock: 24,
     });
     // Bulk: the kg / liter row is created automatically, priced per kg / liter.
     expect(body.rows[1]?.product?.units).toEqual([
-      { name: 'kg', factor: 1000, sellPrice: 17500, isBase: true },
+      { name: 'kg', isi: 1000, sellPrice: 17500, isBase: true },
     ]);
     expect(body.rows[2]?.product?.units).toEqual([
-      { name: 'liter', factor: 1000, sellPrice: 20000, isBase: true },
+      { name: 'liter', isi: 1000, sellPrice: 20000, isBase: true },
     ]);
     expect(count('products')).toBe(0);
   });
@@ -113,7 +113,7 @@ describe('POST products/import/preview', () => {
       type: 'unit',
       baseUnit: 'pcs',
       costPrice: 1000,
-      units: [{ name: 'pcs', factor: 1, sellPrice: 1500, isBase: true }],
+      units: [{ name: 'pcs', isi: 1, sellPrice: 1500, isBase: true }],
     });
     const old = productByCode('OLD');
     await api('PATCH', `/api/products/${old?.id}/active`, ownerToken, { active: false });
@@ -190,7 +190,7 @@ describe('POST products/import/preview', () => {
       code: 'KOPI',
       name: 'Kopi "Kapal"; sachet',
       initialStock: 0,
-      units: [{ name: 'sct', factor: 1, sellPrice: 1500, isBase: true }],
+      units: [{ name: 'sct', isi: 1, sellPrice: 1500, isBase: true }],
     });
   });
 
@@ -233,8 +233,8 @@ describe('POST products/import', () => {
     const indomie = productByCode('IDM-GRG');
     expect(indomie).toMatchObject({ type: 'unit', base_unit: 'pcs', pricing_factor: 1, stock: 24 });
     expect(unitsOf(indomie?.id)).toEqual([
-      { name: 'pcs', factor: 1, sell_price: 3500, is_base: 1 },
-      { name: 'dus', factor: 40, sell_price: 130000, is_base: 0 },
+      { name: 'dus', isi: 40, level: 1, cost_price: 116_000, sell_price: 130_000 },
+      { name: 'pcs', isi: 1, level: 2, cost_price: 2900, sell_price: 3500 },
     ]);
     const gula = productByCode('GULA');
     expect(gula).toMatchObject({

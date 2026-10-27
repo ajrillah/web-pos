@@ -32,7 +32,7 @@ beforeEach(async () => {
     type: 'unit',
     baseUnit: 'pcs',
     costPrice: 2500,
-    units: [{ name: 'pcs', factor: 1, sellPrice: 3500, isBase: true }],
+    units: [{ name: 'pcs', isi: 1, sellPrice: 3500, isBase: true }],
     initialStock: 20,
   });
   gula = await createProductAs(h, ownerToken, {
@@ -42,7 +42,7 @@ beforeEach(async () => {
     type: 'bulk',
     baseUnit: 'gram',
     costPrice: 14000,
-    units: [{ name: 'kg', factor: 1000, sellPrice: 17000, isBase: true }],
+    units: [{ name: 'kg', isi: 1000, sellPrice: 17000, isBase: true }],
     initialStock: 5000,
   });
   rokok = await createProductAs(h, ownerToken, {
@@ -52,7 +52,7 @@ beforeEach(async () => {
     type: 'unit',
     baseUnit: 'bks',
     costPrice: 30000,
-    units: [{ name: 'bks', factor: 1, sellPrice: 33000, isBase: true }],
+    units: [{ name: 'bks', isi: 1, sellPrice: 33000, isBase: true }],
     initialStock: 8,
   });
 });
@@ -178,7 +178,7 @@ describe('stock opname', () => {
       type: 'unit',
       baseUnit: 'pcs',
       costPrice: 2700,
-      units: [{ id: indomie.units[0]?.id, name: 'pcs', factor: 1, sellPrice: 3500, isBase: true }],
+      units: [{ id: indomie.units[0]?.id, name: 'pcs', isi: 1, sellPrice: 3500, isBase: true }],
     });
     const done = await api('POST', `/api/stock-opname/${opname.id}/complete`, undefined, token);
     expect(done.statusCode).toBe(200);
@@ -221,7 +221,7 @@ describe('stock opname', () => {
       type: 'unit',
       baseUnit: 'pcs',
       costPrice: 2500,
-      units: [{ id: indomie.units[0]?.id, name: 'pcs', factor: 1, sellPrice: 3500, isBase: true }],
+      units: [{ id: indomie.units[0]?.id, name: 'pcs', isi: 1, sellPrice: 3500, isBase: true }],
     });
     const moved = await startOpname('Lain-lain');
     expect(moved.json().error.message).toContain('Indomie Goreng');

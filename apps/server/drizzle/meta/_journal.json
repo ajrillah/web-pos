@@ -64,6 +64,20 @@
       "when": 1792683853061,
       "tag": "0008_past_tempest",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1793112622272,
+      "tag": "0009_friendly_komodo",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793112646308,
+      "tag": "0010_wealthy_makkari",
+      "breakpoints": true
     }
   ]
 }

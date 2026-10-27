@@ -132,7 +132,7 @@ beforeEach(async () => {
       type: 'unit',
       baseUnit: 'pcs',
       costPrice: cost,
-      units: [{ name: 'pcs', factor: 1, sellPrice: sell, isBase: true }],
+      units: [{ name: 'pcs', isi: 1, sellPrice: sell, isBase: true }],
       initialStock: stock,
     });
   indomie = await product('IDM', 'Indomie Goreng', 'Sembako', 2500, 3500, 100);
@@ -146,7 +146,7 @@ beforeEach(async () => {
     type: 'bulk',
     baseUnit: 'gram',
     costPrice: 14000,
-    units: [{ name: 'kg', factor: 1000, sellPrice: 17000, isBase: true }],
+    units: [{ name: 'kg', isi: 1000, sellPrice: 17000, isBase: true }],
     initialStock: 10000,
   });
   ani = (await api('POST', '/api/customers', { name: 'Bu Ani' })).json().customer;
@@ -459,9 +459,7 @@ describe('category snapshot', () => {
         type: 'unit',
         baseUnit: 'pcs',
         costPrice: 2500,
-        units: [
-          { id: indomie.units[0]?.id, name: 'pcs', factor: 1, sellPrice: 3500, isBase: true },
-        ],
+        units: [{ id: indomie.units[0]?.id, name: 'pcs', isi: 1, sellPrice: 3500, isBase: true }],
       },
     });
     expect(update.statusCode).toBe(200);
