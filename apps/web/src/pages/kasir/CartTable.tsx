@@ -1,4 +1,4 @@
-import { formatInteger, formatRupiah } from '@toko-podomoro/shared';
+import { formatRupiah } from '@toko-podomoro/shared';
 import { ShoppingBasket, X } from 'lucide-react';
 import { type Dispatch, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { NumberInput } from '../../components/NumberInput';
@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
+import { formatQty } from '../../lib/format';
 import { cn } from '../../lib/utils';
 import { type Cart, type CartAction, cartQtyOf, lineSubtotalOf, lineUnit } from './cart';
 
@@ -93,7 +94,8 @@ export function CartTable({
                 </div>
                 {remaining < 0 && (
                   <div className="text-sm font-semibold text-destructive">
-                    Stok kurang: sisa {formatInteger(line.product.stock)} {line.product.baseUnit}
+                    Stok kurang: sisa{' '}
+                    {formatQty(line.product.stock, line.product.baseUnit, line.product.unitChain)}
                   </div>
                 )}
               </div>

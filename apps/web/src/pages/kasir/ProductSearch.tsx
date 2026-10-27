@@ -1,9 +1,10 @@
-import { formatInteger, formatRupiah, type Product } from '@toko-podomoro/shared';
+import { formatRupiah, type Product } from '@toko-podomoro/shared';
 import { Search } from 'lucide-react';
 import { type KeyboardEvent, type RefObject, useEffect, useState } from 'react';
 import { ApiRequestError, errorMessage } from '../../api/client';
 import { api } from '../../api/endpoints';
 import { Kbd } from '../../components/ui/kbd';
+import { formatQty } from '../../lib/format';
 import { cn } from '../../lib/utils';
 import { primaryUnit } from './cart';
 
@@ -172,7 +173,7 @@ export function ProductSearch({
                       product.stock <= 0 ? 'text-destructive' : 'text-muted-foreground',
                     )}
                   >
-                    Stok {formatInteger(product.stock)} {product.baseUnit}
+                    Stok {formatQty(product.stock, product.baseUnit, product.unitChain)}
                   </div>
                 </div>
               </div>

@@ -33,6 +33,7 @@ import {
   TableRow,
 } from '../../components/ui/table';
 import { PageHeader } from '../../layout/PageHeader';
+import { formatQty } from '../../lib/format';
 import { cn } from '../../lib/utils';
 
 const PAGE_SIZE = 25;
@@ -77,8 +78,7 @@ const columns = column.columns([
           row.original.stock < 0 && 'font-semibold text-destructive',
         )}
       >
-        {formatInteger(row.original.stock)}{' '}
-        <span className="text-[15px] text-muted-foreground">{row.original.baseUnit}</span>
+        {formatQty(row.original.stock, row.original.baseUnit, row.original.unitChain)}
       </div>
     ),
   }),

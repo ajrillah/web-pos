@@ -223,7 +223,7 @@ export function MovementsPage() {
                       m.balanceAfter < 0 && 'font-semibold text-destructive',
                     )}
                   >
-                    {formatQty(m.balanceAfter, m.baseUnit)}
+                    {formatQty(m.balanceAfter, m.baseUnit, m.unitChain)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{m.userName}</TableCell>
                 </TableRow>

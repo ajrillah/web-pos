@@ -138,7 +138,7 @@ const productColumns: Column<ProductSalesRow>[] = [
     numeric: true,
     cell: (p) => (
       <span className={cn(p.stock < 0 && 'font-semibold text-destructive')}>
-        {formatQty(p.stock, p.baseUnit)}
+        {formatQty(p.stock, p.baseUnit, p.unitChain)}
       </span>
     ),
   },
@@ -189,7 +189,7 @@ const stockColumns: Column<StockValueRow>[] = [
     numeric: true,
     cell: (s) => (
       <span className={cn(s.stock < 0 && 'font-semibold text-destructive')}>
-        {formatQty(s.stock, s.baseUnit)}
+        {formatQty(s.stock, s.baseUnit, s.unitChain)}
       </span>
     ),
   },
