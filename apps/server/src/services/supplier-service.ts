@@ -85,9 +85,9 @@ export function createSupplier(
 ): Supplier {
   return ctx.db.transaction((tx) => {
     const row = insertSupplier(tx, {
-      name: input.name,
+      name: input.name.toUpperCase(),
       phone: input.phone ?? null,
-      note: input.note ?? null,
+      note: input.note ? input.note.toUpperCase() : null,
     });
     insertAudit(tx, {
       userId: actor.id,
@@ -116,9 +116,9 @@ export function updateSupplierById(
       throw appErrors.supplierHasDebt(formatRupiah(row.balance));
     }
     const patch: SupplierPatch = {};
-    if (input.name !== undefined) patch.name = input.name;
+    if (input.name !== undefined) patch.name = input.name.toUpperCase();
     if (input.phone !== undefined) patch.phone = input.phone;
-    if (input.note !== undefined) patch.note = input.note;
+    if (input.note !== undefined) patch.note = input.note ? input.note.toUpperCase() : null;
     if (input.active !== undefined) patch.active = input.active;
     const updated = updateSupplier(tx, row.id, patch);
     insertAudit(tx, {

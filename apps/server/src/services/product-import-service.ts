@@ -247,7 +247,7 @@ function checkRow(
       input = parsed.data;
       product = {
         code: input.code,
-        name: input.name,
+        name: input.name.toUpperCase(),
         categoryName: category.name,
         type,
         baseUnit,

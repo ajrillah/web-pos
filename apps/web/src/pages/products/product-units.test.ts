@@ -33,6 +33,7 @@ const product = (over: Partial<Product> & Pick<Product, 'units'>): Product => ({
   costPrice: 1000,
   stock: 0,
   hasStockMovements: false,
+  priceAlert: false,
   active: true,
   unitMode: 'flat',
   unitChain: [],

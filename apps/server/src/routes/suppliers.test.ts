@@ -163,11 +163,11 @@ describe('suppliers', () => {
   it('lets cashiers add and edit suppliers; every change is audit-logged', async () => {
     const { token } = await activeCashier(h, ownerToken);
     const supplier = await newSupplier('Toko Grosir Jaya', token);
-    expect(supplier).toMatchObject({ name: 'Toko Grosir Jaya', phone: '0274', balance: 0 });
-    const res = await api('PUT', `/api/suppliers/${supplier.id}`, { note: 'Sales Pak Ari' }, token);
-    expect(res.json().supplier.note).toBe('Sales Pak Ari');
+    expect(supplier).toMatchObject({ name: 'TOKO GROSIR JAYA', phone: '0274', balance: 0 });
+    const res = await api('PUT', `/api/suppliers/${supplier.id}`, { note: 'SALES PAK ARI' }, token);
+    expect(res.json().supplier.note).toBe('SALES PAK ARI');
     const list = await api('GET', '/api/suppliers?q=grosir');
-    expect(list.json().suppliers.map((s: Supplier) => s.name)).toEqual(['Toko Grosir Jaya']);
+    expect(list.json().suppliers.map((s: Supplier) => s.name)).toEqual(['TOKO GROSIR JAYA']);
     expect(auditRows(h, 'supplier').map((r) => r.action)).toEqual(['create', 'update']);
   });
 
@@ -184,7 +184,7 @@ describe('suppliers', () => {
 describe('purchases (Stok Masuk)', () => {
   it('adds stock through movements and records the initial payment', async () => {
     const supplier = await newSupplier();
-    const purchase = await buy(supplier, 50000, { note: 'Faktur 123' });
+    const purchase = await buy(supplier, 50000, { note: 'FAKTUR 123' });
     expect(purchase).toMatchObject({
       number: 'BLI-20261022-0001',
       date: '2026-10-22',
@@ -192,8 +192,8 @@ describe('purchases (Stok Masuk)', () => {
       paidAmount: 50000,
       remaining: 150000,
       status: 'completed',
-      note: 'Faktur 123',
-      supplierName: 'CV Sumber Rejeki',
+      note: 'FAKTUR 123',
+      supplierName: 'CV SUMBER REJEKI',
     });
     expect(purchase.items[0]).toMatchObject({
       productCode: 'IDM',

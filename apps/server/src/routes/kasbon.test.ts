@@ -45,7 +45,7 @@ afterEach(async () => {
 const api = (method: 'GET' | 'POST' | 'PUT', url: string, payload?: object, token = ownerToken) =>
   h.app.inject({ method, url, headers: withSession(token), ...(payload ? { payload } : {}) });
 
-async function newCustomer(name = 'Pak Budi', token = ownerToken): Promise<Customer> {
+async function newCustomer(name = 'PAK BUDI', token = ownerToken): Promise<Customer> {
   const res = await api('POST', '/api/customers', { name, phone: '0812' }, token);
   if (res.statusCode !== 201) throw new Error(`customer failed: ${res.statusCode} ${res.body}`);
   return res.json().customer;
@@ -93,27 +93,27 @@ const balanceOf = async (customer: Customer) =>
 describe('customers', () => {
   it('lets cashiers add customers; every change is audit-logged', async () => {
     const { token } = await activeCashier(h, ownerToken);
-    const customer = await newCustomer('Bu Tini', token);
-    expect(customer).toMatchObject({ name: 'Bu Tini', phone: '0812', note: null, balance: 0 });
+    const customer = await newCustomer('BU TINI', token);
+    expect(customer).toMatchObject({ name: 'BU TINI', phone: '0812', note: null, balance: 0 });
     const res = await api(
       'PUT',
       `/api/customers/${customer.id}`,
       { note: 'Blok C', phone: '' },
       token,
     );
-    expect(res.json().customer).toMatchObject({ note: 'Blok C', phone: null });
+    expect(res.json().customer).toMatchObject({ note: 'BLOK C', phone: null });
     expect(auditRows(h, 'customer').map((r) => r.action)).toEqual(['create', 'update']);
   });
 
   it('searches by name or phone, active by default', async () => {
-    const budi = await newCustomer('Pak Budi');
-    await newCustomer('Bu Tini');
+    const budi = await newCustomer('PAK BUDI');
+    await newCustomer('BU TINI');
     await api('PUT', `/api/customers/${budi.id}`, { active: false });
     const list = async (q: string) =>
       (await api('GET', `/api/customers${q}`)).json().customers.map((c: Customer) => c.name);
-    expect(await list('')).toEqual(['Bu Tini']);
-    expect(await list('?status=all&q=budi')).toEqual(['Pak Budi']);
-    expect(await list('?status=all&q=0812')).toEqual(['Bu Tini', 'Pak Budi']);
+    expect(await list('')).toEqual(['BU TINI']);
+    expect(await list('?status=all&q=budi')).toEqual(['PAK BUDI']);
+    expect(await list('?status=all&q=0812')).toEqual(['BU TINI', 'PAK BUDI']);
   });
 
   it('refuses to deactivate a customer with remaining kasbon', async () => {
@@ -138,7 +138,7 @@ describe('kasbon sales', () => {
     const customer = await newCustomer();
     const first = (await kasbonSale(customer, 1, 20000)).json().sale as Sale;
     expect(first).toMatchObject({
-      customerName: 'Pak Budi',
+      customerName: 'PAK BUDI',
       paidTotal: 20000,
       changeAmount: 0,
       debtAmount: 50000,
@@ -165,9 +165,11 @@ describe('kasbon sales', () => {
     const customer = await newCustomer();
     const sale = (await kasbonSale(customer, 1, 20000)).json().sale as Sale;
     const lines = receiptLines(sale, getSettings(h.handle.db), { copy: false });
-    expect(lines).toContain('Pelanggan               Pak Budi');
+    expect(lines).toContain('Pelanggan               PAK BUDI');
     expect(lines).toContain('Kasbon                    50.000');
-    expect(lines).toContain('Sisa kasbon            Rp 50.000');
+    expect(lines).toContain('Kasbon Sebelumnya           Rp 0');
+    expect(lines).toContain('Kasbon Transaksi Ini   Rp 50.000');
+    expect(lines).toContain('Total Kasbon           Rp 50.000');
     expect(lines.some((l) => l.startsWith('Kembali'))).toBe(false);
   });
 });
@@ -247,7 +249,7 @@ describe('customer payments', () => {
     expect((await pay(customer, [oldest?.id ?? ''], 1000)).json().error.code).toBe(
       'INVALID_RECEIVABLES',
     );
-    const other = await newCustomer('Bu Tini');
+    const other = await newCustomer('BU TINI');
     const [middle] = await openReceivables(customer);
     expect((await pay(other, [middle?.id ?? ''], 1000)).json().error.code).toBe(
       'INVALID_RECEIVABLES',
@@ -302,12 +304,12 @@ describe('customer payments', () => {
     const all = await openReceivables(customer);
     const payment = (await pay(customer, all.map((r) => r.id).slice(0, 2), 60000)).json()
       .payment as CustomerPayment;
-    const lines = paymentReceiptLines(payment, getSettings(h.handle.db), { copy: false });
+    const lines = paymentReceiptLines(payment, getSettings(h.handle.db));
     expect(lines).toEqual(
       expect.arrayContaining([
         '       BUKTI BAYAR KASBON',
         'No             BYR-20261022-0001',
-        'Pelanggan               Pak Budi',
+        'Pelanggan               PAK BUDI',
         `${sales[0]?.number}         50.000`,
         '  sisa                         0',
         `${sales[1]?.number}         10.000`,
@@ -319,9 +321,9 @@ describe('customer payments', () => {
       ]),
     );
     const saved = await api('POST', `/api/customer-payments/${payment.id}/receipt`);
-    expect(saved.json()).toMatchObject({ fileName: 'BYR-20261022-0001.pdf', copy: false });
+    expect(saved.json()).toMatchObject({ fileName: '221026-0001-PAKBUDI.pdf', copy: false });
     const copy = await api('GET', `/api/customer-payments/${payment.id}/receipt.pdf`);
-    expect(copy.headers['content-disposition']).toContain('BYR-20261022-0001-SALINAN.pdf');
+    expect(copy.headers['content-disposition']).toContain('221026-0001-PAKBUDI.pdf');
     expect(
       (await api('POST', `/api/customer-payments/${payment.id}/receipt/open`)).statusCode,
     ).toBe(204);

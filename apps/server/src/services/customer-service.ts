@@ -100,9 +100,9 @@ export function createCustomer(
 ): Customer {
   return ctx.db.transaction((tx) => {
     const row = insertCustomer(tx, {
-      name: input.name,
+      name: input.name.toUpperCase(),
       phone: input.phone ?? null,
-      note: input.note ?? null,
+      note: input.note ? input.note.toUpperCase() : null,
     });
     insertAudit(tx, {
       userId: actor.id,
@@ -131,9 +131,9 @@ export function updateCustomerById(
       throw appErrors.customerHasBalance(formatRupiah(row.balance));
     }
     const patch: CustomerPatch = {};
-    if (input.name !== undefined) patch.name = input.name;
+    if (input.name !== undefined) patch.name = input.name.toUpperCase();
     if (input.phone !== undefined) patch.phone = input.phone;
-    if (input.note !== undefined) patch.note = input.note;
+    if (input.note !== undefined) patch.note = input.note ? input.note.toUpperCase() : null;
     if (input.active !== undefined) patch.active = input.active;
     const updated = updateCustomer(tx, row.id, patch);
     insertAudit(tx, {

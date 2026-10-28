@@ -400,11 +400,11 @@ describe('Done when: totals match raw data on a seeded dataset', () => {
     const r = await report('debts');
     expect(r.receivables).toEqual({
       total: 10000,
-      customers: [expect.objectContaining({ name: 'Bu Ani', balance: 10000, openCount: 1 })],
+      customers: [expect.objectContaining({ name: 'BU ANI', balance: 10000, openCount: 1 })],
     });
     expect(r.payables).toEqual({
       total: 27600,
-      suppliers: [expect.objectContaining({ name: 'CV Grosir', balance: 27600, openCount: 1 })],
+      suppliers: [expect.objectContaining({ name: 'CV GROSIR', balance: 27600, openCount: 1 })],
     });
   });
 

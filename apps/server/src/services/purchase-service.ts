@@ -263,7 +263,7 @@ export function createPurchase(
       remaining: total,
       status: 'completed',
       userId: actor.id,
-      note: input.note ?? null,
+      note: input.note ? input.note.toUpperCase() : null,
       createdAt: now,
       updatedAt: now,
     });
@@ -300,7 +300,11 @@ export function createPurchase(
     }
     // Cost price is product master data: the change is audit-logged with its purchase.
     for (const l of costChanged) {
-      updateProduct(tx, l.product.id, { costPrice: l.newCostPrice });
+      const patch: { costPrice: number; priceAlert?: boolean } = { costPrice: l.newCostPrice };
+      if (l.newCostPrice > l.product.costPrice) {
+        patch.priceAlert = true;
+      }
+      updateProduct(tx, l.product.id, patch);
       syncUnitCosts(tx, l.product.id, l.newCostPrice, l.product.pricingFactor);
       insertAudit(tx, {
         userId: actor.id,

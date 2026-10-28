@@ -218,6 +218,15 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Print draft held: a held sale can be printed as-is with a "DRAFT" watermark. It is not recorded as a completed sale and does not affect stock or omzet.
 - Total items: the cart summary shows the line count as "Total Item: N".
 
+### 6.1.2 Nota and global revisions (MS3)
+- Receipt file name: saved/printed receipts use `DDMMYY-NomorNota-NamaCustomer` (e.g. `011026-001-Bima`); `UMUM` when the customer is NULL; customer name is sanitized (special characters removed).
+- No "SALINAN"/copy marking: receipts may be printed repeatedly without any copy indicator.
+- Kasbon summary on receipt: when the sale is kasbon, print `Kasbon Sebelumnya`, `Kasbon Transaksi Ini`, and `Total Kasbon`.
+- Item note on receipt: `sale_items.note` is printed in parentheses after the product name.
+- Total items on receipt: print `Total Item: N`.
+- Uppercase auto-convert: all user text inputs (product name, category name, customer name, supplier name, notes, item notes) are converted to uppercase server-side (service/repository layer); frontend inputs use CSS `text-transform: uppercase`.
+- Price alert: `products.price_alert` (boolean, default false) is set true when a purchase records a `cost_price` higher than the current one; cleared when an owner updates the product's sell price to at least the new cost. A warning icon is shown on the product list for flagged products.
+
 ### 6.2 Receipt
 - After payment: prompt "Simpan nota PDF?" — `Enter` = yes, `Esc` = skip.
 - Server generates the PDF (58 or 80 mm, setting) and saves it to the receipt folder (setting `receipt_folder`; default `%USERPROFILE%\Documents\TokoPodomoro\Nota\<TRX>.pdf`).

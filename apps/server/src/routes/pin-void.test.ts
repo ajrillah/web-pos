@@ -521,9 +521,7 @@ describe('customer payment void', () => {
     expect(auditRows(h, 'customer_payment')).toMatchObject([
       { entityId: payment.id, action: 'void', newValue: { reason: 'Lainnya: Uang palsu' } },
     ]);
-    const lines = paymentReceiptLines(res.json().payment, getSettings(h.handle.db), {
-      copy: false,
-    });
+    const lines = paymentReceiptLines(res.json().payment, getSettings(h.handle.db));
     expect(lines).toContain('       *** DIBATALKAN ***');
     expect(
       (

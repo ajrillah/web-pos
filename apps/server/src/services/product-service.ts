@@ -62,6 +62,7 @@ function toProduct(
     costPrice: row.costPrice,
     stock: row.stock,
     hasStockMovements: withMovements.has(row.id),
+    priceAlert: row.priceAlert,
     active: row.active,
     unitMode: pyramid ? 'pyramid' : 'flat',
     units: rows.map((u) => ({
@@ -254,7 +255,7 @@ export function insertNewProduct(
 ): string {
   const product = insertProduct(tx, {
     code: input.code,
-    name: input.name,
+    name: input.name.toUpperCase(),
     categoryId: input.categoryId,
     type: input.type,
     baseUnit: plan.baseUnit,
@@ -342,14 +343,17 @@ export function updateProductById(
       throw appErrors.ownerApprovalRequired();
     }
 
+    const clearPriceAlert =
+      priceChanged && isApproved(actor) && plan.units.every((u) => u.sellPrice >= u.costPrice);
     const next: ProductPatch = {
       code: input.code,
-      name: input.name,
+      name: input.name.toUpperCase(),
       categoryId: input.categoryId,
       type: input.type,
       baseUnit: plan.baseUnit,
       pricingFactor: pricingFactorFor(input.type),
       costPrice: plan.costPrice,
+      priceAlert: clearPriceAlert ? false : product.priceAlert,
     };
     const changed = (Object.keys(next) as (keyof ProductPatch)[]).some(
       (key) => next[key] !== product[key],

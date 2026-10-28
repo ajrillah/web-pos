@@ -504,7 +504,7 @@ describe('PUT /api/products/:id', () => {
     const pcs = product.units.find((u) => u.isBase);
     const res = await put(ownerToken, product.id, {
       ...asInput(product),
-      name: 'Indomie Goreng Original',
+      name: 'INDOMIE GORENG ORIGINAL',
       costPrice: 3000,
       units: [
         { id: pcs?.id, name: 'pcs', isi: 1, sellPrice: 3700, isBase: true },
@@ -513,7 +513,7 @@ describe('PUT /api/products/:id', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().product).toMatchObject({
-      name: 'Indomie Goreng Original',
+      name: 'INDOMIE GORENG ORIGINAL',
       costPrice: 3000,
       units: [
         { name: 'pak', isi: 5, sellPrice: 17500 },
@@ -522,8 +522,8 @@ describe('PUT /api/products/:id', () => {
     });
     expect(auditRows(h, 'product').at(-1)).toMatchObject({
       action: 'update',
-      oldValue: { name: 'Indomie Goreng', costPrice: 2900 },
-      newValue: { name: 'Indomie Goreng Original', costPrice: 3000 },
+      oldValue: { name: 'INDOMIE GORENG', costPrice: 2900 },
+      newValue: { name: 'INDOMIE GORENG ORIGINAL', costPrice: 3000 },
     });
     expect(
       auditRows(h, 'product_unit')
@@ -643,14 +643,14 @@ describe('cashier limits', () => {
     const res = await put(cashierToken, product.id, {
       ...input,
       code: 'IDM-G',
-      name: 'Mi Goreng',
+      name: 'MI GORENG',
       categoryId: categoryIds['Lain-lain'],
       units: [{ ...pcs, name: 'bks' }],
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().product).toMatchObject({
       code: 'IDM-G',
-      name: 'Mi Goreng',
+      name: 'MI GORENG',
       categoryName: 'Lain-lain',
       units: [{ name: 'bks', sellPrice: 3500 }],
     });
@@ -708,7 +708,7 @@ describe('GET /api/products/by-code/:code', () => {
     await created(indomie());
     const res = await get(ownerToken, '/api/products/by-code/idm-grg');
     expect(res.statusCode).toBe(200);
-    expect(res.json().product.name).toBe('Indomie Goreng');
+    expect(res.json().product.name).toBe('INDOMIE GORENG');
   });
 
   it('reports inactive and unknown codes as not found', async () => {
@@ -765,7 +765,7 @@ describe('GET /api/products', () => {
     expect(page).toMatchObject({ total: 100, page: 3, limit: 25 });
     expect(page.products).toHaveLength(25);
 
-    expect((await search('q=P042')).products.map((p) => p.name)).toEqual(['Beras Cap 42']);
+    expect((await search('q=P042')).products.map((p) => p.name)).toEqual(['BERAS CAP 42']);
     expect((await search('q=merek%2099')).products.map((p) => p.code)).toEqual(['P099']);
     expect((await search('q=beras')).total).toBe(60);
     expect((await search(`categoryId=${categoryIds.Rokok}`)).total).toBe(40);

@@ -85,6 +85,13 @@
       "when": 1793159503198,
       "tag": "0011_smart_the_twelve",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1793160821672,
+      "tag": "0012_first_madame_masque",
+      "breakpoints": true
     }
   ]
 }
