@@ -29,7 +29,7 @@ beforeEach(async () => {
   ({ token: ownerToken } = await setupOwner(h));
   indomie = await createProductAs(h, ownerToken, {
     code: 'IDM',
-    name: 'Indomie Goreng',
+    name: 'INDOMIE GORENG',
     category: 'Sembako',
     type: 'unit',
     baseUnit: 'pcs',
@@ -39,7 +39,7 @@ beforeEach(async () => {
   });
   kopi = await createProductAs(h, ownerToken, {
     code: 'KOPI',
-    name: 'Kopi Kapal Api',
+    name: 'KOPI KAPAL API',
     category: 'Sembako',
     type: 'unit',
     baseUnit: 'sachet',
@@ -110,8 +110,8 @@ describe('POST /api/sales/held/:id/resume', () => {
         l.product.units[0]?.sellPrice,
       ]),
     ).toEqual([
-      ['Indomie Goreng', 2, 3500, 3500],
-      ['Kopi Kapal Api', 3, 1500, 1700],
+      ['INDOMIE GORENG', 2, 3500, 3500],
+      ['KOPI KAPAL API', 3, 1500, 1700],
     ]);
     expect(await heldList()).toEqual([]);
     // Taking a sale back is not a deletion.
@@ -122,7 +122,7 @@ describe('POST /api/sales/held/:id/resume', () => {
     const held = await hold();
     await api('PATCH', `/api/products/${kopi.id}/active`, { active: false });
     const body = (await api('POST', `/api/sales/held/${held.id}/resume`)).json();
-    expect(body.removed).toEqual(['Kopi Kapal Api']);
+    expect(body.removed).toEqual(['KOPI KAPAL API']);
     expect(body.lines).toHaveLength(1);
   });
 

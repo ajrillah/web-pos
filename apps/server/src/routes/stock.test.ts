@@ -105,7 +105,7 @@ describe('stock adjustments', () => {
     const res = await api(
       'POST',
       '/api/stock-adjustments',
-      { productId: rokok.id, qtyChange: -10, reason: 'hilang', note: 'Dicek malam' },
+      { productId: rokok.id, qtyChange: -10, reason: 'hilang', note: 'DICEK MALAM' },
       token,
     );
     expect(res.statusCode).toBe(201);
@@ -113,12 +113,12 @@ describe('stock adjustments', () => {
       productCode: 'SMP',
       qtyChange: -10,
       reason: 'hilang',
-      note: 'Dicek malam',
+      note: 'DICEK MALAM',
       costPrice: 30000,
       userName: 'Rina',
     });
     expect(res.json().warnings).toEqual([
-      { productId: rokok.id, productName: 'Sampoerna Mild', stock: -2, baseUnit: 'bks' },
+      { productId: rokok.id, productName: 'SAMPOERNA MILD', stock: -2, baseUnit: 'bks' },
     ]);
     expect(await stockOf(rokok)).toBe(-2);
     const list = (await api('GET', `/api/stock-adjustments?productId=${rokok.id}`)).json();
@@ -224,7 +224,7 @@ describe('stock opname', () => {
       units: [{ id: indomie.units[0]?.id, name: 'pcs', isi: 1, sellPrice: 3500, isBase: true }],
     });
     const moved = await startOpname('Lain-lain');
-    expect(moved.json().error.message).toContain('Indomie Goreng');
+    expect(moved.json().error.message).toContain('INDOMIE GORENG');
 
     const cancelled = await api('POST', `/api/stock-opname/${sembako.id}/cancel`);
     expect(cancelled.json().opname.status).toBe('cancelled');

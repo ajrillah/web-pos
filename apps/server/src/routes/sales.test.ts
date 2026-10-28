@@ -132,7 +132,7 @@ describe('POST /api/sales', () => {
       items: [
         {
           productCode: 'IDM',
-          productName: 'Indomie Goreng',
+          productName: 'INDOMIE GORENG',
           unitName: 'pcs',
           qtyBase: 2,
           unitFactor: 1,
@@ -257,7 +257,7 @@ describe('POST /api/sales', () => {
     const inactive = await sell(sale());
     expect(inactive.statusCode).toBe(409);
     expect(inactive.json().error.message).toBe(
-      'Indomie Goreng tidak tersedia lagi. Hapus dari keranjang.',
+      'INDOMIE GORENG tidak tersedia lagi. Hapus dari keranjang.',
     );
   });
 
@@ -267,7 +267,7 @@ describe('POST /api/sales', () => {
     );
     expect(res.statusCode).toBe(201);
     expect(res.json().warnings).toEqual([
-      { productId: rokok.id, productName: 'Sampoerna Mild', stock: -16, baseUnit: 'batang' },
+      { productId: rokok.id, productName: 'SAMPOERNA MILD', stock: -16, baseUnit: 'batang' },
     ]);
     expect(sumMovements(h.handle.db, rokok.id)).toBe(-16);
   });

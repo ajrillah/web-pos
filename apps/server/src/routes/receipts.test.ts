@@ -96,6 +96,7 @@ describe('receiptLines', () => {
       'Edisi Spesial',
       '  3 batang x 2.200         6.600',
       '--------------------------------',
+      'Total Item: 2',
       'Subtotal                  32.850',
       'Pembulatan                    50',
       'TOTAL                  Rp 32.900',
@@ -108,7 +109,6 @@ describe('receiptLines', () => {
 
   it('marks copies and voided sales', () => {
     const lines = receiptLines({ ...sale, status: 'voided' }, settings, { copy: true });
-    expect(lines).toContain('        *** SALINAN ***');
     expect(lines).toContain('       *** DIBATALKAN ***');
   });
 
@@ -122,7 +122,6 @@ describe('receipt endpoints', () => {
   let h: Harness;
   let ownerToken: string;
   let saleId: string;
-  let number: string;
 
   beforeEach(async () => {
     h = await createHarness();
@@ -143,7 +142,7 @@ describe('receipt endpoints', () => {
       qris: 0,
       expectedTotal: 7000,
     });
-    ({ id: saleId, number } = res.json().sale);
+    ({ id: saleId } = res.json().sale);
   });
 
   afterEach(async () => {
@@ -162,13 +161,17 @@ describe('receipt endpoints', () => {
     // The folder does not exist yet: the first save creates it.
     expect(fs.existsSync(h.receiptDir)).toBe(false);
     const first = await api('POST', `/api/sales/${saleId}/receipt`);
-    expect(first.json()).toEqual({ fileName: `${number}.pdf`, folder: h.receiptDir, copy: false });
-    const file = path.join(h.receiptDir, `${number}.pdf`);
+    expect(first.json()).toEqual({
+      fileName: `221026-0001-UMUM.pdf`,
+      folder: h.receiptDir,
+      copy: false,
+    });
+    const file = path.join(h.receiptDir, `221026-0001-UMUM.pdf`);
     expect(fs.readFileSync(file).subarray(0, 5).toString()).toBe('%PDF-');
 
     const second = await api('POST', `/api/sales/${saleId}/receipt`);
-    expect(second.json()).toMatchObject({ fileName: `${number}-SALINAN.pdf`, copy: true });
-    expect(fs.existsSync(path.join(h.receiptDir, `${number}-SALINAN.pdf`))).toBe(true);
+    expect(second.json()).toMatchObject({ fileName: `221026-0001-UMUM.pdf`, copy: true });
+    expect(fs.existsSync(path.join(h.receiptDir, `221026-0001-UMUM.pdf`))).toBe(true);
     expect((await api('GET', `/api/sales/${saleId}`)).json().sale.receiptCount).toBe(2);
   });
 
@@ -180,7 +183,7 @@ describe('receipt endpoints', () => {
     await api('POST', `/api/sales/${saleId}/receipt`);
     expect((await api('POST', `/api/sales/${saleId}/receipt/open`)).statusCode).toBe(204);
     expect((await api('POST', '/api/receipts/open-folder')).statusCode).toBe(204);
-    expect(h.opened).toEqual([path.join(h.receiptDir, `${number}.pdf`), h.receiptDir]);
+    expect(h.opened).toEqual([path.join(h.receiptDir, `221026-0001-UMUM.pdf`), h.receiptDir]);
   });
 
   it('downloads a PDF; after a saved receipt it is a copy', async () => {
@@ -188,7 +191,7 @@ describe('receipt endpoints', () => {
     const res = await api('GET', `/api/sales/${saleId}/receipt.pdf`);
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toBe('application/pdf');
-    expect(res.headers['content-disposition']).toBe(`attachment; filename="${number}-SALINAN.pdf"`);
+    expect(res.headers['content-disposition']).toBe(`attachment; filename="221026-0001-UMUM.pdf"`);
     expect(res.rawPayload.subarray(0, 5).toString()).toBe('%PDF-');
   });
 

@@ -56,11 +56,11 @@ describe('GET /api/categories', () => {
 
 describe('POST /api/categories', () => {
   it('lets the owner add a category, audited', async () => {
-    const res = await create(ownerToken, ' Minuman ');
+    const res = await create(ownerToken, ' MINUMAN ');
     expect(res.statusCode).toBe(201);
-    expect(res.json().category).toMatchObject({ name: 'Minuman', isDefault: false, active: true });
+    expect(res.json().category).toMatchObject({ name: 'MINUMAN', isDefault: false, active: true });
     expect(auditRows(h, 'category')).toMatchObject([
-      { action: 'create', newValue: { name: 'Minuman', active: true } },
+      { action: 'create', newValue: { name: 'MINUMAN', active: true } },
     ]);
   });
 
@@ -72,7 +72,7 @@ describe('POST /api/categories', () => {
 
   it('needs owner approval for cashiers', async () => {
     const { token } = await activeCashier(h, ownerToken);
-    const res = await create(token, 'Minuman');
+    const res = await create(token, 'MINUMAN');
     expect(res.statusCode).toBe(403);
     expect(res.json().error.code).toBe('OWNER_APPROVAL_REQUIRED');
   });
@@ -86,14 +86,14 @@ describe('POST /api/categories', () => {
 
 describe('PUT /api/categories/:id', () => {
   it('renames and deactivates a custom category', async () => {
-    const id = (await create(ownerToken, 'Minuman')).json().category.id;
-    const res = await put(ownerToken, id, { name: 'Minuman Dingin', active: false });
+    const id = (await create(ownerToken, 'MINUMAN')).json().category.id;
+    const res = await put(ownerToken, id, { name: 'MINUMAN DINGIN', active: false });
     expect(res.statusCode).toBe(200);
-    expect(res.json().category).toMatchObject({ name: 'Minuman Dingin', active: false });
+    expect(res.json().category).toMatchObject({ name: 'MINUMAN DINGIN', active: false });
     expect(auditRows(h, 'category').at(-1)).toMatchObject({
       action: 'update',
-      oldValue: { name: 'Minuman', active: true },
-      newValue: { name: 'Minuman Dingin', active: false },
+      oldValue: { name: 'MINUMAN', active: true },
+      newValue: { name: 'MINUMAN DINGIN', active: false },
     });
   });
 
@@ -107,7 +107,7 @@ describe('PUT /api/categories/:id', () => {
   });
 
   it('rejects renaming onto another category', async () => {
-    const id = (await create(ownerToken, 'Minuman')).json().category.id;
+    const id = (await create(ownerToken, 'MINUMAN')).json().category.id;
     const res = await put(ownerToken, id, { name: 'ROKOK' });
     expect(res.json().error.code).toBe('CATEGORY_NAME_TAKEN');
   });

@@ -84,7 +84,7 @@ describe('POST products/import/preview', () => {
     expect(body.rows.map((r) => r.row)).toEqual([2, 3, 4]);
     expect(body.rows[0]?.product).toEqual({
       code: 'IDM-GRG',
-      name: 'Indomie Goreng',
+      name: 'INDOMIE GORENG',
       categoryName: 'Sembako',
       type: 'unit',
       baseUnit: 'pcs',
@@ -108,7 +108,7 @@ describe('POST products/import/preview', () => {
   it('reports errors per row and still shows the valid rows', async () => {
     await createProductAs(h, ownerToken, {
       code: 'OLD',
-      name: 'Barang lama',
+      name: 'BARANG LAMA',
       category: 'Sembako',
       type: 'unit',
       baseUnit: 'pcs',
@@ -173,7 +173,7 @@ describe('POST products/import/preview', () => {
         ]),
       )
     ).json();
-    expect(body.rows[0]?.errors).toEqual(['Kategori "Minuman" nonaktif.']);
+    expect(body.rows[0]?.errors).toEqual(['Kategori "MINUMAN" nonaktif.']);
     expect(body.rows[1]?.errors).toEqual(['Satuan jual barang curah harus kg (atau kosongkan).']);
   });
 
@@ -188,7 +188,7 @@ describe('POST products/import/preview', () => {
     expect(body).toMatchObject({ total: 1, valid: 1 });
     expect(body.rows[0]?.product).toMatchObject({
       code: 'KOPI',
-      name: 'Kopi "Kapal"; sachet',
+      name: 'KOPI "KAPAL"; SACHET',
       initialStock: 0,
       units: [{ name: 'sct', isi: 1, sellPrice: 1500, isBase: true }],
     });
