@@ -16,7 +16,7 @@ const base = {
   categoryId: 'c',
   categoryName: 'Sembako',
   hasStockMovements: true,
-    priceAlert: false,
+  priceAlert: false,
   active: true,
   unitMode: 'flat' as const,
   unitChain: [],

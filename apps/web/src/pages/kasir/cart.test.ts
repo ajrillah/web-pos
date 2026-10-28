@@ -12,7 +12,7 @@ const product = (over: Partial<Product> & Pick<Product, 'id' | 'type' | 'units'>
   costPrice: 0,
   stock: 10,
   hasStockMovements: true,
-    priceAlert: false,
+  priceAlert: false,
   active: true,
   unitMode: 'flat',
   unitChain: [],
