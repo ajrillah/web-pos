@@ -77,6 +77,7 @@ export function PayDialog({
   async function submitSale(kasbonCustomer: Customer | null) {
     setBusy(true);
     setError(null);
+    const selectedCustomer = kasbonCustomer ?? customer;
     try {
       onPaid(
         await api.createSale({
@@ -86,7 +87,7 @@ export function PayDialog({
           qris: qris ?? 0,
           transfer: transfer ?? 0,
           expectedTotal: total,
-          ...((kasbonCustomer ?? customer) ? { customerId: (kasbonCustomer ?? customer)!.id } : {}),
+          ...(selectedCustomer ? { customerId: selectedCustomer.id } : {}),
         }),
       );
     } catch (err) {
