@@ -107,6 +107,16 @@ export const appErrors = {
     ),
   qrisExceedsTotal: () =>
     new AppError(400, 'QRIS_EXCEEDS_TOTAL', 'Pembayaran QRIS tidak boleh melebihi total.'),
+  transferExceedsTotal: () =>
+    new AppError(400, 'TRANSFER_EXCEEDS_TOTAL', 'Pembayaran transfer tidak boleh melebihi total.'),
+  priceBelowCost: (name: string) =>
+    new AppError(
+      400,
+      'PRICE_BELOW_COST',
+      `Harga jual ${name} tidak boleh di bawah harga pokok.`,
+    ),
+  saleTotalNegative: () =>
+    new AppError(400, 'SALE_TOTAL_NEGATIVE', 'Total transaksi tidak boleh negatif.'),
   underpaid: () =>
     new AppError(
       400,

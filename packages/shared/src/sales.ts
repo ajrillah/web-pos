@@ -10,14 +10,16 @@ export const MAX_SALE_LINES = 200;
 export const saleStatusSchema = z.enum(['held', 'completed', 'voided']);
 export type SaleStatus = z.infer<typeof saleStatusSchema>;
 
-export const paymentMethodSchema = z.enum(['cash', 'qris']);
+export const paymentMethodSchema = z.enum(['cash', 'qris', 'transfer']);
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 
 /** One cart line. `qtyBase` is in the product's stock unit; normal items: a multiple of the unit factor. */
 export const saleLineInputSchema = z.object({
   productId: z.string().min(1),
   unitId: z.string().min(1),
-  qtyBase: z.number().int().min(1).max(MAX_QTY),
+  qtyBase: z.number().int().min(-MAX_QTY).max(MAX_QTY).refine((v) => v !== 0),
+  note: z.string().trim().max(200).optional().or(z.literal('')),
+  unitPrice: z.number().int().min(0).optional(),
 });
 export type SaleLineInput = z.infer<typeof saleLineInputSchema>;
 
@@ -29,10 +31,12 @@ export const createSaleRequestSchema = z.object({
   lines: linesSchema,
   cash: moneySchema,
   qris: moneySchema,
+  transfer: moneySchema.optional(),
   /** Rounded total the cashier saw; the server recomputes and refuses if it differs. */
   expectedTotal: moneySchema,
-  /** Required for kasbon (paid < total); the shortfall becomes the customer's receivable. */
-  customerId: z.string().min(1).optional(),
+  /** Customer can be picked on any sale (UMUM if null/absent). */
+  customerId: z.string().min(1).optional().nullable(),
+  customerName: z.string().trim().max(100).optional().nullable(),
 });
 export type CreateSaleRequest = z.infer<typeof createSaleRequestSchema>;
 
@@ -50,6 +54,7 @@ export const saleItemSchema = z.object({
   unitFactor: z.number().int(),
   unitPrice: z.number().int(),
   subtotal: z.number().int(),
+  note: z.string().nullable().optional(),
 });
 export type SaleItem = z.infer<typeof saleItemSchema>;
 
@@ -118,6 +123,10 @@ export const resumedLineSchema = z.object({
   qtyBase: z.number().int(),
   /** Unit price when the sale was held; differs from the current price if it changed. */
   heldUnitPrice: z.number().int(),
+  /** Optional per-line note carried from the held sale. */
+  note: z.string().nullable().optional(),
+  /** Overridden sell price, if any. */
+  unitPrice: z.number().int().optional(),
 });
 export type ResumedLine = z.infer<typeof resumedLineSchema>;
 
