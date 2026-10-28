@@ -1,9 +1,10 @@
-import { formatRupiah } from '@toko-podomoro/shared';
+import { formatInteger, formatRupiah } from '@toko-podomoro/shared';
 import { ShoppingBasket, X } from 'lucide-react';
 import { type Dispatch, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { NumberInput } from '../../components/NumberInput';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 import {
   Select,
   SelectContent,
@@ -92,6 +93,15 @@ export function CartTable({
                   <span className="font-mono">{line.product.code}</span> ·{' '}
                   {line.product.categoryName}
                 </div>
+                <Input
+                  aria-label={`Catatan ${line.product.name}`}
+                  placeholder="Catatan (opsional)"
+                  value={line.note ?? ''}
+                  onChange={(e) =>
+                    dispatch({ type: 'setNote', key: line.key, note: e.target.value })
+                  }
+                  className="mt-1 h-9 text-sm"
+                />
                 {remaining < 0 && (
                   <div className="text-sm font-semibold text-destructive">
                     Stok kurang: sisa{' '}
@@ -137,7 +147,20 @@ export function CartTable({
                 )}
               </div>
               <div className="text-right tabular-nums">
-                <div>{unit ? formatRupiah(unit.sellPrice) : '—'}</div>
+                <NumberInput
+                  aria-label={`Harga ${line.product.name}`}
+                  value={line.unitPrice ?? unit?.sellPrice ?? null}
+                  onValueChange={(next) => {
+                    if (next === null) return;
+                    dispatch({
+                      type: 'setPrice',
+                      key: line.key,
+                      unitPrice: next === unit?.sellPrice ? undefined : next,
+                    });
+                  }}
+                  prefix="Rp"
+                  className="h-10 w-36"
+                />
                 <div className="text-sm text-muted-foreground">/ {unit?.name}</div>
               </div>
               <div className="text-right font-semibold tabular-nums">
@@ -184,21 +207,46 @@ function QtyInput({
   suffix?: string | undefined;
   className: string;
 }) {
-  const [draft, setDraft] = useState<number | null | undefined>(undefined);
+  const [draft, setDraft] = useState<string | undefined>(undefined);
+  function parse(raw: string): number | null {
+    const cleaned = raw.replace(/\./g, '').trim();
+    if (cleaned === '' || cleaned === '-' || cleaned === '+') return null;
+    const n = Number(cleaned);
+    if (!Number.isFinite(n) || !Number.isInteger(n)) return null;
+    return n;
+  }
   return (
-    <NumberInput
-      aria-label={label}
-      data-qty-input={code}
-      value={draft === undefined ? value : draft}
-      onValueChange={(next) => {
-        setDraft(next);
-        if (next && next >= 1) onCommit(next);
-      }}
-      onBlur={() => setDraft(undefined)}
-      onFocus={(e) => e.target.select()}
-      onKeyDown={onKeyDown}
-      {...(suffix ? { suffix } : {})}
-      className={className}
-    />
+    <div className="relative">
+      <Input
+        aria-label={label}
+        data-qty-input={code}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        value={draft === undefined ? formatInteger(value) : draft}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setDraft(raw);
+          const n = parse(raw);
+          if (n !== null && n !== 0) onCommit(n);
+        }}
+        onBlur={() => {
+          if (draft !== undefined) {
+            const n = parse(draft);
+            if (n !== null && n !== 0) onCommit(n);
+          }
+          setDraft(undefined);
+        }}
+        onFocus={(e) => e.target.select()}
+        onKeyDown={onKeyDown}
+        className={cn('text-right tabular-nums', className)}
+        style={suffix ? { paddingRight: `calc(1.5rem + ${suffix.length}ch)` } : undefined}
+      />
+      {suffix && (
+        <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-muted-foreground">
+          {suffix}
+        </span>
+      )}
+    </div>
   );
 }

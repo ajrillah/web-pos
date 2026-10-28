@@ -1,5 +1,6 @@
 import { formatRupiah, localDate, type Sale } from '@toko-podomoro/shared';
-import { Play, Trash2 } from 'lucide-react';
+import { Play, Printer, Trash2 } from 'lucide-react';
+import { api } from '../../api/endpoints';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import {
@@ -73,6 +74,9 @@ export function HeldSalesDialog({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-semibold">
+                    {sale.number ?? 'DRAFT'} · {sale.customerName ?? 'UMUM'}
+                  </div>
+                  <div className="truncate text-sm text-muted-foreground">
                     {sale.items.map((i) => i.productName).join(', ')}
                   </div>
                   <div className="text-sm text-muted-foreground">
@@ -90,6 +94,14 @@ export function HeldSalesDialog({
                 >
                   <Play className="size-4" aria-hidden />
                   Lanjutkan
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Cetak draft ${time(sale.createdAt)}`}
+                  onClick={() => window.open(api.heldDraftUrl(sale.id), '_blank')}
+                >
+                  <Printer className="size-[18px]" aria-hidden />
                 </Button>
                 <Button
                   variant="ghost"

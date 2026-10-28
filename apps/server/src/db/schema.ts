@@ -274,6 +274,8 @@ export const saleItems = sqliteTable(
     pricingFactor: integer('pricing_factor').notNull(),
     subtotal: integer('subtotal').notNull(),
     costTotal: integer('cost_total').notNull(),
+    // MS2: optional per-line note; displayed on receipt in parentheses after product name.
+    note: text('note'),
     createdAt: createdAt(),
   },
   (t) => [
@@ -290,8 +292,8 @@ export const salePayments = sqliteTable(
     saleId: text('sale_id')
       .notNull()
       .references(() => sales.id),
-    method: text('method', { enum: ['cash', 'qris'] }).notNull(),
-    // Cash: amount received (change is in sales.change_amount). QRIS: amount paid.
+    method: text('method', { enum: ['cash', 'qris', 'transfer'] }).notNull(),
+    // Cash: amount received (change is in sales.change_amount). QRIS/transfer: amount paid.
     amount: integer('amount').notNull(),
     createdAt: createdAt(),
   },
@@ -330,7 +332,7 @@ export const customerPayments = sqliteTable(
     customerId: text('customer_id')
       .notNull()
       .references(() => customers.id),
-    method: text('method', { enum: ['cash', 'qris'] }).notNull(),
+    method: text('method', { enum: ['cash', 'qris', 'transfer'] }).notNull(),
     // Applied to receivables (sum of allocations).
     amount: integer('amount').notNull(),
     amountReceived: integer('amount_received').notNull(),
@@ -468,7 +470,7 @@ export const supplierPayments = sqliteTable(
     supplierId: text('supplier_id')
       .notNull()
       .references(() => suppliers.id),
-    method: text('method', { enum: ['cash', 'qris'] }).notNull(),
+    method: text('method', { enum: ['cash', 'qris', 'transfer'] }).notNull(),
     // Sum of allocations.
     amount: integer('amount').notNull(),
     // Set when this is the initial payment recorded with a purchase.

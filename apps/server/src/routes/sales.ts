@@ -18,6 +18,7 @@ import { z } from 'zod';
 import { currentActor, currentUser, requireApproval, requireUser } from '../auth/session';
 import type { ServiceContext } from '../services/context';
 import {
+  downloadHeldDraft,
   downloadReceipt,
   openReceipt,
   openReceiptFolder,
@@ -66,6 +67,15 @@ export const saleRoutes: FastifyPluginAsync<{ ctx: ServiceContext }> = async (ap
   app.post('/sales/held/:id/resume', async (request): Promise<ResumeHeldSaleResponse> => {
     const { id } = idParamsSchema.parse(request.params);
     return resumeHeldSale(ctx, id);
+  });
+
+  app.get('/sales/held/:id/receipt.pdf', async (request, reply) => {
+    const { id } = idParamsSchema.parse(request.params);
+    const { fileName, pdf } = await downloadHeldDraft(ctx, id);
+    return reply
+      .header('content-type', 'application/pdf')
+      .header('content-disposition', `attachment; filename="${fileName}"`)
+      .send(pdf);
   });
 
   app.delete('/sales/held/:id', async (request): Promise<DeletedCountResponse> => {

@@ -62,8 +62,11 @@ interface PricedLine {
   product: Product;
   unit: ProductUnit;
   qtyBase: number;
+  /** Sell price actually used (override or unit default). */
+  unitPrice: number;
   subtotal: number;
   costTotal: number;
+  note: string | null;
 }
 
 /** Loads current prices for the cart and computes each line; the client's numbers are not used. */
@@ -81,16 +84,26 @@ function priceLines(db: Executor, lines: SaleLineInput[]): PricedLine[] {
     if (!unit) {
       throw appErrors.productUnavailable(product.name);
     }
+    if (line.qtyBase === 0) {
+      throw appErrors.invalidQuantity(product.name);
+    }
     if (product.type === 'unit' && line.qtyBase % unit.factor !== 0) {
       throw appErrors.invalidQuantity(product.name);
     }
+    // MS2: cashier may override the sell price per line; only constraint is >= unit cost.
+    const unitPrice = line.unitPrice ?? unit.sellPrice;
+    if (unitPrice < unit.costPrice) {
+      throw appErrors.priceBelowCost(product.name);
+    }
+    const note = line.note ? line.note.trim() || null : null;
     return {
       product,
       unit,
       qtyBase: line.qtyBase,
+      unitPrice,
       subtotal: lineSubtotal({
         qtyBase: line.qtyBase,
-        unitPrice: unit.sellPrice,
+        unitPrice,
         unitFactor: unit.factor,
       }),
       costTotal: lineCostTotal({
@@ -98,6 +111,7 @@ function priceLines(db: Executor, lines: SaleLineInput[]): PricedLine[] {
         costPrice: product.costPrice,
         pricingFactor: product.pricingFactor,
       }),
+      note,
     };
   });
 }
@@ -115,11 +129,12 @@ function itemRows(saleId: string, lines: PricedLine[], createdAt: string) {
     unitName: line.unit.name,
     qtyBase: line.qtyBase,
     unitFactor: line.unit.factor,
-    unitPrice: line.unit.sellPrice,
+    unitPrice: line.unitPrice,
     costPrice: line.product.costPrice,
     pricingFactor: line.product.pricingFactor,
     subtotal: line.subtotal,
     costTotal: line.costTotal,
+    note: line.note,
     createdAt,
   }));
 }
@@ -167,6 +182,7 @@ function toSales(db: Executor, rows: SaleWithCashier[]): Sale[] {
         unitFactor: i.unitFactor,
         unitPrice: i.unitPrice,
         subtotal: i.subtotal,
+        note: i.note ?? null,
       })),
     payments: payments
       .filter((p) => p.saleId === row.id)
@@ -198,12 +214,22 @@ export function createSale(
     }
     const lines = priceLines(tx, input.lines);
     const sum = lines.reduce((acc, l) => acc + l.subtotal, 0);
+    if (sum < 0) {
+      throw appErrors.saleTotalNegative();
+    }
     const { total, roundingAmount } = roundSaleTotal(sum, getSettings(tx).rounding);
     if (total !== input.expectedTotal) {
       throw appErrors.totalChanged(formatRupiah(total));
     }
     if (input.qris > total) {
       throw appErrors.qrisExceedsTotal();
+    }
+    const transfer = input.transfer ?? 0;
+    if (transfer > total) {
+      throw appErrors.transferExceedsTotal();
+    }
+    if (total < 0) {
+      throw appErrors.saleTotalNegative();
     }
     const customer = input.customerId ? findCustomerById(tx, input.customerId) : undefined;
     if (input.customerId && !customer) {
@@ -212,7 +238,7 @@ export function createSale(
     if (customer && !customer.active) {
       throw appErrors.customerInactive();
     }
-    const paidTotal = input.cash + input.qris;
+    const paidTotal = input.cash + input.qris + transfer;
     // Underpayment is kasbon for the chosen customer (docs/design.md 6.1, 6.7).
     const debtAmount = Math.max(0, total - paidTotal);
     if (debtAmount > 0 && !customer) {
@@ -255,6 +281,9 @@ export function createSale(
         : []),
       ...(input.qris > 0
         ? [{ saleId: input.id, method: 'qris' as const, amount: input.qris }]
+        : []),
+      ...(transfer > 0
+        ? [{ saleId: input.id, method: 'transfer' as const, amount: transfer }]
         : []),
     ]);
     for (const line of lines) {
@@ -374,6 +403,8 @@ export function resumeHeldSale(ctx: ServiceContext, id: string): ResumeHeldSaleR
         unitId: unit.id,
         qtyBase: item.qtyBase,
         heldUnitPrice: item.unitPrice,
+        note: item.note ?? null,
+        unitPrice: item.unitPrice,
       });
     }
     deleteHeldSales(tx, [id]);

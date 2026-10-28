@@ -120,7 +120,27 @@ describe('roundSaleTotal', () => {
     expect(roundSaleTotal(49, '100')).toEqual({ total: 0, roundingAmount: -49 });
   });
 
-  it('rejects negative sums', () => {
-    expect(() => roundSaleTotal(-1, '100')).toThrow(RangeError);
+  it('rounds negative sums by magnitude', () => {
+    expect(roundSaleTotal(-1, '100')).toEqual({ total: 0, roundingAmount: 1 });
+  });
+});
+
+describe('returns (negative quantity)', () => {
+  it('lineSubtotal returns negative subtotal for negative qty', () => {
+    expect(lineSubtotal({ qtyBase: -2, unitPrice: 3_500, unitFactor: 1 })).toBe(-7_000);
+  });
+
+  it('lineCostTotal returns negative cost for negative qty', () => {
+    expect(lineCostTotal({ qtyBase: -3, costPrice: 2_750, pricingFactor: 1 })).toBe(-8_250);
+  });
+
+  it('mixed cart produces correct net total', () => {
+    const subtotals = [
+      lineSubtotal({ qtyBase: 2, unitPrice: 3_500, unitFactor: 1 }),
+      lineSubtotal({ qtyBase: -1, unitPrice: 3_500, unitFactor: 1 }),
+    ];
+    const net = subtotals.reduce((a, b) => a + b, 0);
+    expect(net).toBe(3_500);
+    expect(roundSaleTotal(net, 'none')).toEqual({ total: 3_500, roundingAmount: 0 });
   });
 });

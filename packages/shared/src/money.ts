@@ -49,7 +49,9 @@ export interface LineSubtotalInput {
 
 /** subtotal = round(qty_base * unit_price / unit_factor), half up, once per line. */
 export function lineSubtotal({ qtyBase, unitPrice, unitFactor }: LineSubtotalInput): number {
-  return mulDivRoundHalfUp(qtyBase, unitPrice, unitFactor);
+  const negative = qtyBase < 0;
+  const magnitude = mulDivRoundHalfUp(Math.abs(qtyBase), unitPrice, unitFactor);
+  return negative && magnitude !== 0 ? -magnitude : magnitude;
 }
 
 export interface LineCostTotalInput {
@@ -60,7 +62,9 @@ export interface LineCostTotalInput {
 
 /** cost_total = round(qty_base * cost_price / pricing_factor), half up, once per line. */
 export function lineCostTotal({ qtyBase, costPrice, pricingFactor }: LineCostTotalInput): number {
-  return mulDivRoundHalfUp(qtyBase, costPrice, pricingFactor);
+  const negative = qtyBase < 0;
+  const magnitude = mulDivRoundHalfUp(Math.abs(qtyBase), costPrice, pricingFactor);
+  return negative && magnitude !== 0 ? -magnitude : magnitude;
 }
 
 export interface RoundedTotal {
@@ -74,9 +78,11 @@ const roundingSteps: Record<RoundingMode, number> = { none: 1, '100': 100, '500'
 
 /** Rounds the sum of line subtotals to the nearest step; ties round up. */
 export function roundSaleTotal(subtotalSum: number, mode: RoundingMode): RoundedTotal {
-  assertNonNegative('subtotalSum', subtotalSum);
+  assertSafeInteger('subtotalSum', subtotalSum);
   const step = roundingSteps[mode];
-  const total = mulDivRoundHalfUp(subtotalSum, 1, step) * step;
+  const negative = subtotalSum < 0;
+  const magnitude = mulDivRoundHalfUp(Math.abs(subtotalSum), 1, step) * step;
+  const total = negative && magnitude !== 0 ? -magnitude : magnitude;
   assertSafeInteger('total', total);
   return { total, roundingAmount: total - subtotalSum };
 }

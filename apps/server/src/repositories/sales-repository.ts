@@ -99,7 +99,7 @@ export function insertSaleItems(db: Executor, rows: NewSaleItemRow[]): void {
 
 export function insertSalePayments(
   db: Executor,
-  rows: { saleId: string; method: 'cash' | 'qris'; amount: number }[],
+  rows: { saleId: string; method: 'cash' | 'qris' | 'transfer'; amount: number }[],
 ): void {
   if (rows.length > 0) db.insert(salePayments).values(rows).run();
 }

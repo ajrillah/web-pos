@@ -207,6 +207,17 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
   - Rejected if the sale's receivable has any active payments.
   - Returns stock (movements of type `void`) and voids the receivable.
 
+### 6.1.1 Kasir revisions (MS2)
+- Customer on all sales: `sales.customer_id` is nullable; `NULL` means "UMUM" (display only, no dummy record). The cashier can pick or quick-add a customer on any sale, paid or kasbon. The Kasir shows a customer picker before payment.
+- Price override: the cashier can change the sell price per cart line freely, with no owner PIN. The only validation is `sell_price >= cost_price` at that unit's level. The overridden price is stored in `sale_items.unit_price`.
+- Item note: `sale_items.note` (nullable text). Optional per cart line; printed on the receipt in parentheses after the product name, e.g. "Indomie Goreng (Aceh)".
+- Qty minus (return): a cart line may carry a negative quantity, stored as a separate `sale_items` row. Negative quantity adds stock back (a `stock_movement` with positive `qty_change`), and reduces the sale total, omzet, and profit. A sale can mix positive and negative lines; the net total must be >= 0.
+- Transfer bank: `transfer` is a third payment method alongside `tunai` and `qris`, with the same flow as QRIS (no change calculation).
+- Auto-hold: when the cart has items and the user navigates away (an F-key to another menu or any route change), the cart is auto-saved as a held sale in the DB, with toast "Nota ditahan otomatis". On return to Kasir the held-sales list is shown if any exist.
+- Held-sales list info: shows the nota number (or "DRAFT" for a held sale) and the customer name (or "UMUM").
+- Print draft held: a held sale can be printed as-is with a "DRAFT" watermark. It is not recorded as a completed sale and does not affect stock or omzet.
+- Total items: the cart summary shows the line count as "Total Item: N".
+
 ### 6.2 Receipt
 - After payment: prompt "Simpan nota PDF?" — `Enter` = yes, `Esc` = skip.
 - Server generates the PDF (58 or 80 mm, setting) and saves it to the receipt folder (setting `receipt_folder`; default `%USERPROFILE%\Documents\TokoPodomoro\Nota\<TRX>.pdf`).

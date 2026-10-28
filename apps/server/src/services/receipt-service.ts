@@ -72,10 +72,16 @@ function localDateTime(iso: string): string {
 export interface ReceiptOptions {
   /** Every receipt after the first is a copy ("SALINAN"). */
   copy: boolean;
+  /** Held-sale draft: prints "DRAFT" watermark and is not recorded. */
+  draft?: boolean;
 }
 
 /** The receipt as fixed-width text lines. Pure, so it is tested directly. */
-export function receiptLines(sale: Sale, settings: Settings, { copy }: ReceiptOptions): string[] {
+export function receiptLines(
+  sale: Sale,
+  settings: Settings,
+  { copy, draft }: ReceiptOptions,
+): string[] {
   const w = LINE_CHARS[settings.receiptWidth];
   const rule = '-'.repeat(w);
   const lines: string[] = [];
@@ -84,6 +90,7 @@ export function receiptLines(sale: Sale, settings: Settings, { copy }: ReceiptOp
   if (settings.storePhone) lines.push(...center(settings.storePhone, w));
   if (copy) lines.push(...center('*** SALINAN ***', w));
   if (sale.status === 'voided') lines.push(...center('*** DIBATALKAN ***', w));
+  if (draft) lines.push(...center('*** DRAFT ***', w));
   lines.push(rule);
   lines.push(...columns('No', sale.number ?? '-', w));
   lines.push(...columns('Tanggal', localDateTime(sale.completedAt ?? sale.createdAt), w));
@@ -91,7 +98,8 @@ export function receiptLines(sale: Sale, settings: Settings, { copy }: ReceiptOp
   if (sale.customerName) lines.push(...columns('Pelanggan', sale.customerName, w));
   lines.push(rule);
   for (const item of sale.items) {
-    lines.push(...wrap(item.productName, w));
+    const displayName = item.note ? `${item.productName} (${item.note})` : item.productName;
+    lines.push(...wrap(displayName, w));
     const qty = `${formatUnitQty(item.qtyBase, item.unitFactor)} ${item.unitName}`;
     lines.push(
       ...columns(`  ${qty} x ${formatInteger(item.unitPrice)}`, formatInteger(item.subtotal), w),
@@ -104,9 +112,9 @@ export function receiptLines(sale: Sale, settings: Settings, { copy }: ReceiptOp
   }
   lines.push(...columns('TOTAL', formatRupiah(sale.total), w));
   for (const payment of sale.payments) {
-    lines.push(
-      ...columns(payment.method === 'cash' ? 'Tunai' : 'QRIS', formatInteger(payment.amount), w),
-    );
+    const methodLabel =
+      payment.method === 'cash' ? 'Tunai' : payment.method === 'qris' ? 'QRIS' : 'Transfer';
+    lines.push(...columns(methodLabel, formatInteger(payment.amount), w));
   }
   if (sale.debtAmount > 0) {
     lines.push(...columns('Kasbon', formatInteger(sale.debtAmount), w));
@@ -274,6 +282,23 @@ export function openReceipt(ctx: ServiceContext, kind: ReceiptKind, id: string):
     throw appErrors.receiptNotSaved();
   }
   ctx.openPath(doc.receiptFile);
+}
+
+/** Downloads a held sale as a DRAFT receipt PDF (not recorded, no stock/omzet effect). */
+export async function downloadHeldDraft(
+  ctx: ServiceContext,
+  id: string,
+): Promise<{ fileName: string; pdf: Buffer }> {
+  const sale = getSale(ctx, id);
+  if (sale.status !== 'held') {
+    throw appErrors.saleNotFound();
+  }
+  const settings = getSettings(ctx.db);
+  const pdf = await renderReceiptPdf(
+    receiptLines(sale, settings, { copy: false, draft: true }),
+    settings.receiptWidth === '80' ? 80 : 58,
+  );
+  return { fileName: `DRAFT-${sale.id.slice(0, 8)}.pdf`, pdf };
 }
 
 /** "Buka folder": opens the receipt folder, creating it first if needed. */

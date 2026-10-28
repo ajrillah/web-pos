@@ -14,10 +14,14 @@ export interface CartLine {
   key: string;
   product: Product;
   unitId: string;
-  /** Quantity in the product's stock unit; normal items: a multiple of the unit factor. */
+  /** Quantity in the product's stock unit; normal items: a multiple of the unit factor. May be negative (return). */
   qtyBase: number;
   /** Price when the sale was held, if it came back from Tahan. */
   heldUnitPrice?: number;
+  /** Optional per-line note (shown on receipt in parentheses). */
+  note?: string;
+  /** Cashier-overridden sell price for this line (per unit factor base units). */
+  unitPrice?: number;
 }
 
 export interface Cart {
@@ -32,6 +36,8 @@ export type CartAction =
   | { type: 'add'; product: Product; unitId?: string; qtyBase?: number }
   | { type: 'setQty'; key: string; qtyBase: number }
   | { type: 'setUnit'; key: string; unitId: string }
+  | { type: 'setNote'; key: string; note: string }
+  | { type: 'setPrice'; key: string; unitPrice: number | undefined }
   | { type: 'remove'; key: string }
   | { type: 'replaceProducts'; products: Map<string, Product> }
   | { type: 'load'; lines: Omit<CartLine, 'key'>[] }
@@ -49,8 +55,9 @@ export function primaryUnit(product: Product): ProductUnit | undefined {
 
 export function lineSubtotalOf(line: CartLine): number {
   const unit = lineUnit(line);
+  const price = line.unitPrice ?? unit?.sellPrice ?? 0;
   return unit
-    ? lineSubtotal({ qtyBase: line.qtyBase, unitPrice: unit.sellPrice, unitFactor: unit.factor })
+    ? lineSubtotal({ qtyBase: line.qtyBase, unitPrice: price, unitFactor: unit.factor })
     : 0;
 }
 
@@ -83,12 +90,29 @@ export function cartReducer(cart: Cart, action: CartAction): Cart {
       };
     }
     case 'setQty':
-      if (action.qtyBase < 1) return cart;
+      if (action.qtyBase === 0) return cart;
       return {
         lines: cart.lines.map((l) =>
           l.key === action.key ? { ...l, qtyBase: action.qtyBase } : l,
         ),
         newestKey: action.key,
+      };
+    case 'setNote':
+      return {
+        lines: cart.lines.map((l) => (l.key === action.key ? { ...l, note: action.note } : l)),
+        newestKey: cart.newestKey,
+      };
+    case 'setPrice':
+      return {
+        lines: cart.lines.map((l) => {
+          if (l.key !== action.key) return l;
+          if (action.unitPrice === undefined) {
+            const { unitPrice: _, ...rest } = l;
+            return rest;
+          }
+          return { ...l, unitPrice: action.unitPrice };
+        }),
+        newestKey: cart.newestKey,
       };
     case 'setUnit':
       return {
@@ -100,7 +124,7 @@ export function cartReducer(cart: Cart, action: CartAction): Cart {
           // Keep the count of sell units: 2 bungkus becomes 2 slop.
           const count = Math.max(1, Math.round(l.qtyBase / from.factor));
           // A different unit has its own price, so the held-price comparison no longer applies.
-          const { heldUnitPrice: _, ...rest } = l;
+          const { heldUnitPrice: _, unitPrice: __, ...rest } = l;
           return { ...rest, unitId: to.id, qtyBase: count * to.factor };
         }),
         newestKey: action.key,
@@ -142,7 +166,13 @@ export function cartTotals(cart: Cart, rounding: RoundingMode): CartTotals {
 }
 
 export function saleLines(cart: Cart): SaleLineInput[] {
-  return cart.lines.map((l) => ({ productId: l.product.id, unitId: l.unitId, qtyBase: l.qtyBase }));
+  return cart.lines.map((l) => ({
+    productId: l.product.id,
+    unitId: l.unitId,
+    qtyBase: l.qtyBase,
+    ...(l.note ? { note: l.note } : {}),
+    ...(l.unitPrice !== undefined ? { unitPrice: l.unitPrice } : {}),
+  }));
 }
 
 /** Base units of `product` in the whole cart (it can be on several lines). */

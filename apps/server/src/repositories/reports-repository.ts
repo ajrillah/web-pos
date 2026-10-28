@@ -155,7 +155,7 @@ export function salesMoney(db: Executor, { from, to }: Range) {
 export function paymentsMoney(db: Executor, table: 'customer' | 'supplier', { from, to }: Range) {
   const name = sql.raw(table === 'customer' ? 'customer_payments' : 'supplier_payments');
   return db.all<{
-    method: 'cash' | 'qris';
+    method: 'cash' | 'qris' | 'transfer';
     amount: number;
     status: 'active' | 'voided';
     created_at: string;

@@ -288,6 +288,24 @@ describe('POST /api/sales', () => {
     expect([count('sales'), count('sale_items'), count('sale_payments')]).toEqual([0, 0, 0]);
     expect(await stockOf(indomie)).toBe(100);
   });
+
+  it('completes a sale mixing a positive line and a negative return line', async () => {
+    const res = await sell({
+      id: crypto.randomUUID(),
+      lines: [line(indomie, 'pcs', 2), line(indomie, 'pcs', -1)],
+      cash: 3500,
+      qris: 0,
+      expectedTotal: 3500,
+    });
+    expect(res.statusCode).toBe(201);
+    const body = res.json() as { sale: Sale };
+    expect(body.sale.total).toBe(3500);
+    expect(body.sale.items).toHaveLength(2);
+    expect(body.sale.items[0]?.qtyBase).toBe(2);
+    expect(body.sale.items[1]?.qtyBase).toBe(-1);
+    expect(await stockOf(indomie)).toBe(99);
+    expect(sumMovements(h.handle.db, indomie.id)).toBe(99);
+  });
 });
 
 describe('sale numbers', () => {
