@@ -116,7 +116,7 @@ export function createAdjustment(
       productId: product.id,
       qtyChange: input.qtyChange,
       reason: input.reason,
-      note: input.note ?? null,
+      note: input.note ? input.note.toUpperCase() : null,
       costPrice: product.costPrice,
       userId: actor.id,
       createdAt: ctx.now().toISOString(),

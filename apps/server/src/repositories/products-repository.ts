@@ -7,7 +7,15 @@ export type NewProductRow = typeof products.$inferInsert;
 export type ProductPatch = Partial<
   Pick<
     ProductRow,
-    'code' | 'name' | 'categoryId' | 'type' | 'baseUnit' | 'pricingFactor' | 'costPrice' | 'active'
+    | 'code'
+    | 'name'
+    | 'categoryId'
+    | 'type'
+    | 'baseUnit'
+    | 'pricingFactor'
+    | 'costPrice'
+    | 'priceAlert'
+    | 'active'
   >
 >;
 export type ProductWithCategory = ProductRow & { categoryName: string };

@@ -103,6 +103,8 @@ export const productSchema = z.object({
   stock: z.number().int(),
   /** Has stock movements: type, stock unit kind, and smallest unit are fixed (design 6.5). */
   hasStockMovements: z.boolean(),
+  /** MS3: flagged when a purchase records a cost_price above the current cost. */
+  priceAlert: z.boolean(),
   active: z.boolean(),
   /** Shape of `units`: one pyramid chain, or independent flat rows. */
   unitMode: unitModeSchema,

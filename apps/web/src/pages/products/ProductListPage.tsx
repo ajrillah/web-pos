@@ -7,7 +7,7 @@ import {
   type ProductStatusFilter,
   type ProductsResponse,
 } from '@toko-podomoro/shared';
-import { ChevronLeft, ChevronRight, PackagePlus, Search } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, PackagePlus, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { errorMessage } from '../../api/client';
@@ -57,7 +57,15 @@ const columns = column.columns([
     header: 'Nama barang',
     cell: ({ row }) => (
       <div className="leading-snug">
-        <div className="font-semibold">{row.original.name}</div>
+        <div className="flex items-center gap-2 font-semibold">
+          {row.original.priceAlert && (
+            <AlertTriangle
+              className="size-4 text-warning-foreground"
+              aria-label="Harga pokok naik"
+            />
+          )}
+          {row.original.name}
+        </div>
         <div className="text-sm text-muted-foreground">{row.original.categoryName}</div>
       </div>
     ),

@@ -302,7 +302,7 @@ describe('customer payments', () => {
     const all = await openReceivables(customer);
     const payment = (await pay(customer, all.map((r) => r.id).slice(0, 2), 60000)).json()
       .payment as CustomerPayment;
-    const lines = paymentReceiptLines(payment, getSettings(h.handle.db), { copy: false });
+    const lines = paymentReceiptLines(payment, getSettings(h.handle.db));
     expect(lines).toEqual(
       expect.arrayContaining([
         '       BUKTI BAYAR KASBON',

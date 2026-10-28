@@ -101,6 +101,11 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+  /* MS3: user text inputs are displayed uppercase (conversion happens server-side). */
+  input,
+  textarea {
+    text-transform: uppercase;
+  }
   ::placeholder {
     color: var(--subtle-foreground);
     opacity: 1;

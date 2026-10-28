@@ -95,7 +95,7 @@ function priceLines(db: Executor, lines: SaleLineInput[]): PricedLine[] {
     if (unitPrice < unit.costPrice) {
       throw appErrors.priceBelowCost(product.name);
     }
-    const note = line.note ? line.note.trim() || null : null;
+    const note = line.note ? line.note.trim().toUpperCase() || null : null;
     return {
       product,
       unit,

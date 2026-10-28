@@ -71,24 +71,19 @@ function localDateTime(iso: string): string {
 
 export interface ReceiptOptions {
   /** Every receipt after the first is a copy ("SALINAN"). */
-  copy: boolean;
+  copy?: boolean;
   /** Held-sale draft: prints "DRAFT" watermark and is not recorded. */
   draft?: boolean;
 }
 
 /** The receipt as fixed-width text lines. Pure, so it is tested directly. */
-export function receiptLines(
-  sale: Sale,
-  settings: Settings,
-  { copy, draft }: ReceiptOptions,
-): string[] {
+export function receiptLines(sale: Sale, settings: Settings, { draft }: ReceiptOptions): string[] {
   const w = LINE_CHARS[settings.receiptWidth];
   const rule = '-'.repeat(w);
   const lines: string[] = [];
   lines.push(...center(settings.storeName, w));
   if (settings.storeAddress) lines.push(...center(settings.storeAddress, w));
   if (settings.storePhone) lines.push(...center(settings.storePhone, w));
-  if (copy) lines.push(...center('*** SALINAN ***', w));
   if (sale.status === 'voided') lines.push(...center('*** DIBATALKAN ***', w));
   if (draft) lines.push(...center('*** DRAFT ***', w));
   lines.push(rule);
@@ -106,6 +101,7 @@ export function receiptLines(
     );
   }
   lines.push(rule);
+  lines.push(`Total Item: ${sale.itemCount}`);
   lines.push(...columns('Subtotal', formatInteger(sale.subtotal), w));
   if (sale.roundingAmount !== 0) {
     lines.push(...columns('Pembulatan', formatInteger(sale.roundingAmount), w));
@@ -118,12 +114,14 @@ export function receiptLines(
   }
   if (sale.debtAmount > 0) {
     lines.push(...columns('Kasbon', formatInteger(sale.debtAmount), w));
+    const before = (sale.customerBalanceAfter ?? sale.debtAmount) - sale.debtAmount;
+    lines.push(...columns('Kasbon Sebelumnya', formatRupiah(before), w));
+    lines.push(...columns('Kasbon Transaksi Ini', formatRupiah(sale.debtAmount), w));
+    lines.push(
+      ...columns('Total Kasbon', formatRupiah(sale.customerBalanceAfter ?? sale.debtAmount), w),
+    );
   } else {
     lines.push(...columns('Kembali', formatInteger(sale.changeAmount), w));
-  }
-  if (sale.customerBalanceAfter !== null) {
-    lines.push(rule);
-    lines.push(...columns('Sisa kasbon', formatRupiah(sale.customerBalanceAfter), w));
   }
   lines.push(rule);
   if (settings.receiptFooter) lines.push(...center(settings.receiptFooter, w));
@@ -131,11 +129,7 @@ export function receiptLines(
 }
 
 /** Payment receipt ("bukti bayar kasbon") as fixed-width text lines. */
-export function paymentReceiptLines(
-  payment: CustomerPayment,
-  settings: Settings,
-  { copy }: ReceiptOptions,
-): string[] {
+export function paymentReceiptLines(payment: CustomerPayment, settings: Settings): string[] {
   const w = LINE_CHARS[settings.receiptWidth];
   const rule = '-'.repeat(w);
   const lines: string[] = [];
@@ -143,7 +137,6 @@ export function paymentReceiptLines(
   if (settings.storeAddress) lines.push(...center(settings.storeAddress, w));
   if (settings.storePhone) lines.push(...center(settings.storePhone, w));
   lines.push(...center('BUKTI BAYAR KASBON', w));
-  if (copy) lines.push(...center('*** SALINAN ***', w));
   if (payment.status === 'voided') lines.push(...center('*** DIBATALKAN ***', w));
   lines.push(rule);
   lines.push(...columns('No', payment.number, w));
@@ -201,6 +194,8 @@ interface ReceiptDoc {
   number: string;
   receiptCount: number;
   receiptFile: string | null;
+  customerName: string | null;
+  createdAt: string;
   lines: (settings: Settings, copy: boolean) => string[];
   record: (patch: { receiptCount: number; receiptFile?: string }) => void;
 }
@@ -215,7 +210,9 @@ function receiptDoc(ctx: ServiceContext, kind: ReceiptKind, id: string): Receipt
       number: payment.number,
       receiptCount: payment.receiptCount,
       receiptFile: row?.receiptFile ?? null,
-      lines: (settings, copy) => paymentReceiptLines(payment, settings, { copy }),
+      customerName: payment.customerName,
+      createdAt: payment.createdAt,
+      lines: (settings) => paymentReceiptLines(payment, settings),
       record: (patch) => updatePayment(ctx.db, id, patch),
     };
   }
@@ -228,12 +225,27 @@ function receiptDoc(ctx: ServiceContext, kind: ReceiptKind, id: string): Receipt
     number: row.number,
     receiptCount: row.receiptCount,
     receiptFile: row.receiptFile,
-    lines: (settings, copy) => receiptLines(sale, settings, { copy }),
+    customerName: sale.customerName,
+    createdAt: sale.completedAt ?? sale.createdAt,
+    lines: (settings) => receiptLines(sale, settings, {}),
     record: (patch) => updateSale(ctx.db, id, patch),
   };
 }
 
-/** Builds the next receipt and its file name (the first is the original, later ones copies). */
+function receiptFileDate(iso: string): string {
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${dd}${mm}${yy}`;
+}
+
+function sanitizeReceiptName(value: string | null): string {
+  const cleaned = (value ?? '').replace(/[^A-Za-z0-9]/g, '');
+  return cleaned || 'UMUM';
+}
+
+/** Builds the next receipt and its file name (DDMMYY-NomorNota-NamaCustomer). */
 async function nextReceipt(ctx: ServiceContext, kind: ReceiptKind, id: string) {
   const doc = receiptDoc(ctx, kind, id);
   const settings = getSettings(ctx.db);
@@ -242,7 +254,9 @@ async function nextReceipt(ctx: ServiceContext, kind: ReceiptKind, id: string) {
     doc.lines(settings, copy),
     settings.receiptWidth === '80' ? 80 : 58,
   );
-  return { doc, settings, copy, pdf, fileName: `${doc.number}${copy ? '-SALINAN' : ''}.pdf` };
+  const numberPart = doc.number.split('-').pop() ?? doc.number;
+  const fileName = `${receiptFileDate(doc.createdAt)}-${numberPart}-${sanitizeReceiptName(doc.customerName)}.pdf`;
+  return { doc, settings, copy, pdf, fileName };
 }
 
 /** Saves the receipt PDF to the receipt folder: `<NO>.pdf`, copies `<NO>-SALINAN.pdf`. */

@@ -35,10 +35,11 @@ export function createCategory(
   input: CreateCategoryRequest,
 ): Category {
   return ctx.db.transaction((tx) => {
-    if (findCategoryByName(tx, input.name)) {
+    const name = input.name.toUpperCase();
+    if (findCategoryByName(tx, name)) {
       throw appErrors.categoryNameTaken();
     }
-    const row = insertCategory(tx, input.name);
+    const row = insertCategory(tx, name);
     insertAudit(tx, {
       userId: actor.id,
       approvedBy: actor.approvedBy ?? null,
@@ -67,13 +68,15 @@ export function updateCategoryById(
       throw appErrors.defaultCategoryLocked();
     }
     if (input.name !== undefined) {
-      const clash = findCategoryByName(tx, input.name);
+      const name = input.name.toUpperCase();
+      const clash = findCategoryByName(tx, name);
       if (clash && clash.id !== row.id) {
         throw appErrors.categoryNameTaken();
       }
+      input = { ...input, name };
     }
     const patch: CategoryPatch = {};
-    if (input.name !== undefined) patch.name = input.name;
+    if (input.name !== undefined) patch.name = input.name.toUpperCase();
     if (input.active !== undefined) patch.active = input.active;
     const updated = updateCategory(tx, row.id, patch);
     insertAudit(tx, {

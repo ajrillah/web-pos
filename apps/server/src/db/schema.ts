@@ -102,6 +102,8 @@ export const products = sqliteTable(
     costPrice: integer('cost_price').notNull(),
     // Cache of SUM(stock_movements.qty_change); updated in the same transaction.
     stock: integer('stock').notNull().default(0),
+    // MS3: flagged when a purchase records a cost_price above the product's current cost.
+    priceAlert: integer('price_alert', { mode: 'boolean' }).notNull().default(false),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
