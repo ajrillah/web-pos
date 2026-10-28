@@ -17,7 +17,12 @@ export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 export const saleLineInputSchema = z.object({
   productId: z.string().min(1),
   unitId: z.string().min(1),
-  qtyBase: z.number().int().min(-MAX_QTY).max(MAX_QTY).refine((v) => v !== 0),
+  qtyBase: z
+    .number()
+    .int()
+    .min(-MAX_QTY)
+    .max(MAX_QTY)
+    .refine((v) => v !== 0),
   note: z.string().trim().max(200).optional().or(z.literal('')),
   unitPrice: z.number().int().min(0).optional(),
 });

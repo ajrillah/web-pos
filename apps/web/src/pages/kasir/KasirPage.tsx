@@ -68,6 +68,23 @@ export function KasirPage() {
   const [paidKasbon, setPaidKasbon] = useState<CustomerPayment | null>(null);
   // One id per cart: retries of the same payment reuse it (the server rejects duplicates).
   const [saleId, setSaleId] = useState(() => crypto.randomUUID());
+  const cartRef = useRef(cart);
+  useEffect(() => {
+    cartRef.current = cart;
+  }, [cart]);
+
+  // Auto-hold: when the Kasir screen unmounts with items still in the cart (any route change
+  // or F-key navigation), save them as a held sale.
+  useEffect(() => {
+    return () => {
+      const c = cartRef.current;
+      if (c.lines.length === 0) return;
+      void api
+        .holdSale({ id: crypto.randomUUID(), lines: saleLines(c) })
+        .then(() => toast.success('Nota ditahan otomatis'))
+        .catch(() => undefined);
+    };
+  }, []);
 
   const focusSearch = useCallback(() => {
     requestAnimationFrame(() => searchRef.current?.focus());
@@ -85,9 +102,15 @@ export function KasirPage() {
       .settings()
       .then((r) => setSettings(r.settings))
       .catch((err: unknown) => toast.error(errorMessage(err)));
-    loadHeld();
+    api
+      .listHeldSales()
+      .then((r) => {
+        setHeldSales(r.heldSales);
+        if (r.heldSales.length > 0) setDialog('held');
+      })
+      .catch((err: unknown) => toast.error(errorMessage(err)));
     focusSearch();
-  }, [loadHeld, focusSearch]);
+  }, [focusSearch]);
 
   const totals = cartTotals(cart, settings?.rounding ?? 'none');
   const isEmpty = cart.lines.length === 0;
@@ -143,7 +166,16 @@ export function KasirPage() {
   async function resume(sale: Sale) {
     try {
       const { lines, removed } = await api.resumeHeldSale(sale.id);
-      dispatch({ type: 'load', lines });
+      dispatch({
+        type: 'load',
+        lines: lines.map((l) => ({
+          product: l.product,
+          unitId: l.unitId,
+          qtyBase: l.qtyBase,
+          heldUnitPrice: l.heldUnitPrice,
+          ...(l.note ? { note: l.note } : {}),
+        })),
+      });
       setSaleId(crypto.randomUUID());
       setDialog(null);
       loadHeld();
@@ -237,6 +269,12 @@ export function KasirPage() {
 
         <aside className="flex w-[384px] shrink-0 flex-col gap-4">
           <Card className="space-y-3 p-6">
+            <div className="flex justify-between text-[17px]">
+              <span className="text-muted-foreground">Total Item:</span>
+              <span className="tabular-nums" data-testid="item-count">
+                {cart.lines.length}
+              </span>
+            </div>
             <div className="flex justify-between text-[17px]">
               <span className="text-muted-foreground">Subtotal</span>
               <span className="tabular-nums" data-testid="subtotal">

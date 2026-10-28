@@ -78,6 +78,13 @@
       "when": 1793112646308,
       "tag": "0010_wealthy_makkari",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1793159503198,
+      "tag": "0011_smart_the_twelve",
+      "breakpoints": true
     }
   ]
 }

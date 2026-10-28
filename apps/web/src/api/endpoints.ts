@@ -165,6 +165,7 @@ export const api = {
       `/sales/held?${toSearchParams({ before: day })}`,
       deletedCountResponseSchema,
     ),
+  heldDraftUrl: (id: string) => `/api/sales/held/${encodeURIComponent(id)}/receipt.pdf`,
   openReceiptFolder: () => apiRequest('POST', '/receipts/open-folder', null),
 
   listCustomers: (query: CustomersQuery) =>

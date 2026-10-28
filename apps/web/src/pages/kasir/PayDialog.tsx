@@ -51,6 +51,7 @@ export function PayDialog({
 }) {
   const [cash, setCash] = useState<number | null>(null);
   const [qris, setQris] = useState<number | null>(null);
+  const [transfer, setTransfer] = useState<number | null>(null);
   const [step, setStep] = useState<'pay' | 'kasbon'>('pay');
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,16 +61,18 @@ export function PayDialog({
     if (open) {
       setCash(null);
       setQris(null);
+      setTransfer(null);
       setStep('pay');
       setCustomer(null);
       setError(null);
     }
   }, [open]);
 
-  const paid = (cash ?? 0) + (qris ?? 0);
+  const paid = (cash ?? 0) + (qris ?? 0) + (transfer ?? 0);
   const change = paid - total;
   const shortfall = Math.max(0, total - paid);
   const qrisTooHigh = (qris ?? 0) > total;
+  const transferTooHigh = (transfer ?? 0) > total;
 
   async function submitSale(kasbonCustomer: Customer | null) {
     setBusy(true);
@@ -81,8 +84,9 @@ export function PayDialog({
           lines,
           cash: cash ?? 0,
           qris: qris ?? 0,
+          transfer: transfer ?? 0,
           expectedTotal: total,
-          ...(kasbonCustomer ? { customerId: kasbonCustomer.id } : {}),
+          ...((kasbonCustomer ?? customer) ? { customerId: (kasbonCustomer ?? customer)!.id } : {}),
         }),
       );
     } catch (err) {
@@ -105,12 +109,16 @@ export function PayDialog({
       setError('QRIS tidak boleh melebihi total.');
       return;
     }
-    if (shortfall > 0) {
+    if (transferTooHigh) {
+      setError('Transfer tidak boleh melebihi total.');
+      return;
+    }
+    if (shortfall > 0 && !customer) {
       setError(null);
       setStep('kasbon');
       return;
     }
-    void submitSale(null);
+    void submitSale(customer);
   }
 
   return (
@@ -211,6 +219,19 @@ export function PayDialog({
         ) : (
           <form onSubmit={pay} className="space-y-5" noValidate>
             <div className="space-y-2">
+              <Label>Pelanggan (opsional)</Label>
+              {customer ? (
+                <div className="flex items-center justify-between rounded-[20px] bg-selected px-4 py-3">
+                  <span className="font-semibold">{customer.name}</span>
+                  <Button variant="ghost" size="sm" onClick={() => setCustomer(null)}>
+                    Ganti
+                  </Button>
+                </div>
+              ) : (
+                <CustomerPicker onPick={setCustomer} />
+              )}
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="pay-cash">Tunai</Label>
               <NumberInput
                 id="pay-cash"
@@ -254,6 +275,16 @@ export function PayDialog({
                 </Button>
               </div>
               <NumberInput id="pay-qris" value={qris} onValueChange={setQris} prefix="Rp" />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="pay-transfer">Transfer bank</Label>
+              <NumberInput
+                id="pay-transfer"
+                value={transfer}
+                onValueChange={setTransfer}
+                prefix="Rp"
+              />
             </div>
 
             <div className="flex items-baseline justify-between border-t border-border pt-4">
