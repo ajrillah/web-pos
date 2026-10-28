@@ -214,6 +214,9 @@ export function createSale(
     }
     const lines = priceLines(tx, input.lines);
     const sum = lines.reduce((acc, l) => acc + l.subtotal, 0);
+    if (sum < 0) {
+      throw appErrors.saleTotalNegative();
+    }
     const { total, roundingAmount } = roundSaleTotal(sum, getSettings(tx).rounding);
     if (total !== input.expectedTotal) {
       throw appErrors.totalChanged(formatRupiah(total));
