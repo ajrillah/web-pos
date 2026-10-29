@@ -7,6 +7,8 @@ import { roundingModeSchema } from './money';
 // Contracts for sales, held sales, receipts, and history. See docs/design.md 6.1-6.4 and 10.
 
 export const MAX_SALE_LINES = 200;
+/** Longest per-line note; the Kasir caps its input at the same length. */
+export const NOTE_MAX_LENGTH = 200;
 
 export const saleStatusSchema = z.enum(['held', 'completed', 'voided']);
 export type SaleStatus = z.infer<typeof saleStatusSchema>;
@@ -24,7 +26,7 @@ export const saleLineInputSchema = z.object({
     .min(-MAX_QTY)
     .max(MAX_QTY)
     .refine((v) => v !== 0),
-  note: z.string().trim().max(200).optional().or(z.literal('')),
+  note: z.string().trim().max(NOTE_MAX_LENGTH).optional(),
   unitPrice: z.number().int().min(0).optional(),
 });
 export type SaleLineInput = z.infer<typeof saleLineInputSchema>;
@@ -241,7 +243,7 @@ export const VOID_REASON_LABELS: Record<VoidReason, string> = {
 export const voidRequestSchema = z
   .object({
     reason: voidReasonSchema,
-    note: z.string().trim().max(200).optional(),
+    note: z.string().trim().max(NOTE_MAX_LENGTH).optional(),
   })
   .refine((v) => v.reason !== 'lainnya' || Boolean(v.note), { path: ['note'] });
 export type VoidRequest = z.infer<typeof voidRequestSchema>;

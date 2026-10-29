@@ -95,13 +95,16 @@ export function HeldSalesDialog({
                   <Play className="size-4" aria-hidden />
                   Lanjutkan
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Cetak draft ${time(sale.createdAt)}`}
-                  onClick={() => window.open(api.heldDraftUrl(sale.id), '_blank')}
-                >
-                  <Printer className="size-[18px]" aria-hidden />
+                {/* A download link, like the other receipts: a popup would stay behind as an
+                    empty window in Edge app mode. */}
+                <Button variant="ghost" size="icon" asChild>
+                  <a
+                    href={api.heldDraftUrl(sale.id)}
+                    download
+                    aria-label={`Cetak draft ${time(sale.createdAt)}`}
+                  >
+                    <Printer className="size-[18px]" aria-hidden />
+                  </a>
                 </Button>
                 <Button
                   variant="ghost"
