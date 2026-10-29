@@ -83,9 +83,11 @@ Target: desktop only, minimum 1366x768. Nothing may require horizontal scrolling
 - Left column:
   - Search, 60px tall, `F2` badge inside.
   - Cart table columns: no, name with `code · category` below, qty + unit, price, subtotal, remove.
-  - Newest row tinted `selected` with a "BARU" badge.
+  - Under the name sits a "Catatan (opsional)" input, uppercase while typing (MS2/MS3).
+  - The price cell is editable (MS2 price override), `Rp` prefixed, with `/ <satuan>` under it; `Enter` in the note, quantity, or price field finishes the edit and returns focus to the search box.
+  - Newest row tinted `selected` with a "BARU" badge; a row resumed at a price that has since moved shows a gold "Harga berubah" badge.
 - Right column, 384px:
-  - Summary card: subtotal, pembulatan, TOTAL (52px).
+  - Summary card: "Total Item: N" (line count, MS2), subtotal, pembulatan, TOTAL (52px).
   - Bayar button: 72px, teal, `F8`.
   - Tahan `F9` and Batal `Esc` buttons.
   - Held-sales notice (gold).
@@ -107,8 +109,8 @@ Target: desktop only, minimum 1366x768. Nothing may require horizontal scrolling
 ### Dialogs
 - Centered, dim overlay (`foreground` at 40%), `rounded-card`.
 - Enter = confirm, Esc = back. Focus is trapped; the first field is autofocused.
-- Bayar dialog: quick amounts "Uang pas" + the nearest notes above the total.
-- Held sales: warn (gold) when prices changed since the hold.
+- Bayar dialog: a customer field ("Pelanggan (opsional)", picker or quick add) above the amounts, then Tunai with quick amounts ("Uang pas" + the nearest notes above the total), QRIS with a "QRIS penuh" link, and "Transfer bank" (MS2). Underpayment always moves to the kasbon step, which shows the shortfall and the customer's new balance; `Esc` goes back to the amounts and keeps the chosen customer.
+- Held sales: one row per held sale with "<nota or DRAFT> · <customer or UMUM>", a "Lanjutkan" button, a printer button that downloads the DRAFT nota, and a delete button. Warn (gold) when prices changed since the hold.
 
 ### Other locked decisions
 - Opname runs per category session (Stage 7).

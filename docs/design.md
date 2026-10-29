@@ -230,13 +230,13 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 
 ### 6.2 Receipt
 - After payment: prompt "Simpan nota PDF?" — `Enter` = yes, `Esc` = skip.
-- Server generates the PDF (58 or 80 mm, setting) and saves it to the receipt folder (setting `receipt_folder`; default `%USERPROFILE%\Documents\TokoPodomoro\Nota\<TRX>.pdf`).
+- Server generates the PDF (58 or 80 mm, setting) and saves it to the receipt folder (setting `receipt_folder`; default `%USERPROFILE%\Documents\TokoPodomoro\Nota\`). The file name follows 6.1.2, e.g. `TRX-011026-0001-BIMA.pdf`.
 - Then shows "Nota tersimpan" with buttons:
   - **Buka**: server opens the PDF in the Windows default viewer.
   - **Buka folder**: server opens the receipt folder in Explorer.
   - **Unduh**: browser download.
 - Transaction detail offers the same buttons.
-- Reprints marked "SALINAN"; voided sales marked "DIBATALKAN".
+- Reprints are not marked: a reprint writes the same file again (MS3). Voided sales are marked "DIBATALKAN", held drafts "DRAFT".
 
 ### 6.3 Keyboard UX
 - Fully keyboard-driven. Focus always returns to search. Large fonts.
