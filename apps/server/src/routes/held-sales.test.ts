@@ -61,10 +61,20 @@ const lines = () => [
 const api = (method: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH', url: string, payload?: object) =>
   h.app.inject({ method, url, headers: withSession(ownerToken), ...(payload ? { payload } : {}) });
 
-async function hold(): Promise<Sale> {
-  const res = await api('POST', '/api/sales/held', { id: crypto.randomUUID(), lines: lines() });
+async function hold(extra: object = {}): Promise<Sale> {
+  const res = await api('POST', '/api/sales/held', {
+    id: crypto.randomUUID(),
+    lines: lines(),
+    ...extra,
+  });
   if (res.statusCode !== 201) throw new Error(`hold failed: ${res.statusCode} ${res.body}`);
   return res.json().sale;
+}
+
+async function addCustomer(name: string) {
+  const res = await api('POST', '/api/customers', { name });
+  if (res.statusCode !== 201) throw new Error(`customer failed: ${res.statusCode} ${res.body}`);
+  return res.json().customer as { id: string; name: string };
 }
 
 const heldList = async () => (await api('GET', '/api/sales/held')).json().heldSales as Sale[];
@@ -78,6 +88,33 @@ describe('holding a sale', () => {
     expect(held).toMatchObject({ status: 'held', number: null, total: 11500, itemCount: 2 });
     expect(await stockOf(indomie)).toBe(10);
     expect((await heldList()).map((s) => s.id)).toEqual([held.id]);
+  });
+
+  it('keeps the chosen customer, so the list can name it', async () => {
+    const customer = await addCustomer('Bu Tini');
+    const held = await hold({ customerId: customer.id });
+    expect(held).toMatchObject({ customerId: customer.id, customerName: 'BU TINI' });
+    expect((await heldList())[0]).toMatchObject({ customerName: 'BU TINI' });
+    // Without a customer the sale stays UMUM.
+    expect(await hold()).toMatchObject({ customerId: null, customerName: null });
+  });
+
+  it('refuses an unknown or inactive customer', async () => {
+    const customer = await addCustomer('Pak Budi');
+    await api('PUT', `/api/customers/${customer.id}`, { active: false });
+    const inactive = await api('POST', '/api/sales/held', {
+      id: crypto.randomUUID(),
+      lines: lines(),
+      customerId: customer.id,
+    });
+    expect(inactive.statusCode).toBe(400);
+    expect(inactive.json().error.code).toBe('CUSTOMER_INACTIVE');
+    const unknown = await api('POST', '/api/sales/held', {
+      id: crypto.randomUUID(),
+      lines: lines(),
+      customerId: 'nope',
+    });
+    expect(unknown.statusCode).toBe(404);
   });
 
   it('is not listed in the transaction history', async () => {
@@ -116,6 +153,27 @@ describe('POST /api/sales/held/:id/resume', () => {
     expect(await heldList()).toEqual([]);
     // Taking a sale back is not a deletion.
     expect(auditRows(h, 'held_sale')).toEqual([]);
+  });
+
+  it('gives the held customer back, and UMUM when there was none', async () => {
+    const customer = await addCustomer('Bu Tini');
+    const held = await hold({ customerId: customer.id });
+    const body = (await api('POST', `/api/sales/held/${held.id}/resume`)).json();
+    expect(body.customer).toMatchObject({ id: customer.id, name: 'BU TINI', balance: 0 });
+    const plain = await hold();
+    expect((await api('POST', `/api/sales/held/${plain.id}/resume`)).json().customer).toBeNull();
+  });
+
+  it('keeps a price the cashier set by hand on the line', async () => {
+    const res = await api('POST', '/api/sales/held', {
+      id: crypto.randomUUID(),
+      lines: [{ productId: indomie.id, unitId: indomie.units[0]?.id, qtyBase: 2, unitPrice: 4000 }],
+    });
+    expect(res.statusCode).toBe(201);
+    const body = (await api('POST', `/api/sales/held/${res.json().sale.id}/resume`)).json();
+    // The overridden price comes back as the line price; the product's own price is unchanged.
+    expect(body.lines[0]).toMatchObject({ unitPrice: 4000, heldUnitPrice: 4000 });
+    expect(body.lines[0].product.units[0].sellPrice).toBe(3500);
   });
 
   it('drops lines of deactivated products and names them', async () => {

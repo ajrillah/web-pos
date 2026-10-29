@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MAX_QTY, moneySchema, productSchema } from './catalog';
+import { customerSchema } from './customers';
 import { localDaySchemaPattern } from './dates';
 import { roundingModeSchema } from './money';
 
@@ -54,7 +55,12 @@ export const createSaleRequestSchema = z
   );
 export type CreateSaleRequest = z.infer<typeof createSaleRequestSchema>;
 
-export const holdSaleRequestSchema = z.object({ id: z.uuid(), lines: linesSchema });
+export const holdSaleRequestSchema = z.object({
+  id: z.uuid(),
+  lines: linesSchema,
+  /** Customer picked before holding (UMUM if null/absent); restored on resume. */
+  customerId: z.string().min(1).optional().nullable(),
+});
 export type HoldSaleRequest = z.infer<typeof holdSaleRequestSchema>;
 
 export const saleItemSchema = z.object({
@@ -148,6 +154,8 @@ export const resumeHeldSaleResponseSchema = z.object({
   lines: z.array(resumedLineSchema),
   /** Names of products dropped because they or their unit were deactivated. */
   removed: z.array(z.string()),
+  /** Customer held with the sale, so the cart gets it back; null means UMUM. */
+  customer: customerSchema.nullable(),
 });
 export type ResumeHeldSaleResponse = z.infer<typeof resumeHeldSaleResponseSchema>;
 
