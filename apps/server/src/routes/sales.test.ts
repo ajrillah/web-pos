@@ -2,12 +2,15 @@ import { lineSubtotal, type Product, roundSaleTotal, type Sale } from '@toko-pod
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { writeSetting } from '../repositories/settings-repository';
 import { sumMovements } from '../repositories/stock-repository';
+import { createSale } from '../services/sale-service';
 import {
   activeCashier,
   createHarness,
   createProductAs,
   type Harness,
+  serviceContext,
   setupOwner,
+  userIdOf,
   withSession,
 } from '../testing/harness';
 
@@ -222,6 +225,51 @@ describe('POST /api/sales', () => {
     const under = await sell(sale({ cash: 6999 }));
     expect(under.statusCode).toBe(400);
     expect(under.json().error.code).toBe('UNDERPAID');
+    expect(count('sales')).toBe(0);
+  });
+
+  it('accepts a bank transfer, alone and beside cash and QRIS', async () => {
+    const alone = await sell(sale({ cash: 0, qris: 0, transfer: 7000 }));
+    expect(alone.json().sale).toMatchObject({
+      changeAmount: 0,
+      payments: [{ method: 'transfer', amount: 7000 }],
+    });
+    const mixed = await sell(sale({ cash: 5000, qris: 2000, transfer: 3000 }));
+    expect(mixed.json().sale).toMatchObject({
+      paidTotal: 10000,
+      // Change comes from the cash only.
+      changeAmount: 3000,
+      payments: [
+        { method: 'cash', amount: 5000 },
+        { method: 'qris', amount: 2000 },
+        { method: 'transfer', amount: 3000 },
+      ],
+    });
+  });
+
+  it('rejects a transfer above the total, and QRIS plus transfer above it', async () => {
+    const transfer = await sell(sale({ cash: 0, qris: 0, transfer: 7001 }));
+    expect(transfer.statusCode).toBe(400);
+    expect(transfer.json().error.code).toBe('TRANSFER_EXCEEDS_TOTAL');
+    // Together above the total: no change may come out of non-cash money.
+    const both = await sell(sale({ cash: 0, qris: 4000, transfer: 4000 }));
+    expect(both.statusCode).toBe(400);
+    expect(count('sales')).toBe(0);
+  });
+
+  it('refuses non-cash payments above the total at the service level', () => {
+    // The request schema already rejects this shape, so the rule is checked on the service.
+    const owner = { id: userIdOf(h, 'pemilik'), role: 'owner' as const };
+    expect(() =>
+      createSale(serviceContext(h), owner, {
+        id: crypto.randomUUID(),
+        lines: [line(indomie, 'pcs', 2)],
+        cash: 0,
+        qris: 4000,
+        transfer: 4000,
+        expectedTotal: 7000,
+      }),
+    ).toThrow(expect.objectContaining({ code: 'NON_CASH_EXCEEDS_TOTAL' }));
     expect(count('sales')).toBe(0);
   });
 

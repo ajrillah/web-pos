@@ -73,6 +73,8 @@ export function PayDialog({
   const shortfall = Math.max(0, total - paid);
   const qrisTooHigh = (qris ?? 0) > total;
   const transferTooHigh = (transfer ?? 0) > total;
+  // Change comes from cash only: QRIS and transfer together stay within the total.
+  const nonCashTooHigh = !qrisTooHigh && !transferTooHigh && (qris ?? 0) + (transfer ?? 0) > total;
 
   async function submitSale(kasbonCustomer: Customer | null) {
     setBusy(true);
@@ -112,6 +114,10 @@ export function PayDialog({
     }
     if (transferTooHigh) {
       setError('Transfer tidak boleh melebihi total.');
+      return;
+    }
+    if (nonCashTooHigh) {
+      setError('QRIS dan transfer bersama tidak boleh melebihi total.');
       return;
     }
     if (shortfall > 0 && !customer) {
@@ -307,7 +313,12 @@ export function PayDialog({
               <Button variant="secondary" onClick={onClose}>
                 Kembali <Kbd>Esc</Kbd>
               </Button>
-              <Button type="submit" size="lg" disabled={busy || qrisTooHigh} className="min-w-48">
+              <Button
+                type="submit"
+                size="lg"
+                disabled={busy || qrisTooHigh || transferTooHigh || nonCashTooHigh}
+                className="min-w-48"
+              >
                 {busy ? 'Menyimpan…' : shortfall > 0 ? 'Kasbon…' : 'Selesai'} <Kbd>Enter</Kbd>
               </Button>
             </div>

@@ -228,8 +228,9 @@ export function createSale(
     if (transfer > total) {
       throw appErrors.transferExceedsTotal();
     }
-    if (total < 0) {
-      throw appErrors.saleTotalNegative();
+    // Change always comes out of the cash, so the non-cash methods together stay within the total.
+    if (input.qris + transfer > total) {
+      throw appErrors.nonCashExceedsTotal();
     }
     const customer = input.customerId ? findCustomerById(tx, input.customerId) : undefined;
     if (input.customerId && !customer) {
@@ -254,7 +255,7 @@ export function createSale(
       total,
       roundingAmount,
       paidTotal,
-      // QRIS never exceeds the total, so change always comes out of the cash.
+      // QRIS and transfer never exceed the total, so change always comes out of the cash.
       changeAmount: Math.max(0, paidTotal - total),
       debtAmount,
       customerId: customer?.id ?? null,

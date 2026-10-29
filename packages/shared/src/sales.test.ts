@@ -45,4 +45,14 @@ describe('createSaleRequestSchema', () => {
     expect(createSaleRequestSchema.safeParse({ ...sale, lines: [] }).success).toBe(false);
     expect(createSaleRequestSchema.safeParse({ ...sale, cash: 0.5 }).success).toBe(false);
   });
+
+  it('accepts QRIS and transfer that together stay within the total', () => {
+    const paid = { ...sale, cash: 0, qris: 4_000, transfer: 3_000 };
+    expect(createSaleRequestSchema.safeParse(paid).success).toBe(true);
+  });
+
+  it('rejects QRIS and transfer that together exceed the total', () => {
+    const paid = { ...sale, cash: 0, qris: 4_000, transfer: 3_001 };
+    expect(createSaleRequestSchema.safeParse(paid).success).toBe(false);
+  });
 });
