@@ -81,7 +81,7 @@ const sale: Sale = {
 
 describe('receiptLines', () => {
   it('lays out a 58 mm receipt in 32 columns', () => {
-    expect(receiptLines(sale, settings, { copy: false })).toEqual([
+    expect(receiptLines(sale, settings, {})).toEqual([
       '         TOKO PODOMORO',
       '      Jl. Melati 5, Sleman',
       '         0812-3456-789',
@@ -108,12 +108,12 @@ describe('receiptLines', () => {
   });
 
   it('marks copies and voided sales', () => {
-    const lines = receiptLines({ ...sale, status: 'voided' }, settings, { copy: true });
+    const lines = receiptLines({ ...sale, status: 'voided' }, settings, {});
     expect(lines).toContain('       *** DIBATALKAN ***');
   });
 
   it('uses 42 columns on 80 mm paper', () => {
-    const lines = receiptLines(sale, { ...settings, receiptWidth: '80' }, { copy: false });
+    const lines = receiptLines(sale, { ...settings, receiptWidth: '80' }, {});
     expect(Math.max(...lines.map((l) => l.length))).toBe(42);
   });
 });
@@ -162,16 +162,13 @@ describe('receipt endpoints', () => {
     // The folder does not exist yet: the first save creates it.
     expect(fs.existsSync(h.receiptDir)).toBe(false);
     const first = await api('POST', `/api/sales/${saleId}/receipt`);
-    expect(first.json()).toEqual({
-      fileName: `TRX-221026-0001-UMUM.pdf`,
-      folder: h.receiptDir,
-      copy: false,
-    });
+    expect(first.json()).toEqual({ fileName: `TRX-221026-0001-UMUM.pdf`, folder: h.receiptDir });
     const file = path.join(h.receiptDir, `TRX-221026-0001-UMUM.pdf`);
     expect(fs.readFileSync(file).subarray(0, 5).toString()).toBe('%PDF-');
 
+    // A reprint writes the same file again: MS3 keeps no copy marking.
     const second = await api('POST', `/api/sales/${saleId}/receipt`);
-    expect(second.json()).toMatchObject({ fileName: `TRX-221026-0001-UMUM.pdf`, copy: true });
+    expect(second.json()).toMatchObject({ fileName: `TRX-221026-0001-UMUM.pdf` });
     expect(fs.existsSync(path.join(h.receiptDir, `TRX-221026-0001-UMUM.pdf`))).toBe(true);
     expect((await api('GET', `/api/sales/${saleId}`)).json().sale.receiptCount).toBe(2);
   });

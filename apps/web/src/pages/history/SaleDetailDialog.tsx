@@ -144,7 +144,7 @@ export function SaleDetailDialog({
                 </Button>
                 <span className="text-sm text-muted-foreground">
                   {sale.receiptCount > 0
-                    ? `Nota sudah dibuat ${sale.receiptCount}×; berikutnya ditandai SALINAN.`
+                    ? `Nota sudah dibuat ${sale.receiptCount}×.`
                     : 'Nota belum pernah dibuat.'}
                 </span>
               </div>

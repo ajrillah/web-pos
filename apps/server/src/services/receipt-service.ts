@@ -70,9 +70,7 @@ function localDateTime(iso: string): string {
 }
 
 export interface ReceiptOptions {
-  /** Every receipt after the first is a copy ("SALINAN"). */
-  copy?: boolean;
-  /** Held-sale draft: prints "DRAFT" watermark and is not recorded. */
+  /** Held-sale draft: prints "DRAFT" and is not recorded. */
   draft?: boolean;
 }
 
@@ -196,7 +194,7 @@ interface ReceiptDoc {
   receiptFile: string | null;
   customerName: string | null;
   createdAt: string;
-  lines: (settings: Settings, copy: boolean) => string[];
+  lines: (settings: Settings) => string[];
   record: (patch: { receiptCount: number; receiptFile?: string }) => void;
 }
 
@@ -249,26 +247,25 @@ function sanitizeReceiptName(value: string | null): string {
 async function nextReceipt(ctx: ServiceContext, kind: ReceiptKind, id: string) {
   const doc = receiptDoc(ctx, kind, id);
   const settings = getSettings(ctx.db);
-  const copy = doc.receiptCount > 0;
-  const pdf = await renderReceiptPdf(
-    doc.lines(settings, copy),
-    settings.receiptWidth === '80' ? 80 : 58,
-  );
+  const pdf = await renderReceiptPdf(doc.lines(settings), settings.receiptWidth === '80' ? 80 : 58);
   // The type keeps a sale and a kasbon payment of the same day and number apart.
   const parts = doc.number.split('-');
   const typePart = parts[0] ?? '';
   const numberPart = parts.at(-1) ?? doc.number;
   const fileName = `${typePart}-${receiptFileDate(doc.createdAt)}-${numberPart}-${sanitizeReceiptName(doc.customerName)}.pdf`;
-  return { doc, settings, copy, pdf, fileName };
+  return { doc, settings, pdf, fileName };
 }
 
-/** Saves the receipt PDF to the receipt folder: `<NO>.pdf`, copies `<NO>-SALINAN.pdf`. */
+/**
+ * Saves the receipt PDF to the receipt folder. Reprinting writes the same name again: MS3 keeps
+ * no copy marking, so a reprint is the same document.
+ */
 export async function saveReceipt(
   ctx: ServiceContext,
   kind: ReceiptKind,
   id: string,
 ): Promise<ReceiptSavedResponse> {
-  const { doc, settings, copy, pdf, fileName } = await nextReceipt(ctx, kind, id);
+  const { doc, settings, pdf, fileName } = await nextReceipt(ctx, kind, id);
   const folder = settings.receiptFolder;
   const file = path.join(folder, fileName);
   try {
@@ -278,7 +275,7 @@ export async function saveReceipt(
     throw appErrors.receiptSaveFailed(folder);
   }
   doc.record({ receiptCount: doc.receiptCount + 1, receiptFile: file });
-  return { fileName, folder, copy };
+  return { fileName, folder };
 }
 
 /** Receipt PDF for a browser download; counted like a saved one. */
@@ -312,7 +309,7 @@ export async function downloadHeldDraft(
   }
   const settings = getSettings(ctx.db);
   const pdf = await renderReceiptPdf(
-    receiptLines(sale, settings, { copy: false, draft: true }),
+    receiptLines(sale, settings, { draft: true }),
     settings.receiptWidth === '80' ? 80 : 58,
   );
   return { fileName: `DRAFT-${sale.id.slice(0, 8)}.pdf`, pdf };

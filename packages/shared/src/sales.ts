@@ -192,8 +192,6 @@ export type SalesResponse = z.infer<typeof salesResponseSchema>;
 export const receiptSavedResponseSchema = z.object({
   fileName: z.string(),
   folder: z.string(),
-  /** True for every receipt after the first ("SALINAN"). */
-  copy: z.boolean(),
 });
 export type ReceiptSavedResponse = z.infer<typeof receiptSavedResponseSchema>;
 
