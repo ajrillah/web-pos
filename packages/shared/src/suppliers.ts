@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { MAX_QTY, moneySchema } from './catalog';
+import { debtPaymentMethodSchema } from './customers';
 import { localDaySchemaPattern } from './dates';
-import { paymentMethodSchema } from './sales';
 
 // Contracts for suppliers, purchases (Stok Masuk), supplier payments, and payables.
 // See docs/design.md 6.6.
@@ -111,7 +111,7 @@ export const createPurchaseRequestSchema = z.object({
   lines: z.array(purchaseLineInputSchema).min(1).max(MAX_PURCHASE_LINES),
   /** Paid now; recorded as the purchase's initial supplier payment. The rest is debt. */
   paidAmount: moneySchema,
-  paidMethod: paymentMethodSchema.default('cash'),
+  paidMethod: debtPaymentMethodSchema.default('cash'),
 });
 export type CreatePurchaseRequest = z.input<typeof createPurchaseRequestSchema>;
 export type CreatePurchaseInput = z.output<typeof createPurchaseRequestSchema>;
@@ -159,7 +159,7 @@ export type PurchaseSummary = z.infer<typeof purchaseSummarySchema>;
 export const purchasePaymentSchema = z.object({
   paymentId: z.string(),
   number: z.string(),
-  method: paymentMethodSchema,
+  method: debtPaymentMethodSchema,
   amount: z.number().int(),
   status: z.enum(['active', 'voided']),
   initial: z.boolean(),
@@ -251,7 +251,7 @@ export const createSupplierPaymentRequestSchema = z.object({
   supplierId: z.string().min(1),
   /** Ticked purchases; the payment fills the oldest first. */
   purchaseIds: z.array(z.string().min(1)).min(1).max(500),
-  method: paymentMethodSchema,
+  method: debtPaymentMethodSchema,
   /** Paid to the supplier; at most the ticked total. */
   amount: moneySchema.refine((v) => v > 0),
 });
@@ -269,7 +269,7 @@ export const supplierPaymentSchema = z.object({
   number: z.string(),
   supplierId: z.string(),
   supplierName: z.string(),
-  method: paymentMethodSchema,
+  method: debtPaymentMethodSchema,
   amount: z.number().int(),
   /** Set when this is a purchase's initial payment. */
   initialPurchaseId: z.string().nullable(),

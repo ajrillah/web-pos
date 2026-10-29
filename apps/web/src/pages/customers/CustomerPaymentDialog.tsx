@@ -2,8 +2,8 @@ import {
   allocateOldestFirst,
   type Customer,
   type CustomerPayment,
+  type DebtPaymentMethod,
   formatRupiah,
-  type PaymentMethod,
   type Receivable,
 } from '@toko-podomoro/shared';
 import { type FormEvent, useEffect, useState } from 'react';
@@ -48,7 +48,7 @@ export function CustomerPaymentDialog({
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [receivables, setReceivables] = useState<Receivable[] | null>(null);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
-  const [method, setMethod] = useState<PaymentMethod>('cash');
+  const [method, setMethod] = useState<DebtPaymentMethod>('cash');
   const [amount, setAmount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -194,7 +194,7 @@ export function CustomerPaymentDialog({
             </div>
 
             <div className="grid grid-cols-[auto_1fr] items-end gap-4">
-              <Tabs value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
+              <Tabs value={method} onValueChange={(v) => setMethod(v as DebtPaymentMethod)}>
                 <TabsList aria-label="Metode">
                   <TabsTrigger value="cash">Tunai</TabsTrigger>
                   <TabsTrigger value="qris">QRIS</TabsTrigger>

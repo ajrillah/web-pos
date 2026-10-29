@@ -1,8 +1,14 @@
 import { z } from 'zod';
 import { moneySchema } from './catalog';
-import { paymentMethodSchema } from './sales';
 
 // Contracts for customers, kasbon (receivables), and customer payments. See docs/design.md 6.7.
+
+/**
+ * Settling a kasbon or a supplier debt moves cash or QRIS only; bank transfer is a sale
+ * payment method (docs/design.md 6.1.1, 6.7, 6.6).
+ */
+export const debtPaymentMethodSchema = z.enum(['cash', 'qris']);
+export type DebtPaymentMethod = z.infer<typeof debtPaymentMethodSchema>;
 
 const nameSchema = z.string().trim().min(1).max(100);
 const optionalText = (max: number) =>
@@ -102,7 +108,7 @@ export const createCustomerPaymentRequestSchema = z.object({
   customerId: z.string().min(1),
   /** Ticked receivables; the payment fills the oldest first. */
   receivableIds: z.array(z.string().min(1)).min(1).max(500),
-  method: paymentMethodSchema,
+  method: debtPaymentMethodSchema,
   /** Cash: amount received (change is returned). QRIS: amount paid. */
   amount: moneySchema.refine((v) => v > 0),
 });
@@ -122,7 +128,7 @@ export const customerPaymentSchema = z.object({
   number: z.string(),
   customerId: z.string(),
   customerName: z.string(),
-  method: paymentMethodSchema,
+  method: debtPaymentMethodSchema,
   /** Applied to receivables. */
   amount: z.number().int(),
   amountReceived: z.number().int(),
