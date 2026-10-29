@@ -107,7 +107,25 @@ describe('receiptLines', () => {
     ]);
   });
 
-  it('marks copies and voided sales', () => {
+  it('prints a line note in parentheses after the product name', () => {
+    const noted = {
+      ...sale,
+      items: [{ ...(sale.items[0] as (typeof sale.items)[0]), note: 'ACEH' }],
+      itemCount: 1,
+    };
+    expect(receiptLines(noted, settings, {})).toContain('Gula Pasir (ACEH)');
+  });
+
+  it('marks a held draft', () => {
+    const lines = receiptLines({ ...sale, number: null, status: 'held' }, settings, {
+      draft: true,
+    });
+    expect(lines).toContain('         *** DRAFT ***');
+    // A held sale has no number yet.
+    expect(lines).toContain(`No${'-'.padStart(30)}`);
+  });
+
+  it('marks voided sales', () => {
     const lines = receiptLines({ ...sale, status: 'voided' }, settings, {});
     expect(lines).toContain('       *** DIBATALKAN ***');
   });

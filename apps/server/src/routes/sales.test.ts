@@ -257,6 +257,53 @@ describe('POST /api/sales', () => {
     expect(count('sales')).toBe(0);
   });
 
+  it('takes a price the cashier set on the line, down to the unit cost', async () => {
+    // 2 pcs at Rp 3.000 instead of the Rp 3.500 list price.
+    const res = await sell(
+      sale({ lines: [{ ...line(indomie, 'pcs', 2), unitPrice: 3000 }], expectedTotal: 6000 }),
+    );
+    expect(res.statusCode).toBe(201);
+    expect(res.json().sale.items[0]).toMatchObject({ unitPrice: 3000, subtotal: 6000 });
+    // Profit still uses the product's own cost.
+    expect(h.handle.sqlite.prepare('select cost_total from sale_items').get()).toEqual({
+      cost_total: 5800,
+    });
+  });
+
+  it('refuses a line priced below the cost of its unit', async () => {
+    const res = await sell(
+      sale({ lines: [{ ...line(indomie, 'pcs', 2), unitPrice: 2899 }], expectedTotal: 5798 }),
+    );
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toEqual({
+      code: 'PRICE_BELOW_COST',
+      message: 'Harga jual INDOMIE GORENG tidak boleh di bawah harga pokok.',
+    });
+    expect(count('sales')).toBe(0);
+  });
+
+  it('stores a per-line note in uppercase', async () => {
+    const res = await sell(
+      sale({ lines: [{ ...line(indomie, 'pcs', 2), note: 'pedas level 2' }] }),
+    );
+    expect(res.statusCode).toBe(201);
+    expect(res.json().sale.items[0]?.note).toBe('PEDAS LEVEL 2');
+  });
+
+  it('refuses a cart whose returns outweigh its sales', async () => {
+    const res = await sell(
+      sale({
+        // 1 pcs Indomie sold (3.500) against 1 bungkus Sampoerna returned (33.000).
+        lines: [line(indomie, 'pcs', 1), line(rokok, 'bungkus', -16)],
+        cash: 0,
+        expectedTotal: 0,
+      }),
+    );
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('SALE_TOTAL_NEGATIVE');
+    expect(count('sales')).toBe(0);
+  });
+
   it('refuses non-cash payments above the total at the service level', () => {
     // The request schema already rejects this shape, so the rule is checked on the service.
     const owner = { id: userIdOf(h, 'pemilik'), role: 'owner' as const };

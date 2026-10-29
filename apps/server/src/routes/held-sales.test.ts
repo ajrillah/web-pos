@@ -189,6 +189,34 @@ describe('POST /api/sales/held/:id/resume', () => {
   });
 });
 
+describe('GET /api/sales/held/:id/receipt.pdf', () => {
+  it('downloads a DRAFT nota without recording anything', async () => {
+    const held = await hold();
+    const res = await h.app.inject({
+      method: 'GET',
+      url: `/api/sales/held/${held.id}/receipt.pdf`,
+      headers: withSession(ownerToken),
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toBe('application/pdf');
+    expect(res.headers['content-disposition']).toContain(`DRAFT-${held.id.slice(0, 8)}.pdf`);
+    expect(res.rawPayload.subarray(0, 5).toString()).toBe('%PDF-');
+    // Printing a draft is not a sale: no number, no stock change, no receipt counted.
+    const [still] = await heldList();
+    expect(still).toMatchObject({ id: held.id, number: null, receiptCount: 0 });
+    expect(await stockOf(indomie)).toBe(10);
+  });
+
+  it('refuses a completed sale', async () => {
+    const res = await h.app.inject({
+      method: 'GET',
+      url: '/api/sales/held/nope/receipt.pdf',
+      headers: withSession(ownerToken),
+    });
+    expect(res.statusCode).toBe(404);
+  });
+});
+
 describe('deleting held sales', () => {
   it('deletes one, audit-logged', async () => {
     const held = await hold();
