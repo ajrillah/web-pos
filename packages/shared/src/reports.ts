@@ -206,6 +206,8 @@ export const cashDaySchema = z.object({
   /** Cash received minus change, for sales of this day. */
   salesCash: int,
   salesQris: int,
+  /** Bank transfers for sales; kasbon and supplier payments are cash or QRIS only. */
+  salesTransfer: int,
   kasbonCash: int,
   kasbonQris: int,
   /** Paid to suppliers (positive = money out). */
@@ -214,9 +216,12 @@ export const cashDaySchema = z.object({
   /** Net effect of voids made this day: refunds out, voided supplier payments back in. */
   voidCash: int,
   voidQris: int,
+  voidTransfer: int,
   /** salesCash + kasbonCash - supplierCash + voidCash. */
   netCash: int,
   netQris: int,
+  /** salesTransfer + voidTransfer. */
+  netTransfer: int,
 });
 export type CashDay = z.infer<typeof cashDaySchema>;
 

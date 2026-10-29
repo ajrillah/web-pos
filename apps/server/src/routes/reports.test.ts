@@ -72,6 +72,7 @@ async function sell(
   cash: number,
   qris: number,
   customer?: Customer,
+  transfer = 0,
 ) {
   const unit = product.units[0];
   const total = Math.round((qtyBase * (unit?.sellPrice ?? 0)) / (unit?.factor ?? 1));
@@ -80,6 +81,7 @@ async function sell(
     lines: [{ productId: product.id, unitId: unit?.id, qtyBase }],
     cash,
     qris,
+    transfer,
     expectedTotal: total,
     ...(customer ? { customerId: customer.id } : {}),
   });
@@ -352,27 +354,33 @@ describe('Done when: totals match raw data on a seeded dataset', () => {
         day: '2026-10-20',
         salesCash: 128500,
         salesQris: 8500,
+        salesTransfer: 0,
         kasbonCash: 0,
         kasbonQris: 5000,
         supplierCash: 20000,
         supplierQris: 0,
         voidCash: 0,
         voidQris: 0,
+        voidTransfer: 0,
         netCash: 108500,
         netQris: 13500,
+        netTransfer: 0,
       },
       {
         day: '2026-10-21',
         salesCash: 0,
         salesQris: 33000,
+        salesTransfer: 0,
         kasbonCash: 13000,
         kasbonQris: 0,
         supplierCash: 0,
         supplierQris: 30000,
         voidCash: 2500,
         voidQris: -5000,
+        voidTransfer: 0,
         netCash: 15500,
         netQris: -2000,
+        netTransfer: 0,
       },
     ]);
     // Over the whole period voids cancel out: net equals valid records only.
@@ -393,6 +401,30 @@ describe('Done when: totals match raw data on a seeded dataset', () => {
       netQris: 11500,
       salesCash: 128500,
       salesQris: 41500,
+    });
+  });
+
+  it('cash: a bank transfer counts in the transfer bucket, and a void refunds it', async () => {
+    const sale = await sell(indomie, 3, 0, 0, undefined, 10500);
+    const today = await report('cash');
+    // The seeded day already holds a cash and a QRIS sale; the transfer stands on its own.
+    expect(today.totals).toMatchObject({
+      salesTransfer: 10500,
+      netTransfer: 10500,
+      salesCash: 4000,
+      salesQris: 10500,
+    });
+    const voided = await api('POST', `/api/sales/${sale.id}/void`, {
+      reason: 'salah_input',
+    });
+    expect(voided.statusCode).toBe(200);
+    const after = await report('cash');
+    // Refunded on the void day, so the transfer nets out.
+    expect(after.totals).toMatchObject({
+      salesTransfer: 10500,
+      voidTransfer: -10500,
+      netTransfer: 0,
+      salesQris: 10500,
     });
   });
 

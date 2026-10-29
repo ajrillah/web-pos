@@ -327,7 +327,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Top and slow-moving products.
 - Stock value: negative stock counted as 0; negative-stock items listed separately.
 - Negative-stock items.
-- Cash vs QRIS.
+- Cash vs QRIS vs transfer bank: one section per method. Kasbon and supplier payments only ever move cash or QRIS, so the transfer section covers sales and their voids only (MS2).
 - Daily cash flow = cash sales − change + cash kasbon payments − cash supplier payments. No opening balance until shifts exist.
 - Receivables and payables.
 - Stock losses.
@@ -336,7 +336,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Category sales and top products use the category at sale time (sale line snapshot); slow movers, stock value, and stock losses use the product's current category.
 - Voided sales, purchases, and payments are excluded from all totals. How a void on a later day is dated depends on the report:
   - Sales and profit, category, and product reports: a voided sale is removed from its original sale date, even when voided on a later day. These reports only ever show valid sales.
-  - Cash reports (cash vs QRIS, daily cash flow) follow the date money moved: a sale's money in stays on the sale date and the refund is money out on the void date. Voided customer and supplier payments work the same way (payment on its date, reversal on the void date). This keeps each day's drawer count correct.
+  - Cash reports (cash vs QRIS vs transfer, daily cash flow) follow the date money moved: a sale's money in stays on the sale date and the refund is money out on the void date. Voided customer and supplier payments work the same way (payment on its date, reversal on the void date). This keeps each day's drawer count correct.
   - Activity report: voids appear on the void date.
 - Export to PDF and Excel.
 
