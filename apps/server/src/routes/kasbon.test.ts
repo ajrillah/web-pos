@@ -164,7 +164,7 @@ describe('kasbon sales', () => {
   it('prints customer, kasbon, and remaining kasbon on the sale receipt', async () => {
     const customer = await newCustomer();
     const sale = (await kasbonSale(customer, 1, 20000)).json().sale as Sale;
-    const lines = receiptLines(sale, getSettings(h.handle.db), { copy: false });
+    const lines = receiptLines(sale, getSettings(h.handle.db), {});
     expect(lines).toContain('Pelanggan               PAK BUDI');
     expect(lines).toContain('Kasbon                    50.000');
     expect(lines).toContain('Kasbon Sebelumnya           Rp 0');
@@ -321,9 +321,9 @@ describe('customer payments', () => {
       ]),
     );
     const saved = await api('POST', `/api/customer-payments/${payment.id}/receipt`);
-    expect(saved.json()).toMatchObject({ fileName: '221026-0001-PAKBUDI.pdf', copy: false });
+    expect(saved.json()).toMatchObject({ fileName: 'BYR-221026-0001-PAKBUDI.pdf' });
     const copy = await api('GET', `/api/customer-payments/${payment.id}/receipt.pdf`);
-    expect(copy.headers['content-disposition']).toContain('221026-0001-PAKBUDI.pdf');
+    expect(copy.headers['content-disposition']).toContain('BYR-221026-0001-PAKBUDI.pdf');
     expect(
       (await api('POST', `/api/customer-payments/${payment.id}/receipt/open`)).statusCode,
     ).toBe(204);

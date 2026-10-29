@@ -15,14 +15,12 @@ export function NumberInput({
   prefix,
   suffix,
   className,
-  signed = false,
   ...props
 }: Omit<ComponentProps<'input'>, 'value' | 'onChange' | 'prefix'> & {
   value: number | null;
   onValueChange: (value: number | null) => void;
   prefix?: string;
   suffix?: string;
-  signed?: boolean;
 }) {
   return (
     <div className={cn('relative', className)}>
@@ -33,23 +31,12 @@ export function NumberInput({
       )}
       <Input
         type="text"
-        inputMode={signed ? 'text' : 'numeric'}
+        inputMode="numeric"
         autoComplete="off"
         value={value === null ? '' : formatInteger(value)}
         onChange={(e) => {
-          const raw = e.target.value.trim();
-          if (raw === '' || raw === '-') {
-            onValueChange(raw === '-' ? null : null);
-            return;
-          }
-          const negative = signed && raw.startsWith('-');
-          const digits = raw.replace(/\D/g, '').slice(0, MAX_DIGITS);
-          if (digits === '') {
-            onValueChange(null);
-            return;
-          }
-          const num = Number(digits);
-          onValueChange(negative ? -num : num);
+          const digits = e.target.value.replace(/\D/g, '').slice(0, MAX_DIGITS);
+          onValueChange(digits === '' ? null : Number(digits));
         }}
         className={cn('text-right tabular-nums', prefix && 'pl-11')}
         // Room for the suffix, however long the unit name is.

@@ -237,14 +237,17 @@ export function stockValueReport(
 const emptyCash = (): Omit<CashDay, 'day'> => ({
   salesCash: 0,
   salesQris: 0,
+  salesTransfer: 0,
   kasbonCash: 0,
   kasbonQris: 0,
   supplierCash: 0,
   supplierQris: 0,
   voidCash: 0,
   voidQris: 0,
+  voidTransfer: 0,
   netCash: 0,
   netQris: 0,
+  netTransfer: 0,
 });
 
 /**
@@ -264,12 +267,14 @@ export function cashReport(ctx: ServiceContext, query: ReportQuery<'cash'>): Cas
     if (sold) {
       sold.salesCash += cash;
       sold.salesQris += s.qris;
+      sold.salesTransfer += s.transfer;
     }
     const refunded =
       s.status === 'voided' && inRange(s.voided_at, period) ? at(s.voided_at as string) : undefined;
     if (refunded) {
       refunded.voidCash -= cash;
       refunded.voidQris -= s.qris;
+      refunded.voidTransfer -= s.transfer;
     }
   }
   for (const [kind, sign] of [
@@ -297,6 +302,7 @@ export function cashReport(ctx: ServiceContext, query: ReportQuery<'cash'>): Cas
     ...d,
     netCash: d.salesCash + d.kasbonCash - d.supplierCash + d.voidCash,
     netQris: d.salesQris + d.kasbonQris - d.supplierQris + d.voidQris,
+    netTransfer: d.salesTransfer + d.voidTransfer,
   }));
   const totals = emptyCash();
   for (const row of rows) {

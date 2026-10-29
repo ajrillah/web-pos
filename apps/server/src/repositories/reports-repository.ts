@@ -140,11 +140,13 @@ export function salesMoney(db: Executor, { from, to }: Range) {
     voided_at: string | null;
     cash: number;
     qris: number;
+    transfer: number;
     change_amount: number;
   }>(sql`
     select s.status, s.completed_at, s.voided_at, s.change_amount,
       coalesce((select sum(p.amount) from sale_payments p where p.sale_id = s.id and p.method = 'cash'), 0) as cash,
-      coalesce((select sum(p.amount) from sale_payments p where p.sale_id = s.id and p.method = 'qris'), 0) as qris
+      coalesce((select sum(p.amount) from sale_payments p where p.sale_id = s.id and p.method = 'qris'), 0) as qris,
+      coalesce((select sum(p.amount) from sale_payments p where p.sale_id = s.id and p.method = 'transfer'), 0) as transfer
     from sales s
     where s.status in ('completed', 'voided')
       and ((s.completed_at >= ${from} and s.completed_at < ${to})
@@ -155,7 +157,7 @@ export function salesMoney(db: Executor, { from, to }: Range) {
 export function paymentsMoney(db: Executor, table: 'customer' | 'supplier', { from, to }: Range) {
   const name = sql.raw(table === 'customer' ? 'customer_payments' : 'supplier_payments');
   return db.all<{
-    method: 'cash' | 'qris' | 'transfer';
+    method: 'cash' | 'qris';
     amount: number;
     status: 'active' | 'voided';
     created_at: string;

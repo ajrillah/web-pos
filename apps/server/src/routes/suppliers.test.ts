@@ -2,6 +2,7 @@ import type { Product, Purchase, Supplier } from '@toko-podomoro/shared';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   activeCashier,
+  asProductInput,
   auditRows,
   createHarness,
   createProductAs,
@@ -258,6 +259,47 @@ describe('purchases (Stok Masuk)', () => {
       action: 'cost_from_purchase',
       oldValue: { costPrice: 2500 },
       newValue: { costPrice: 2600, purchaseId: body.id },
+    });
+  });
+
+  it('flags a product whose cost rose, until the owner lifts the sell price', async () => {
+    const supplier = await newSupplier();
+    const body = purchaseBody(supplier, 0);
+    // Buying above the current cost (2500) flags the product for the owner.
+    body.lines[0] = { ...(body.lines[0] as (typeof body.lines)[0]), newCostPrice: 4000 };
+    expect((await api('POST', '/api/purchases', body)).statusCode).toBe(201);
+    const flagged = (await api('GET', `/api/products/${indomie.id}`)).json().product as Product;
+    expect(flagged).toMatchObject({ costPrice: 4000, priceAlert: true });
+
+    const repriced = (product: Product, unitName: string, sellPrice: number) => {
+      const input = asProductInput(product);
+      return {
+        ...input,
+        units: input.units.map((u) => (u.name === unitName ? { ...u, sellPrice } : u)),
+      };
+    };
+    const current = async () =>
+      (await api('GET', `/api/products/${indomie.id}`)).json().product as Product;
+
+    // One level still priced under its cost (1 dus = 40 pcs = Rp 160.000) keeps the flag on.
+    const under = repriced(flagged, 'pcs', 4500);
+    expect((await api('PUT', `/api/products/${indomie.id}`, under)).statusCode).toBe(200);
+    expect((await current()).priceAlert).toBe(true);
+
+    // Every level at or above its cost: the owner has dealt with it.
+    const over = repriced(await current(), 'dus', 170000);
+    expect((await api('PUT', `/api/products/${indomie.id}`, over)).statusCode).toBe(200);
+    expect((await current()).priceAlert).toBe(false);
+  });
+
+  it('leaves the flag off when a purchase lowers the cost', async () => {
+    const supplier = await newSupplier();
+    const body = purchaseBody(supplier, 0);
+    body.lines[0] = { ...(body.lines[0] as (typeof body.lines)[0]), newCostPrice: 2000 };
+    expect((await api('POST', '/api/purchases', body)).statusCode).toBe(201);
+    expect((await api('GET', `/api/products/${indomie.id}`)).json().product).toMatchObject({
+      costPrice: 2000,
+      priceAlert: false,
     });
   });
 

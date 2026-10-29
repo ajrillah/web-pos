@@ -1,8 +1,8 @@
 import {
+  type DebtPaymentMethod,
   formatPercentBp,
   formatRupiah,
   localDate,
-  type PaymentMethod,
   type Product,
   type Supplier,
 } from '@toko-podomoro/shared';
@@ -59,7 +59,7 @@ export function PurchaseFormPage() {
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<PurchaseLine[]>([]);
   const [paid, setPaid] = useState<number | null>(null);
-  const [method, setMethod] = useState<PaymentMethod>('cash');
+  const [method, setMethod] = useState<DebtPaymentMethod>('cash');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // One id per form: a retry after a lost response cannot record the purchase twice.
@@ -189,6 +189,7 @@ export function PurchaseFormPage() {
             <Label htmlFor="purchase-note">Catatan (opsional)</Label>
             <Input
               id="purchase-note"
+              className="uppercase-input"
               placeholder="No. faktur, dll."
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -230,7 +231,7 @@ export function PurchaseFormPage() {
 
         <Card className="grid grid-cols-[1fr_auto] items-end gap-8 p-6">
           <div className="grid grid-cols-[auto_1fr] items-end gap-4">
-            <Tabs value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
+            <Tabs value={method} onValueChange={(v) => setMethod(v as DebtPaymentMethod)}>
               <TabsList aria-label="Metode bayar">
                 <TabsTrigger value="cash">Tunai</TabsTrigger>
                 <TabsTrigger value="qris">QRIS</TabsTrigger>

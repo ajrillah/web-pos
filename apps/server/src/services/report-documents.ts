@@ -203,6 +203,18 @@ const builders: { [K in ReportType]: Builder<never> } = {
   }) as Builder<never>,
   cash: ((r: CashReport) => {
     const t = r.totals;
+    // Transfers only ever come from sales, so the section leaves out the payment columns.
+    const transferSection = (report: CashReport): Section => ({
+      title: 'Transfer bank per hari',
+      columns: [text('Tanggal', 1.6), money('Penjualan'), money('Pembatalan'), money('Bersih')],
+      rows: report.days.map((d) => [
+        dayLabel(d.day),
+        d.salesTransfer,
+        d.voidTransfer,
+        d.netTransfer,
+      ]),
+      footer: ['Total', t.salesTransfer, t.voidTransfer, t.netTransfer],
+    });
     const cols = (kind: 'Cash' | 'Qris'): Section => ({
       title: kind === 'Cash' ? 'Arus kas tunai per hari' : 'QRIS per hari',
       columns: [
@@ -237,10 +249,12 @@ const builders: { [K in ReportType]: Builder<never> } = {
       summary: [
         { label: 'Penjualan tunai (dikurangi kembalian)', value: t.salesCash, kind: 'money' },
         { label: 'Penjualan QRIS', value: t.salesQris, kind: 'money' },
+        { label: 'Penjualan transfer bank', value: t.salesTransfer, kind: 'money' },
         { label: 'Kas tunai bersih', value: t.netCash, kind: 'money' },
         { label: 'QRIS bersih', value: t.netQris, kind: 'money' },
+        { label: 'Transfer bersih', value: t.netTransfer, kind: 'money' },
       ],
-      sections: [cols('Cash'), cols('Qris')],
+      sections: [cols('Cash'), cols('Qris'), transferSection(r)],
     };
   }) as Builder<never>,
   debts: ((r: DebtsReport) => {

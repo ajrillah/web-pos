@@ -384,7 +384,7 @@ describe('sale void', () => {
     expect(auditRows(h, 'sale')).toMatchObject([
       { entityId: sale.id, action: 'void', newValue: { status: 'voided', reason: 'Salah input' } },
     ]);
-    const lines = receiptLines(res.json().sale, getSettings(h.handle.db), { copy: true });
+    const lines = receiptLines(res.json().sale, getSettings(h.handle.db), {});
     expect(lines).toContain('       *** DIBATALKAN ***');
   });
 

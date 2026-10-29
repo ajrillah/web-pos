@@ -247,6 +247,18 @@ function cashColumns(kind: 'Cash' | 'Qris'): Column<CashDay>[] {
   ];
 }
 
+// Transfers only ever come from sales, so no kasbon or supplier columns.
+const transferColumns: Column<CashDay>[] = [
+  { label: 'Tanggal', cell: (d) => dayLabel(d.day) },
+  { label: 'Penjualan', numeric: true, cell: (d) => <Money value={d.salesTransfer} /> },
+  { label: 'Pembatalan', numeric: true, cell: (d) => <Money value={d.voidTransfer} /> },
+  {
+    label: 'Bersih',
+    numeric: true,
+    cell: (d) => <Money value={d.netTransfer} className="font-semibold" />,
+  },
+];
+
 export function CashView({ report }: { report: CashReport }) {
   const t = report.totals;
   const footer = (kind: 'Cash' | 'Qris') => [
@@ -259,18 +271,24 @@ export function CashView({ report }: { report: CashReport }) {
   ];
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <StatCard label="Kas tunai bersih" testId="net-cash">
           <Money value={t.netCash} />
         </StatCard>
         <StatCard label="QRIS bersih" testId="net-qris">
           <Money value={t.netQris} />
         </StatCard>
+        <StatCard label="Transfer bersih" testId="net-transfer">
+          <Money value={t.netTransfer} />
+        </StatCard>
         <StatCard label="Penjualan tunai" hint="Sudah dikurangi kembalian">
           <Money value={t.salesCash} />
         </StatCard>
         <StatCard label="Penjualan QRIS">
           <Money value={t.salesQris} />
+        </StatCard>
+        <StatCard label="Penjualan transfer bank">
+          <Money value={t.salesTransfer} />
         </StatCard>
       </div>
       <p className="text-sm text-muted-foreground">
@@ -289,6 +307,18 @@ export function CashView({ report }: { report: CashReport }) {
         rows={report.days}
         columns={cashColumns('Qris')}
         footer={footer('Qris')}
+      />
+      <ReportTable
+        title="Transfer bank per hari"
+        rowKey={(d) => d.day}
+        rows={report.days}
+        columns={transferColumns}
+        footer={[
+          'Total',
+          <Money key="s" value={t.salesTransfer} />,
+          <Money key="v" value={t.voidTransfer} />,
+          <Money key="n" value={t.netTransfer} />,
+        ]}
       />
     </div>
   );

@@ -155,7 +155,7 @@ function insertPaymentWithAllocations(
   payment: {
     id: string;
     supplierId: string;
-    method: 'cash' | 'qris' | 'transfer';
+    method: 'cash' | 'qris';
     initialPurchaseId: string | null;
     userId: string;
   },

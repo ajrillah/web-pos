@@ -192,10 +192,11 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Payment: cash and/or QRIS (QRIS recorded manually, no integration).
   - QRIS amount <= rounded total.
   - Change is given from cash only.
-- Underpayment -> kasbon confirmation dialog; must pick an existing customer or quick-add one.
+- Underpayment -> kasbon confirmation dialog; must pick an existing customer or quick-add one. The dialog is shown even when a customer was already picked for the sale, so the shortfall and the new balance are always confirmed before the kasbon is recorded.
 - Hold sale (Tahan):
   - Stored in DB with status `held`, no TRX number, no stock reservation.
-  - On resume, prices are refreshed from current product data. Lines with deactivated products are removed and the user sees a notice.
+  - On resume, each line keeps the price it was held at: that is the current product price for an ordinary line, and the cashier's own price for an overridden one (MS2). The Kasir warns when a product's price has moved since the hold, except on overridden lines. Lines with deactivated products are removed and the user sees a notice.
+  - The customer picked before holding is stored on the held sale (`sales.customer_id`) and is put back in the cart on resume; a customer deactivated meanwhile is dropped and the sale falls back to UMUM.
   - Held sales are drafts, so they are deleted (the one exception to "no hard deletes"); every deletion is audit-logged (entity `held_sale`).
   - Held sales from previous local days are labeled "kemarin" and can be bulk-deleted.
   - On server start, held sales older than 7 days are deleted automatically (audit action `auto_delete`, no user).
@@ -211,31 +212,31 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Customer on all sales: `sales.customer_id` is nullable; `NULL` means "UMUM" (display only, no dummy record). The cashier can pick or quick-add a customer on any sale, paid or kasbon. The Kasir shows a customer picker before payment.
 - Price override: the cashier can change the sell price per cart line freely, with no owner PIN. The only validation is `sell_price >= cost_price` at that unit's level. The overridden price is stored in `sale_items.unit_price`.
 - Item note: `sale_items.note` (nullable text). Optional per cart line; printed on the receipt in parentheses after the product name, e.g. "Indomie Goreng (Aceh)".
-- Qty minus (return): a cart line may carry a negative quantity, stored as a separate `sale_items` row. Negative quantity adds stock back (a `stock_movement` with positive `qty_change`), and reduces the sale total, omzet, and profit. A sale can mix positive and negative lines; the net total must be >= 0.
-- Transfer bank: `transfer` is a third payment method alongside `tunai` and `qris`, with the same flow as QRIS (no change calculation).
-- Auto-hold: when the cart has items and the user navigates away (an F-key to another menu or any route change), the cart is auto-saved as a held sale in the DB, with toast "Nota ditahan otomatis". On return to Kasir the held-sales list is shown if any exist.
+- Qty minus (return): a cart line may carry a negative quantity, stored as a separate `sale_items` row. In the cart a return keeps its own line: scanning an item never cancels out a return of it, and a line whose quantity reaches zero is dropped. Negative quantity adds stock back (a `stock_movement` with positive `qty_change`), and reduces the sale total, omzet, and profit. A sale can mix positive and negative lines; the net total must be >= 0.
+- Transfer bank: `transfer` is a third payment method alongside `tunai` and `qris`, with the same flow as QRIS (no change calculation). Change is given from cash only, so QRIS and transfer **together** may not exceed the rounded total. Settling a kasbon or a supplier debt stays cash or QRIS only.
+- Auto-hold: when the cart has items and the user navigates away (an F-key to another menu or any route change), the cart is auto-saved as a held sale in the DB, with toast "Nota ditahan otomatis". The same happens before the screen locks (Ctrl+L or idle) and before logout, which must run **before** the session is closed because a locked session refuses the request; a failed auto-hold is reported to the user instead of dropping the cart. On return to Kasir the held-sales list is shown if any exist.
 - Held-sales list info: shows the nota number (or "DRAFT" for a held sale) and the customer name (or "UMUM").
 - Print draft held: a held sale can be printed as-is with a "DRAFT" watermark. It is not recorded as a completed sale and does not affect stock or omzet.
 - Total items: the cart summary shows the line count as "Total Item: N".
 
 ### 6.1.2 Nota and global revisions (MS3)
-- Receipt file name: saved/printed receipts use `DDMMYY-NomorNota-NamaCustomer` (e.g. `011026-001-Bima`); `UMUM` when the customer is NULL; customer name is sanitized (special characters removed).
+- Receipt file name: saved/printed receipts use `JENIS-DDMMYY-NomorNota-NamaCustomer`, where `JENIS` is the document number's prefix (`TRX` for a sale, `BYR` for a kasbon payment) and `NomorNota` its daily sequence, e.g. `TRX-011026-0001-BIMA` and `BYR-011026-0001-BIMA`. Without the prefix a sale and a payment of the same day, number, and customer would overwrite each other. `UMUM` when the customer is NULL; the customer name is sanitized (only letters and digits kept).
 - No "SALINAN"/copy marking: receipts may be printed repeatedly without any copy indicator.
 - Kasbon summary on receipt: when the sale is kasbon, print `Kasbon Sebelumnya`, `Kasbon Transaksi Ini`, and `Total Kasbon`.
 - Item note on receipt: `sale_items.note` is printed in parentheses after the product name.
 - Total items on receipt: print `Total Item: N`.
-- Uppercase auto-convert: all user text inputs (product name, category name, customer name, supplier name, notes, item notes) are converted to uppercase server-side (service/repository layer); frontend inputs use CSS `text-transform: uppercase`.
+- Uppercase auto-convert: the user text the server stores uppercase is product name, category name, customer name and note, supplier name and note, purchase note, stock adjustment note, and sale item note; the conversion happens server-side (service layer). Only those fields display uppercase in the UI (CSS `text-transform: uppercase`, placeholders excluded). Everything else keeps what was typed: product code, unit names and the stock unit label, user names, and store settings, including the receipt header and footer.
 - Price alert: `products.price_alert` (boolean, default false) is set true when a purchase records a `cost_price` higher than the current one; cleared when an owner updates the product's sell price to at least the new cost. A warning icon is shown on the product list for flagged products.
 
 ### 6.2 Receipt
 - After payment: prompt "Simpan nota PDF?" — `Enter` = yes, `Esc` = skip.
-- Server generates the PDF (58 or 80 mm, setting) and saves it to the receipt folder (setting `receipt_folder`; default `%USERPROFILE%\Documents\TokoPodomoro\Nota\<TRX>.pdf`).
+- Server generates the PDF (58 or 80 mm, setting) and saves it to the receipt folder (setting `receipt_folder`; default `%USERPROFILE%\Documents\TokoPodomoro\Nota\`). The file name follows 6.1.2, e.g. `TRX-011026-0001-BIMA.pdf`.
 - Then shows "Nota tersimpan" with buttons:
   - **Buka**: server opens the PDF in the Windows default viewer.
   - **Buka folder**: server opens the receipt folder in Explorer.
   - **Unduh**: browser download.
 - Transaction detail offers the same buttons.
-- Reprints marked "SALINAN"; voided sales marked "DIBATALKAN".
+- Reprints are not marked: a reprint writes the same file again (MS3). Voided sales are marked "DIBATALKAN", held drafts "DRAFT".
 
 ### 6.3 Keyboard UX
 - Fully keyboard-driven. Focus always returns to search. Large fonts.
@@ -327,7 +328,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Top and slow-moving products.
 - Stock value: negative stock counted as 0; negative-stock items listed separately.
 - Negative-stock items.
-- Cash vs QRIS.
+- Cash vs QRIS vs transfer bank: one section per method. Kasbon and supplier payments only ever move cash or QRIS, so the transfer section covers sales and their voids only (MS2).
 - Daily cash flow = cash sales − change + cash kasbon payments − cash supplier payments. No opening balance until shifts exist.
 - Receivables and payables.
 - Stock losses.
@@ -336,7 +337,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Category sales and top products use the category at sale time (sale line snapshot); slow movers, stock value, and stock losses use the product's current category.
 - Voided sales, purchases, and payments are excluded from all totals. How a void on a later day is dated depends on the report:
   - Sales and profit, category, and product reports: a voided sale is removed from its original sale date, even when voided on a later day. These reports only ever show valid sales.
-  - Cash reports (cash vs QRIS, daily cash flow) follow the date money moved: a sale's money in stays on the sale date and the refund is money out on the void date. Voided customer and supplier payments work the same way (payment on its date, reversal on the void date). This keeps each day's drawer count correct.
+  - Cash reports (cash vs QRIS vs transfer, daily cash flow) follow the date money moved: a sale's money in stays on the sale date and the refund is money out on the void date. Voided customer and supplier payments work the same way (payment on its date, reversal on the void date). This keeps each day's drawer count correct.
   - Activity report: voids appear on the void date.
 - Export to PDF and Excel.
 

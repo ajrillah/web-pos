@@ -1,4 +1,5 @@
 import {
+  type Customer,
   type CustomerPayment,
   formatRupiah,
   localDate,
@@ -56,7 +57,7 @@ const today = () =>
 /** Kasir: full screen, no sidebar. Layout locked in docs/ui-style.md section 5. */
 export function KasirPage() {
   const user = useCurrentUser();
-  const { lock } = useAuth();
+  const { lock, registerBeforeSessionEnd } = useAuth();
   const navigate = useNavigate();
   const searchRef = useRef<HTMLInputElement>(null);
   const [cart, dispatch] = useReducer(cartReducer, emptyCart);
@@ -68,23 +69,39 @@ export function KasirPage() {
   const [paidKasbon, setPaidKasbon] = useState<CustomerPayment | null>(null);
   // One id per cart: retries of the same payment reuse it (the server rejects duplicates).
   const [saleId, setSaleId] = useState(() => crypto.randomUUID());
-  const cartRef = useRef(cart);
+  // Customer of the sale being built (null = UMUM); kept here so holding can store it.
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const cartRef = useRef({ cart, customer });
   useEffect(() => {
-    cartRef.current = cart;
-  }, [cart]);
+    cartRef.current = { cart, customer };
+  }, [cart, customer]);
 
-  // Auto-hold: when the Kasir screen unmounts with items still in the cart (any route change
-  // or F-key navigation), save them as a held sale.
-  useEffect(() => {
-    return () => {
-      const c = cartRef.current;
-      if (c.lines.length === 0) return;
-      void api
-        .holdSale({ id: crypto.randomUUID(), lines: saleLines(c) })
-        .then(() => toast.success('Nota ditahan otomatis'))
-        .catch(() => undefined);
-    };
+  /** Holds whatever is in the cart; reports a failure instead of losing the lines silently. */
+  const autoHold = useCallback(async () => {
+    const { cart: c, customer: picked } = cartRef.current;
+    if (c.lines.length === 0) return;
+    try {
+      await api.holdSale({
+        id: crypto.randomUUID(),
+        lines: saleLines(c),
+        ...(picked ? { customerId: picked.id } : {}),
+      });
+      toast.success('Nota ditahan otomatis');
+    } catch (err) {
+      toast.error(`Nota gagal ditahan otomatis: ${errorMessage(err)}`);
+    }
   }, []);
+
+  // Auto-hold on any route change or F-key navigation away from the Kasir.
+  useEffect(() => {
+    return () => void autoHold();
+  }, [autoHold]);
+
+  // Locking and logging out refuse further requests, so the cart is held before they run.
+  useEffect(() => {
+    registerBeforeSessionEnd(autoHold);
+    return () => registerBeforeSessionEnd(null);
+  }, [autoHold, registerBeforeSessionEnd]);
 
   const focusSearch = useCallback(() => {
     requestAnimationFrame(() => searchRef.current?.focus());
@@ -118,6 +135,7 @@ export function KasirPage() {
 
   function resetCart() {
     dispatch({ type: 'clear' });
+    setCustomer(null);
     setSaleId(crypto.randomUUID());
   }
 
@@ -153,7 +171,11 @@ export function KasirPage() {
   async function hold() {
     if (isEmpty || busy) return;
     try {
-      await api.holdSale({ id: crypto.randomUUID(), lines: saleLines(cart) });
+      await api.holdSale({
+        id: crypto.randomUUID(),
+        lines: saleLines(cart),
+        ...(customer ? { customerId: customer.id } : {}),
+      });
       resetCart();
       loadHeld();
       toast.success('Transaksi ditahan.');
@@ -165,7 +187,7 @@ export function KasirPage() {
 
   async function resume(sale: Sale) {
     try {
-      const { lines, removed } = await api.resumeHeldSale(sale.id);
+      const { lines, removed, customer: held } = await api.resumeHeldSale(sale.id);
       dispatch({
         type: 'load',
         lines: lines.map((l) => ({
@@ -174,17 +196,20 @@ export function KasirPage() {
           qtyBase: l.qtyBase,
           heldUnitPrice: l.heldUnitPrice,
           ...(l.note ? { note: l.note } : {}),
+          ...(l.unitPrice !== undefined ? { unitPrice: l.unitPrice } : {}),
         })),
       });
+      setCustomer(held);
       setSaleId(crypto.randomUUID());
       setDialog(null);
       loadHeld();
       if (removed.length > 0) {
         toast.warning(`Barang nonaktif dihapus: ${removed.join(', ')}`);
       }
+      // A line the cashier priced by hand keeps that price, so only the others can warn.
       const changed = lines.filter((l) => {
         const unit = l.product.units.find((u) => u.id === l.unitId);
-        return unit && unit.sellPrice !== l.heldUnitPrice;
+        return unit && unit.sellPrice !== l.heldUnitPrice && l.unitPrice === undefined;
       });
       if (changed.length > 0) {
         toast.warning(
@@ -381,6 +406,8 @@ export function KasirPage() {
         saleId={saleId}
         total={totals.total}
         lines={saleLines(cart)}
+        customer={customer}
+        onCustomerChange={setCustomer}
         onClose={() => setDialog(null)}
         onTotalChanged={() => void refreshCart()}
         onPaid={({ sale, warnings }) => {

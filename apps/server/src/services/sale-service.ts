@@ -49,6 +49,7 @@ import {
 } from '../repositories/sales-repository';
 import { addToStockCache, insertMovement } from '../repositories/stock-repository';
 import { type Actor, isApproved, type ServiceContext } from './context';
+import { findCustomer } from './customer-service';
 import { nextDocNumber } from './numbering';
 import { productsByIds } from './product-service';
 import { getSettings } from './settings-service';
@@ -67,6 +68,19 @@ interface PricedLine {
   subtotal: number;
   costTotal: number;
   note: string | null;
+}
+
+/** The chosen customer, checked; undefined means UMUM (docs/design.md 6.1.1). */
+function pickCustomer(db: Executor, customerId: string | null | undefined) {
+  if (!customerId) return undefined;
+  const customer = findCustomerById(db, customerId);
+  if (!customer) {
+    throw appErrors.customerNotFound();
+  }
+  if (!customer.active) {
+    throw appErrors.customerInactive();
+  }
+  return customer;
 }
 
 /** Loads current prices for the cart and computes each line; the client's numbers are not used. */
@@ -228,16 +242,11 @@ export function createSale(
     if (transfer > total) {
       throw appErrors.transferExceedsTotal();
     }
-    if (total < 0) {
-      throw appErrors.saleTotalNegative();
+    // Change always comes out of the cash, so the non-cash methods together stay within the total.
+    if (input.qris + transfer > total) {
+      throw appErrors.nonCashExceedsTotal();
     }
-    const customer = input.customerId ? findCustomerById(tx, input.customerId) : undefined;
-    if (input.customerId && !customer) {
-      throw appErrors.customerNotFound();
-    }
-    if (customer && !customer.active) {
-      throw appErrors.customerInactive();
-    }
+    const customer = pickCustomer(tx, input.customerId);
     const paidTotal = input.cash + input.qris + transfer;
     // Underpayment is kasbon for the chosen customer (docs/design.md 6.1, 6.7).
     const debtAmount = Math.max(0, total - paidTotal);
@@ -254,7 +263,7 @@ export function createSale(
       total,
       roundingAmount,
       paidTotal,
-      // QRIS never exceeds the total, so change always comes out of the cash.
+      // QRIS and transfer never exceed the total, so change always comes out of the cash.
       changeAmount: Math.max(0, paidTotal - total),
       debtAmount,
       customerId: customer?.id ?? null,
@@ -338,13 +347,17 @@ export function searchSales(ctx: ServiceContext, query: SalesQuery): SalesRespon
 
 // --- Held sales (Tahan) ---
 
-/** Stores the cart as a held sale: no number, no stock change, prices as of now. */
+/**
+ * Stores the cart as a held sale: no number, no stock change, prices as of now. The chosen
+ * customer is kept, so the held-sales list names it and resuming puts it back in the cart.
+ */
 export function holdSale(ctx: ServiceContext, actor: Actor, input: HoldSaleRequest): Sale {
   return ctx.db.transaction((tx) => {
     if (saleIdExists(tx, input.id)) {
       throw appErrors.duplicateSale();
     }
     const lines = priceLines(tx, input.lines);
+    const customer = pickCustomer(tx, input.customerId);
     const sum = lines.reduce((acc, l) => acc + l.subtotal, 0);
     const { total, roundingAmount } = roundSaleTotal(sum, getSettings(tx).rounding);
     const now = ctx.now().toISOString();
@@ -355,6 +368,7 @@ export function holdSale(ctx: ServiceContext, actor: Actor, input: HoldSaleReque
       status: 'held',
       total,
       roundingAmount,
+      customerId: customer?.id ?? null,
       createdAt: now,
       updatedAt: now,
     });
@@ -376,13 +390,15 @@ function findHeld(db: Executor, id: string): SaleWithCashier {
 }
 
 /**
- * Takes a held sale back into the cart: lines get current prices (the held price is returned
- * for the warning), lines whose product or unit was deactivated are dropped and named, and the
- * held record is removed. Taking it back is not a deletion, so it is not audit-logged.
+ * Takes a held sale back into the cart: every line keeps the price it was held at, which for an
+ * overridden line is the cashier's price (`unitPrice`), while `heldUnitPrice` lets the Kasir warn
+ * when the product's own price has moved since. Lines whose product or unit was deactivated are
+ * dropped and named, the held customer comes back, and the held record is removed. Taking it back
+ * is not a deletion, so it is not audit-logged.
  */
 export function resumeHeldSale(ctx: ServiceContext, id: string): ResumeHeldSaleResponse {
   return ctx.db.transaction((tx) => {
-    findHeld(tx, id);
+    const held = findHeld(tx, id);
     const items = listSaleItems(tx, [id]);
     const products = productsByIds(
       tx,
@@ -408,7 +424,9 @@ export function resumeHeldSale(ctx: ServiceContext, id: string): ResumeHeldSaleR
       });
     }
     deleteHeldSales(tx, [id]);
-    return { lines, removed };
+    // A customer deactivated since the hold is dropped; the sale falls back to UMUM.
+    const customer = held.customerId ? findCustomer(tx, held.customerId) : undefined;
+    return { lines, removed, customer: customer?.active ? customer : null };
   });
 }
 

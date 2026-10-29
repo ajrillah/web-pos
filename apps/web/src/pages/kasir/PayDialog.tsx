@@ -25,15 +25,19 @@ import { cn } from '../../lib/utils';
 import { CustomerPicker } from '../customers/CustomerPicker';
 
 /**
- * Bayar (F8): cash and/or QRIS against the rounded total. Enter pays when the amount is enough;
- * with less, Enter moves to the kasbon step (pick or quick-add a customer, Enter confirms,
- * Esc goes back). `saleId` stays the same for retries, so a lost response never books twice.
+ * Bayar (F8): cash, QRIS, and/or bank transfer against the rounded total. Enter pays when the
+ * amount is enough; with less, Enter moves to the kasbon step, which always shows the shortfall
+ * and the customer's new balance before it is recorded (Enter confirms, Esc goes back). The
+ * customer belongs to the cart, so the Kasir owns it. `saleId` stays the same for retries, so a
+ * lost response never books twice.
  */
 export function PayDialog({
   open,
   saleId,
   total,
   lines,
+  customer,
+  onCustomerChange,
   onClose,
   onPaid,
   onTotalChanged,
@@ -43,6 +47,9 @@ export function PayDialog({
   saleId: string;
   total: number;
   lines: SaleLineInput[];
+  /** Customer of the sale being built, kept by the Kasir (null = UMUM). */
+  customer: Customer | null;
+  onCustomerChange: (customer: Customer | null) => void;
   onClose: () => void;
   onPaid: (result: CreateSaleResponse) => void;
   /** The server's total differs: Kasir refreshes the cart prices. */
@@ -53,7 +60,6 @@ export function PayDialog({
   const [qris, setQris] = useState<number | null>(null);
   const [transfer, setTransfer] = useState<number | null>(null);
   const [step, setStep] = useState<'pay' | 'kasbon'>('pay');
-  const [customer, setCustomer] = useState<Customer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -63,7 +69,6 @@ export function PayDialog({
       setQris(null);
       setTransfer(null);
       setStep('pay');
-      setCustomer(null);
       setError(null);
     }
   }, [open]);
@@ -73,11 +78,12 @@ export function PayDialog({
   const shortfall = Math.max(0, total - paid);
   const qrisTooHigh = (qris ?? 0) > total;
   const transferTooHigh = (transfer ?? 0) > total;
+  // Change comes from cash only: QRIS and transfer together stay within the total.
+  const nonCashTooHigh = !qrisTooHigh && !transferTooHigh && (qris ?? 0) + (transfer ?? 0) > total;
 
-  async function submitSale(kasbonCustomer: Customer | null) {
+  async function submitSale() {
     setBusy(true);
     setError(null);
-    const selectedCustomer = kasbonCustomer ?? customer;
     try {
       onPaid(
         await api.createSale({
@@ -87,7 +93,7 @@ export function PayDialog({
           qris: qris ?? 0,
           transfer: transfer ?? 0,
           expectedTotal: total,
-          ...(selectedCustomer ? { customerId: selectedCustomer.id } : {}),
+          ...(customer ? { customerId: customer.id } : {}),
         }),
       );
     } catch (err) {
@@ -114,12 +120,17 @@ export function PayDialog({
       setError('Transfer tidak boleh melebihi total.');
       return;
     }
-    if (shortfall > 0 && !customer) {
+    if (nonCashTooHigh) {
+      setError('QRIS dan transfer bersama tidak boleh melebihi total.');
+      return;
+    }
+    // Underpayment always goes through the kasbon step, so the cashier sees what is recorded.
+    if (shortfall > 0) {
       setError(null);
       setStep('kasbon');
       return;
     }
-    void submitSale(customer);
+    void submitSale();
   }
 
   return (
@@ -131,7 +142,6 @@ export function PayDialog({
           if (step === 'kasbon') {
             e.preventDefault();
             setStep('pay');
-            setCustomer(null);
           }
         }}
         onCloseAutoFocus={(e) => {
@@ -143,7 +153,7 @@ export function PayDialog({
           <DialogTitle>{step === 'pay' ? 'Bayar' : 'Catat kasbon'}</DialogTitle>
           <DialogDescription>
             {step === 'pay'
-              ? 'Tunai dan/atau QRIS. Kembalian hanya dari tunai.'
+              ? 'Tunai, QRIS, dan/atau transfer bank. Kembalian hanya dari tunai.'
               : 'Kekurangan dicatat sebagai kasbon pelanggan.'}
           </DialogDescription>
         </DialogHeader>
@@ -187,24 +197,18 @@ export function PayDialog({
                       </span>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => setCustomer(null)}>
+                  <Button variant="ghost" size="sm" onClick={() => onCustomerChange(null)}>
                     Ganti
                   </Button>
                 </div>
                 <ErrorAlert message={error} />
                 <div className="flex justify-end gap-3">
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setStep('pay');
-                      setCustomer(null);
-                    }}
-                  >
+                  <Button variant="secondary" onClick={() => setStep('pay')}>
                     <ArrowLeft className="size-4" aria-hidden />
                     Kembali <Kbd>Esc</Kbd>
                   </Button>
                   <Button
-                    onClick={() => void submitSale(customer)}
+                    onClick={() => void submitSale()}
                     disabled={busy}
                     autoFocus
                     className="min-w-48"
@@ -214,7 +218,7 @@ export function PayDialog({
                 </div>
               </div>
             ) : (
-              <CustomerPicker onPick={setCustomer} autoFocus />
+              <CustomerPicker onPick={onCustomerChange} autoFocus />
             )}
           </div>
         ) : (
@@ -224,12 +228,12 @@ export function PayDialog({
               {customer ? (
                 <div className="flex items-center justify-between rounded-[20px] bg-selected px-4 py-3">
                   <span className="font-semibold">{customer.name}</span>
-                  <Button variant="ghost" size="sm" onClick={() => setCustomer(null)}>
+                  <Button variant="ghost" size="sm" onClick={() => onCustomerChange(null)}>
                     Ganti
                   </Button>
                 </div>
               ) : (
-                <CustomerPicker onPick={setCustomer} />
+                <CustomerPicker onPick={onCustomerChange} />
               )}
             </div>
             <div className="space-y-2">
@@ -307,7 +311,12 @@ export function PayDialog({
               <Button variant="secondary" onClick={onClose}>
                 Kembali <Kbd>Esc</Kbd>
               </Button>
-              <Button type="submit" size="lg" disabled={busy || qrisTooHigh} className="min-w-48">
+              <Button
+                type="submit"
+                size="lg"
+                disabled={busy || qrisTooHigh || transferTooHigh || nonCashTooHigh}
+                className="min-w-48"
+              >
                 {busy ? 'Menyimpan…' : shortfall > 0 ? 'Kasbon…' : 'Selesai'} <Kbd>Enter</Kbd>
               </Button>
             </div>

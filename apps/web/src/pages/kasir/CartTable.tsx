@@ -1,4 +1,4 @@
-import { formatInteger, formatRupiah } from '@toko-podomoro/shared';
+import { formatInteger, formatRupiah, NOTE_MAX_LENGTH } from '@toko-podomoro/shared';
 import { ShoppingBasket, X } from 'lucide-react';
 import { type Dispatch, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { NumberInput } from '../../components/NumberInput';
@@ -97,10 +97,12 @@ export function CartTable({
                   aria-label={`Catatan ${line.product.name}`}
                   placeholder="Catatan (opsional)"
                   value={line.note ?? ''}
+                  maxLength={NOTE_MAX_LENGTH}
                   onChange={(e) =>
                     dispatch({ type: 'setNote', key: line.key, note: e.target.value })
                   }
-                  className="mt-1 h-9 text-sm"
+                  onKeyDown={finishOnEnter}
+                  className="mt-1 h-9 text-sm uppercase-input"
                 />
                 {remaining < 0 && (
                   <div className="text-sm font-semibold text-destructive">
@@ -158,6 +160,7 @@ export function CartTable({
                       unitPrice: next === unit?.sellPrice ? undefined : next,
                     });
                   }}
+                  onKeyDown={finishOnEnter}
                   prefix="Rp"
                   className="h-10 w-36"
                 />

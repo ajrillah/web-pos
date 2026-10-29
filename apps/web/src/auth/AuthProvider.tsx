@@ -1,5 +1,13 @@
 import type { User } from '@toko-podomoro/shared';
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { ApiRequestError, SESSION_LOCKED_EVENT, setMenuApprovalToken } from '../api/client';
 import { api } from '../api/endpoints';
 
@@ -19,6 +27,11 @@ interface AuthContextValue {
   /** Locks the screen (Ctrl+L or idle); only the same user can unlock. */
   lock: () => Promise<void>;
   logout: () => Promise<void>;
+  /**
+   * Registers work that must finish while the session still accepts requests, because locking
+   * and logging out refuse everything afterwards (the Kasir holds its cart here).
+   */
+  registerBeforeSessionEnd: (task: (() => Promise<void>) | null) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -43,6 +56,18 @@ async function loadState(): Promise<AuthState> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
+  const beforeSessionEnd = useRef<(() => Promise<void>) | null>(null);
+
+  const registerBeforeSessionEnd = useCallback((task: (() => Promise<void>) | null) => {
+    beforeSessionEnd.current = task;
+  }, []);
+
+  // Runs the pending task once; a failure of its own is reported by the task itself.
+  const runBeforeSessionEnd = useCallback(async () => {
+    const task = beforeSessionEnd.current;
+    beforeSessionEnd.current = null;
+    if (task) await task();
+  }, []);
 
   const refresh = useCallback(async () => {
     setState(await loadState());
@@ -65,9 +90,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const lock = useCallback(async () => {
+    await runBeforeSessionEnd();
     await api.lock().catch(() => undefined);
     markLocked();
-  }, [markLocked]);
+  }, [markLocked, runBeforeSessionEnd]);
 
   // Another tab locked the session, or a request was refused as locked.
   useEffect(() => {
@@ -76,13 +102,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [markLocked]);
 
   const logout = useCallback(async () => {
+    await runBeforeSessionEnd();
     await api.logout().catch(() => undefined);
     setMenuApprovalToken(null);
     setState({ status: 'anonymous' });
-  }, []);
+  }, [runBeforeSessionEnd]);
 
   return (
-    <AuthContext.Provider value={{ state, refresh, signedIn, lock, logout }}>
+    <AuthContext.Provider
+      value={{ state, refresh, signedIn, lock, logout, registerBeforeSessionEnd }}
+    >
       {children}
     </AuthContext.Provider>
   );

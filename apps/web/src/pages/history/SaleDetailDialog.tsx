@@ -2,6 +2,7 @@ import {
   formatInteger,
   formatRupiah,
   formatUnitQty,
+  type PaymentMethod,
   type ReceiptSavedResponse,
   type Sale,
 } from '@toko-podomoro/shared';
@@ -23,6 +24,13 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog';
 import { VoidDialog } from '../../components/VoidDialog';
+
+/** Sale payments can be a bank transfer as well (docs/design.md 6.1.1). */
+const paymentLabels: Record<PaymentMethod, string> = {
+  cash: 'Tunai',
+  qris: 'QRIS',
+  transfer: 'Transfer bank',
+};
 
 export const dateTime = (iso: string) =>
   new Date(iso).toLocaleString('id-ID', {
@@ -109,7 +117,7 @@ export function SaleDetailDialog({
               {sale.payments.map((p) => (
                 <Row
                   key={p.method}
-                  label={p.method === 'cash' ? 'Tunai' : 'QRIS'}
+                  label={paymentLabels[p.method]}
                   value={formatRupiah(p.amount)}
                 />
               ))}
@@ -136,7 +144,7 @@ export function SaleDetailDialog({
                 </Button>
                 <span className="text-sm text-muted-foreground">
                   {sale.receiptCount > 0
-                    ? `Nota sudah dibuat ${sale.receiptCount}×; berikutnya ditandai SALINAN.`
+                    ? `Nota sudah dibuat ${sale.receiptCount}×.`
                     : 'Nota belum pernah dibuat.'}
                 </span>
               </div>

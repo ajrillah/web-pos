@@ -12,6 +12,7 @@ import {
   receivablesQuerySchema,
   type UpdateCustomerInput,
 } from '@toko-podomoro/shared';
+import type { Executor } from '../db/client';
 import { appErrors } from '../errors';
 import { insertAudit } from '../repositories/audit-repository';
 import { listPaymentsOfCustomer } from '../repositories/customer-payments-repository';
@@ -43,6 +44,12 @@ function toCustomer(row: CustomerWithBalance): Customer {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+/** The customer with its balance, or undefined when it does not exist (held sales, sales). */
+export function findCustomer(db: Executor, id: string): Customer | undefined {
+  const row = findCustomerById(db, id);
+  return row ? toCustomer(row) : undefined;
 }
 
 export function toReceivable(row: ReceivableWithRefs): Receivable {

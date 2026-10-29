@@ -45,6 +45,15 @@ export type CartAction =
 
 const newKey = () => crypto.randomUUID();
 
+/**
+ * A line at zero is refused on payment, so it never stays in the cart (it can only come up when
+ * a quantity is set to zero).
+ */
+function withLines(lines: CartLine[], newestKey: string | null): Cart {
+  const kept = lines.filter((l) => l.qtyBase !== 0);
+  return { lines: kept, newestKey: kept.some((l) => l.key === newestKey) ? newestKey : null };
+}
+
 export function lineUnit(line: CartLine): ProductUnit | undefined {
   return line.product.units.find((u) => u.id === line.unitId);
 }
@@ -69,19 +78,23 @@ export function cartReducer(cart: Cart, action: CartAction): Cart {
         : primaryUnit(action.product);
       if (!unit) return cart;
       const qtyBase = action.qtyBase ?? unit.factor;
-      // The same product in the same unit adds up on its existing line.
+      // The same product in the same unit adds up on its existing line, but a return stays on a
+      // line of its own: MS2 stores it as a separate sale item (docs/design.md 6.1.1).
       const existing = cart.lines.find(
-        (l) => l.product.id === action.product.id && l.unitId === unit.id,
+        (l) =>
+          l.product.id === action.product.id &&
+          l.unitId === unit.id &&
+          Math.sign(l.qtyBase) === Math.sign(qtyBase),
       );
       if (existing) {
-        return {
-          lines: cart.lines.map((l) =>
+        return withLines(
+          cart.lines.map((l) =>
             l.key === existing.key
               ? { ...l, product: action.product, qtyBase: l.qtyBase + qtyBase }
               : l,
           ),
-          newestKey: existing.key,
-        };
+          existing.key,
+        );
       }
       const key = newKey();
       return {
@@ -90,13 +103,10 @@ export function cartReducer(cart: Cart, action: CartAction): Cart {
       };
     }
     case 'setQty':
-      if (action.qtyBase === 0) return cart;
-      return {
-        lines: cart.lines.map((l) =>
-          l.key === action.key ? { ...l, qtyBase: action.qtyBase } : l,
-        ),
-        newestKey: action.key,
-      };
+      return withLines(
+        cart.lines.map((l) => (l.key === action.key ? { ...l, qtyBase: action.qtyBase } : l)),
+        action.key,
+      );
     case 'setNote':
       return {
         lines: cart.lines.map((l) => (l.key === action.key ? { ...l, note: action.note } : l)),

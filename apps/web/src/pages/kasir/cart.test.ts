@@ -57,6 +57,25 @@ describe('cartReducer', () => {
     expect(cart.lines[0]?.qtyBase).toBe(32);
   });
 
+  it('keeps a return on its own line instead of cancelling a sold line', () => {
+    const cart = run(
+      { type: 'add', product: rokok },
+      { type: 'add', product: rokok, qtyBase: -16 },
+    );
+    expect(cart.lines.map((l) => l.qtyBase)).toEqual([16, -16]);
+    // A second return adds up on the return line.
+    const more = cartReducer(cart, { type: 'add', product: rokok, qtyBase: -16 });
+    expect(more.lines.map((l) => l.qtyBase)).toEqual([16, -32]);
+  });
+
+  it('drops a line whose quantity is set to zero', () => {
+    const cart = run({ type: 'add', product: rokok });
+    const key = cart.lines[0]?.key ?? '';
+    const zeroed = cartReducer(cart, { type: 'setQty', key, qtyBase: 0 });
+    expect(zeroed.lines).toEqual([]);
+    expect(zeroed.newestKey).toBeNull();
+  });
+
   it('keeps a different unit of the same product on its own line', () => {
     const cart = run(
       { type: 'add', product: rokok },
@@ -81,10 +100,9 @@ describe('cartReducer', () => {
     expect(cart.lines[0]).toMatchObject({ unitId: 'btg', qtyBase: 2 });
   });
 
-  it('ignores quantities below 1 and removes lines', () => {
+  it('removes a line', () => {
     const start = run({ type: 'add', product: rokok });
     const key = start.lines[0]?.key ?? '';
-    expect(cartReducer(start, { type: 'setQty', key, qtyBase: 0 })).toBe(start);
     expect(cartReducer(start, { type: 'remove', key })).toEqual(emptyCart);
   });
 

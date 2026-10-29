@@ -334,7 +334,8 @@ export const customerPayments = sqliteTable(
     customerId: text('customer_id')
       .notNull()
       .references(() => customers.id),
-    method: text('method', { enum: ['cash', 'qris', 'transfer'] }).notNull(),
+    // Settling a debt moves cash or QRIS only (docs/design.md 6.7).
+    method: text('method', { enum: ['cash', 'qris'] }).notNull(),
     // Applied to receivables (sum of allocations).
     amount: integer('amount').notNull(),
     amountReceived: integer('amount_received').notNull(),
@@ -472,7 +473,8 @@ export const supplierPayments = sqliteTable(
     supplierId: text('supplier_id')
       .notNull()
       .references(() => suppliers.id),
-    method: text('method', { enum: ['cash', 'qris', 'transfer'] }).notNull(),
+    // Settling a debt moves cash or QRIS only (docs/design.md 6.6).
+    method: text('method', { enum: ['cash', 'qris'] }).notNull(),
     // Sum of allocations.
     amount: integer('amount').notNull(),
     // Set when this is the initial payment recorded with a purchase.

@@ -30,11 +30,20 @@ interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
 }
 
-export function TextField({ label, id, className, ...props }: FieldProps & { id: string }) {
+export function TextField({
+  label,
+  id,
+  className,
+  uppercase = false,
+  ...props
+}: FieldProps & {
+  id: string /** Text the server stores uppercase (MS3). */;
+  uppercase?: boolean;
+}) {
   return (
     <div className={cn('space-y-1.5', className)}>
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} {...props} />
+      <Input id={id} className={uppercase ? 'uppercase-input' : undefined} {...props} />
     </div>
   );
 }
