@@ -368,6 +368,7 @@ export function ProductFormPage() {
               value={draft.name}
               onChange={(e) => set({ name: e.target.value })}
               autoComplete="off"
+              uppercase
             />
             <div className="space-y-1.5">
               <Label htmlFor="category">Kategori</Label>

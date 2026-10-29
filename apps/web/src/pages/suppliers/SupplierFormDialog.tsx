@@ -47,6 +47,7 @@ export function SupplierFormDialog({
         onChange={(e) => setForm({ ...form, name: e.target.value })}
         autoFocus
         autoComplete="off"
+        uppercase
       />
       <TextField
         id="supplier-phone"
@@ -62,6 +63,7 @@ export function SupplierFormDialog({
         value={form.note}
         onChange={(e) => setForm({ ...form, note: e.target.value })}
         autoComplete="off"
+        uppercase
       />
     </FormDialog>
   );

@@ -204,6 +204,7 @@ function CategoryDialog({
         onChange={(e) => setName(e.target.value)}
         autoFocus
         autoComplete="off"
+        uppercase
       />
     </FormDialog>
   );

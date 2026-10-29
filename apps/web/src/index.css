@@ -80,6 +80,18 @@
   --shadow-card: 0 1px 3px rgba(11, 36, 34, 0.05), 0 12px 32px -18px rgba(11, 36, 34, 0.18);
 }
 
+/*
+ * MS3: fields whose text the server stores uppercase are shown uppercase while typing. Only
+ * those fields carry it: codes, unit names, usernames, and store settings keep what was typed.
+ */
+@utility uppercase-input {
+  text-transform: uppercase;
+
+  &::placeholder {
+    text-transform: none;
+  }
+}
+
 /* Small caps label: 11-12px uppercase, wide tracking. */
 @utility label-caps {
   font-size: 11.5px;
@@ -100,11 +112,6 @@
     color: var(--foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
-  }
-  /* MS3: user text inputs are displayed uppercase (conversion happens server-side). */
-  input,
-  textarea {
-    text-transform: uppercase;
   }
   ::placeholder {
     color: var(--subtle-foreground);

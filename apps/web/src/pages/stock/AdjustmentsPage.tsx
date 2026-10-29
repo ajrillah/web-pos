@@ -177,6 +177,7 @@ export function AdjustmentsPage() {
               onChange={(e) => setNote(e.target.value)}
               autoComplete="off"
               maxLength={200}
+              uppercase
             />
             <ErrorAlert message={error} />
             <div className="flex justify-end">

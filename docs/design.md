@@ -225,7 +225,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Kasbon summary on receipt: when the sale is kasbon, print `Kasbon Sebelumnya`, `Kasbon Transaksi Ini`, and `Total Kasbon`.
 - Item note on receipt: `sale_items.note` is printed in parentheses after the product name.
 - Total items on receipt: print `Total Item: N`.
-- Uppercase auto-convert: all user text inputs (product name, category name, customer name, supplier name, notes, item notes) are converted to uppercase server-side (service/repository layer); frontend inputs use CSS `text-transform: uppercase`.
+- Uppercase auto-convert: the user text the server stores uppercase is product name, category name, customer name and note, supplier name and note, purchase note, stock adjustment note, and sale item note; the conversion happens server-side (service layer). Only those fields display uppercase in the UI (CSS `text-transform: uppercase`, placeholders excluded). Everything else keeps what was typed: product code, unit names and the stock unit label, user names, and store settings, including the receipt header and footer.
 - Price alert: `products.price_alert` (boolean, default false) is set true when a purchase records a `cost_price` higher than the current one; cleared when an owner updates the product's sell price to at least the new cost. A warning icon is shown on the product list for flagged products.
 
 ### 6.2 Receipt

@@ -189,6 +189,7 @@ export function PurchaseFormPage() {
             <Label htmlFor="purchase-note">Catatan (opsional)</Label>
             <Input
               id="purchase-note"
+              className="uppercase-input"
               placeholder="No. faktur, dll."
               value={note}
               onChange={(e) => setNote(e.target.value)}
