@@ -219,7 +219,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Total items: the cart summary shows the line count as "Total Item: N".
 
 ### 6.1.2 Nota and global revisions (MS3)
-- Receipt file name: saved/printed receipts use `DDMMYY-NomorNota-NamaCustomer` (e.g. `011026-001-Bima`); `UMUM` when the customer is NULL; customer name is sanitized (special characters removed).
+- Receipt file name: saved/printed receipts use `JENIS-DDMMYY-NomorNota-NamaCustomer`, where `JENIS` is the document number's prefix (`TRX` for a sale, `BYR` for a kasbon payment) and `NomorNota` its daily sequence, e.g. `TRX-011026-0001-BIMA` and `BYR-011026-0001-BIMA`. Without the prefix a sale and a payment of the same day, number, and customer would overwrite each other. `UMUM` when the customer is NULL; the customer name is sanitized (only letters and digits kept).
 - No "SALINAN"/copy marking: receipts may be printed repeatedly without any copy indicator.
 - Kasbon summary on receipt: when the sale is kasbon, print `Kasbon Sebelumnya`, `Kasbon Transaksi Ini`, and `Total Kasbon`.
 - Item note on receipt: `sale_items.note` is printed in parentheses after the product name.

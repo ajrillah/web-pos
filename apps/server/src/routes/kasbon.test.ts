@@ -321,9 +321,9 @@ describe('customer payments', () => {
       ]),
     );
     const saved = await api('POST', `/api/customer-payments/${payment.id}/receipt`);
-    expect(saved.json()).toMatchObject({ fileName: '221026-0001-PAKBUDI.pdf', copy: false });
+    expect(saved.json()).toMatchObject({ fileName: 'BYR-221026-0001-PAKBUDI.pdf', copy: false });
     const copy = await api('GET', `/api/customer-payments/${payment.id}/receipt.pdf`);
-    expect(copy.headers['content-disposition']).toContain('221026-0001-PAKBUDI.pdf');
+    expect(copy.headers['content-disposition']).toContain('BYR-221026-0001-PAKBUDI.pdf');
     expect(
       (await api('POST', `/api/customer-payments/${payment.id}/receipt/open`)).statusCode,
     ).toBe(204);

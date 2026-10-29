@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Sale, Settings } from '@toko-podomoro/shared';
+import type { Product, Sale, Settings } from '@toko-podomoro/shared';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { writeSetting } from '../repositories/settings-repository';
 import { receiptLines } from '../services/receipt-service';
@@ -122,11 +122,12 @@ describe('receipt endpoints', () => {
   let h: Harness;
   let ownerToken: string;
   let saleId: string;
+  let product: Product;
 
   beforeEach(async () => {
     h = await createHarness();
     ({ token: ownerToken } = await setupOwner(h));
-    const product = await createProductAs(h, ownerToken, {
+    product = await createProductAs(h, ownerToken, {
       code: 'IDM',
       name: 'Indomie Goreng',
       category: 'Sembako',
@@ -162,17 +163,33 @@ describe('receipt endpoints', () => {
     expect(fs.existsSync(h.receiptDir)).toBe(false);
     const first = await api('POST', `/api/sales/${saleId}/receipt`);
     expect(first.json()).toEqual({
-      fileName: `221026-0001-UMUM.pdf`,
+      fileName: `TRX-221026-0001-UMUM.pdf`,
       folder: h.receiptDir,
       copy: false,
     });
-    const file = path.join(h.receiptDir, `221026-0001-UMUM.pdf`);
+    const file = path.join(h.receiptDir, `TRX-221026-0001-UMUM.pdf`);
     expect(fs.readFileSync(file).subarray(0, 5).toString()).toBe('%PDF-');
 
     const second = await api('POST', `/api/sales/${saleId}/receipt`);
-    expect(second.json()).toMatchObject({ fileName: `221026-0001-UMUM.pdf`, copy: true });
-    expect(fs.existsSync(path.join(h.receiptDir, `221026-0001-UMUM.pdf`))).toBe(true);
+    expect(second.json()).toMatchObject({ fileName: `TRX-221026-0001-UMUM.pdf`, copy: true });
+    expect(fs.existsSync(path.join(h.receiptDir, `TRX-221026-0001-UMUM.pdf`))).toBe(true);
     expect((await api('GET', `/api/sales/${saleId}`)).json().sale.receiptCount).toBe(2);
+  });
+
+  it('names the file after the type, date, number, and sanitized customer', async () => {
+    const { customer } = (
+      await api('POST', '/api/customers', { name: 'Bu Tini Rahayu', phone: '0812' })
+    ).json();
+    const res = await api('POST', '/api/sales', {
+      id: crypto.randomUUID(),
+      lines: [{ productId: product.id, unitId: product.units[0]?.id, qtyBase: 2 }],
+      cash: 7000,
+      qris: 0,
+      expectedTotal: 7000,
+      customerId: customer.id,
+    });
+    const saved = await api('POST', `/api/sales/${res.json().sale.id}/receipt`);
+    expect(saved.json().fileName).toBe('TRX-221026-0002-BUTINIRAHAYU.pdf');
   });
 
   it('opens the saved receipt and the folder with the OS', async () => {
@@ -183,7 +200,7 @@ describe('receipt endpoints', () => {
     await api('POST', `/api/sales/${saleId}/receipt`);
     expect((await api('POST', `/api/sales/${saleId}/receipt/open`)).statusCode).toBe(204);
     expect((await api('POST', '/api/receipts/open-folder')).statusCode).toBe(204);
-    expect(h.opened).toEqual([path.join(h.receiptDir, `221026-0001-UMUM.pdf`), h.receiptDir]);
+    expect(h.opened).toEqual([path.join(h.receiptDir, `TRX-221026-0001-UMUM.pdf`), h.receiptDir]);
   });
 
   it('downloads a PDF; after a saved receipt it is a copy', async () => {
@@ -191,7 +208,9 @@ describe('receipt endpoints', () => {
     const res = await api('GET', `/api/sales/${saleId}/receipt.pdf`);
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toBe('application/pdf');
-    expect(res.headers['content-disposition']).toBe(`attachment; filename="221026-0001-UMUM.pdf"`);
+    expect(res.headers['content-disposition']).toBe(
+      `attachment; filename="TRX-221026-0001-UMUM.pdf"`,
+    );
     expect(res.rawPayload.subarray(0, 5).toString()).toBe('%PDF-');
   });
 

@@ -245,7 +245,7 @@ function sanitizeReceiptName(value: string | null): string {
   return cleaned || 'UMUM';
 }
 
-/** Builds the next receipt and its file name (DDMMYY-NomorNota-NamaCustomer). */
+/** Builds the next receipt and its file name (JENIS-DDMMYY-NomorNota-NamaCustomer). */
 async function nextReceipt(ctx: ServiceContext, kind: ReceiptKind, id: string) {
   const doc = receiptDoc(ctx, kind, id);
   const settings = getSettings(ctx.db);
@@ -254,8 +254,11 @@ async function nextReceipt(ctx: ServiceContext, kind: ReceiptKind, id: string) {
     doc.lines(settings, copy),
     settings.receiptWidth === '80' ? 80 : 58,
   );
-  const numberPart = doc.number.split('-').pop() ?? doc.number;
-  const fileName = `${receiptFileDate(doc.createdAt)}-${numberPart}-${sanitizeReceiptName(doc.customerName)}.pdf`;
+  // The type keeps a sale and a kasbon payment of the same day and number apart.
+  const parts = doc.number.split('-');
+  const typePart = parts[0] ?? '';
+  const numberPart = parts.at(-1) ?? doc.number;
+  const fileName = `${typePart}-${receiptFileDate(doc.createdAt)}-${numberPart}-${sanitizeReceiptName(doc.customerName)}.pdf`;
   return { doc, settings, copy, pdf, fileName };
 }
 
