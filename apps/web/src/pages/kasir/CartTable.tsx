@@ -1,5 +1,5 @@
 import { formatInteger, formatRupiah, NOTE_MAX_LENGTH } from '@toko-podomoro/shared';
-import { ShoppingBasket, X } from 'lucide-react';
+import { RotateCcw, ShoppingBasket, X } from 'lucide-react';
 import { type Dispatch, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { NumberInput } from '../../components/NumberInput';
 import { Badge } from '../../components/ui/badge';
@@ -16,7 +16,7 @@ import { formatQty } from '../../lib/format';
 import { cn } from '../../lib/utils';
 import { type Cart, type CartAction, cartQtyOf, lineSubtotalOf, lineUnit } from './cart';
 
-const GRID = 'grid grid-cols-[44px_minmax(0,1fr)_236px_150px_150px_48px] items-center gap-3';
+const GRID = 'grid grid-cols-[44px_minmax(0,1fr)_280px_150px_150px_48px] items-center gap-3';
 
 /** Cart lines: no, name with code · category, qty + unit, price, subtotal, remove. */
 export function CartTable({
@@ -71,6 +71,7 @@ export function CartTable({
           const remaining = line.product.stock - cartQtyOf(cart, line.product.id);
           const priceChanged =
             line.heldUnitPrice !== undefined && unit && line.heldUnitPrice !== unit.sellPrice;
+          const isReturn = line.qtyBase < 0;
           return (
             <div
               key={line.key}
@@ -87,6 +88,7 @@ export function CartTable({
                 <div className="flex items-center gap-2">
                   <span className="truncate font-semibold">{line.product.name}</span>
                   {isNewest && <Badge variant="primary">BARU</Badge>}
+                  {isReturn && <Badge variant="destructive">RETUR</Badge>}
                   {priceChanged && <Badge variant="warning">Harga berubah</Badge>}
                 </div>
                 <div className="truncate text-sm text-muted-foreground">
@@ -128,6 +130,25 @@ export function CartTable({
                   suffix={isBulk ? line.product.baseUnit : undefined}
                   className={isBulk ? 'w-36' : 'w-20'}
                 />
+                <button
+                  type="button"
+                  aria-pressed={isReturn}
+                  aria-label={`${isReturn ? 'Batalkan retur' : 'Tandai retur'} ${line.product.name}`}
+                  data-return-toggle={line.product.code}
+                  title={isReturn ? 'Batalkan retur' : 'Tandai sebagai retur'}
+                  onClick={() => {
+                    dispatch({ type: 'setQty', key: line.key, qtyBase: -line.qtyBase });
+                    onDone();
+                  }}
+                  className={cn(
+                    'flex size-9 shrink-0 items-center justify-center rounded-control transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-primary-soft',
+                    isReturn
+                      ? 'bg-destructive-soft text-destructive hover:bg-destructive-soft/80'
+                      : 'text-muted-foreground hover:bg-muted',
+                  )}
+                >
+                  <RotateCcw className="size-4" aria-hidden />
+                </button>
                 {!isBulk && line.product.units.length > 1 ? (
                   <Select
                     value={line.unitId}
