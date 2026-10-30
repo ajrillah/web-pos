@@ -72,12 +72,17 @@ export function KasirPage() {
   // Customer of the sale being built (null = UMUM); kept here so holding can store it.
   const [customer, setCustomer] = useState<Customer | null>(null);
   const cartRef = useRef({ cart, customer });
+  // Lock and logout hold the cart before the session ends; the unmount cleanup then runs with the
+  // session already locked. This ref lets the cleanup see the hold already happened and skip.
+  const heldOnceRef = useRef(false);
   useEffect(() => {
     cartRef.current = { cart, customer };
+    heldOnceRef.current = false;
   }, [cart, customer]);
 
   /** Holds whatever is in the cart; reports a failure instead of losing the lines silently. */
   const autoHold = useCallback(async () => {
+    if (heldOnceRef.current) return;
     const { cart: c, customer: picked } = cartRef.current;
     if (c.lines.length === 0) return;
     try {
@@ -86,6 +91,7 @@ export function KasirPage() {
         lines: saleLines(c),
         ...(picked ? { customerId: picked.id } : {}),
       });
+      heldOnceRef.current = true;
       toast.success('Nota ditahan otomatis');
     } catch (err) {
       toast.error(`Nota gagal ditahan otomatis: ${errorMessage(err)}`);
