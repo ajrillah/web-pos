@@ -18,6 +18,7 @@ import { dayLabel, formatQty, shortDate } from '../../lib/format';
 import { cn } from '../../lib/utils';
 import { dateTime } from '../history/SaleDetailDialog';
 import { type Column, Money, percent, ReportTable, StatCard } from './parts';
+import { RevenueChart } from './RevenueChart';
 
 export function SummaryView({ report }: { report: SummaryReport }) {
   const t = report.totals;
@@ -48,6 +49,7 @@ export function SummaryView({ report }: { report: SummaryReport }) {
           <Money value={t.kasbon} className="text-warning-foreground" />
         </StatCard>
       </div>
+      <RevenueChart report={report} />
       <ReportTable
         title="Per hari"
         rowKey={(d) => d.day}
