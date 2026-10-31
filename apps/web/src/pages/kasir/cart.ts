@@ -34,10 +34,26 @@ export const emptyCart: Cart = { lines: [], newestKey: null };
 
 export type CartAction =
   | { type: 'add'; product: Product; unitId?: string; qtyBase?: number }
+  | {
+      type: 'addDetailed';
+      product: Product;
+      unitId: string;
+      qtyBase: number;
+      unitPrice?: number;
+      note?: string;
+    }
   | { type: 'setQty'; key: string; qtyBase: number }
   | { type: 'setUnit'; key: string; unitId: string }
   | { type: 'setNote'; key: string; note: string }
   | { type: 'setPrice'; key: string; unitPrice: number | undefined }
+  | {
+      type: 'updateLine';
+      key: string;
+      unitId: string;
+      qtyBase: number;
+      unitPrice: number | undefined;
+      note: string | undefined;
+    }
   | { type: 'remove'; key: string }
   | { type: 'replaceProducts'; products: Map<string, Product> }
   | { type: 'load'; lines: Omit<CartLine, 'key'>[] }
@@ -102,6 +118,37 @@ export function cartReducer(cart: Cart, action: CartAction): Cart {
         newestKey: key,
       };
     }
+    case 'addDetailed': {
+      // Modal flow: unit, price, and note are set in one go, so returns and detailed adds never
+      // merge with an existing line.
+      const key = newKey();
+      const line: CartLine = {
+        key,
+        product: action.product,
+        unitId: action.unitId,
+        qtyBase: action.qtyBase,
+        ...(action.unitPrice !== undefined ? { unitPrice: action.unitPrice } : {}),
+        ...(action.note ? { note: action.note } : {}),
+      };
+      return { lines: [...cart.lines, line], newestKey: key };
+    }
+    case 'updateLine':
+      return withLines(
+        cart.lines.map((l) => {
+          if (l.key !== action.key) return l;
+          const sign = l.qtyBase < 0 ? -1 : 1;
+          const next: CartLine = {
+            key: l.key,
+            product: l.product,
+            unitId: action.unitId,
+            qtyBase: sign * Math.abs(action.qtyBase),
+          };
+          if (action.unitPrice !== undefined) next.unitPrice = action.unitPrice;
+          if (action.note) next.note = action.note;
+          return next;
+        }),
+        action.key,
+      );
     case 'setQty':
       return withLines(
         cart.lines.map((l) => (l.key === action.key ? { ...l, qtyBase: action.qtyBase } : l)),

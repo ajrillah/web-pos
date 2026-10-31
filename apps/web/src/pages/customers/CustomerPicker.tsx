@@ -67,9 +67,9 @@ export function CustomerPicker({
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setHighlight((h) => Math.max(h - 1, 0));
-    } else if (e.key === 'Enter') {
+    } else if (e.key === 'Enter' && options > 0) {
       e.preventDefault();
-      if (options > 0) choose(highlight);
+      choose(highlight);
     }
   }
 
