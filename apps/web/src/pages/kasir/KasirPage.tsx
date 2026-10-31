@@ -26,12 +26,16 @@ import { cn } from '../../lib/utils';
 import { roleLabels } from '../../navigation/menu';
 import { CustomerPaymentDialog } from '../customers/CustomerPaymentDialog';
 import { PaymentSummary } from '../customers/PaymentSummary';
+import {
+  AddProductDialog,
+  type AddProductInitial,
+  type AddProductResult,
+} from './AddProductDialog';
 import { CartTable } from './CartTable';
-import { cartReducer, cartTotals, emptyCart, saleLines } from './cart';
+import { cartReducer, cartTotals, emptyCart, lineUnit, saleLines } from './cart';
 import { HeldSalesDialog, isFromEarlierDay } from './HeldSalesDialog';
 import { PayDialog } from './PayDialog';
 import { ProductSearch } from './ProductSearch';
-import { WeightDialog } from './WeightDialog';
 
 type OpenDialog = 'pay' | 'held' | 'cancel' | 'kasbon-payment' | null;
 
@@ -64,7 +68,12 @@ export function KasirPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [heldSales, setHeldSales] = useState<Sale[]>([]);
   const [dialog, setDialog] = useState<OpenDialog>(null);
-  const [weighing, setWeighing] = useState<Product | null>(null);
+  const [adding, setAdding] = useState<Product | null>(null);
+  const [editing, setEditing] = useState<{
+    key: string;
+    product: Product;
+    initial: AddProductInitial;
+  } | null>(null);
   const [completed, setCompleted] = useState<Sale | null>(null);
   const [paidKasbon, setPaidKasbon] = useState<CustomerPayment | null>(null);
   // One id per cart: retries of the same payment reuse it (the server rejects duplicates).
@@ -137,7 +146,12 @@ export function KasirPage() {
 
   const totals = cartTotals(cart, settings?.rounding ?? 'none');
   const isEmpty = cart.lines.length === 0;
-  const busy = dialog !== null || weighing !== null || completed !== null || paidKasbon !== null;
+  const busy =
+    dialog !== null ||
+    adding !== null ||
+    editing !== null ||
+    completed !== null ||
+    paidKasbon !== null;
 
   function resetCart() {
     dispatch({ type: 'clear' });
@@ -146,12 +160,46 @@ export function KasirPage() {
   }
 
   function addProduct(product: Product) {
-    if (product.type === 'bulk') {
-      setWeighing(product);
-      return;
-    }
-    dispatch({ type: 'add', product });
-    focusSearch();
+    // All adds (normal and bulk) go through the sequential modal: qty → unit → price → note.
+    setAdding(product);
+  }
+
+  function editLine(key: string) {
+    const line = cart.lines.find((l) => l.key === key);
+    if (!line) return;
+    const unit = lineUnit(line);
+    if (!unit) return;
+    const initial: AddProductInitial = {
+      unitId: line.unitId,
+      qtyBase: Math.abs(line.qtyBase),
+      ...(line.unitPrice !== undefined ? { unitPrice: line.unitPrice } : {}),
+      ...(line.note ? { note: line.note } : {}),
+    };
+    setEditing({ key, product: line.product, initial });
+  }
+
+  function finishAdd(product: Product, result: AddProductResult) {
+    dispatch({
+      type: 'addDetailed',
+      product,
+      unitId: result.unitId,
+      qtyBase: result.qtyBase,
+      ...(result.unitPrice !== undefined ? { unitPrice: result.unitPrice } : {}),
+      ...(result.note ? { note: result.note } : {}),
+    });
+    setAdding(null);
+  }
+
+  function finishEdit(key: string, result: AddProductResult) {
+    dispatch({
+      type: 'updateLine',
+      key,
+      unitId: result.unitId,
+      qtyBase: result.qtyBase,
+      unitPrice: result.unitPrice,
+      note: result.note,
+    });
+    setEditing(null);
   }
 
   /** Reloads every product in the cart (prices, stock); drops deactivated ones. */
@@ -294,7 +342,7 @@ export function KasirPage() {
         <section className="flex min-w-0 flex-1 flex-col gap-4">
           <ProductSearch inputRef={searchRef} onPick={addProduct} />
           <Card className="min-h-0 flex-1 p-3">
-            <CartTable cart={cart} dispatch={dispatch} onDone={focusSearch} />
+            <CartTable cart={cart} dispatch={dispatch} onDone={focusSearch} onEditLine={editLine} />
           </Card>
         </section>
 
@@ -398,13 +446,21 @@ export function KasirPage() {
         </button>
       </footer>
 
-      <WeightDialog
-        product={weighing}
-        onAdd={(product, qtyBase) => {
-          dispatch({ type: 'add', product, qtyBase });
-          setWeighing(null);
+      <AddProductDialog
+        product={adding}
+        onDone={(result) => {
+          if (adding) finishAdd(adding, result);
         }}
-        onClose={() => setWeighing(null)}
+        onCancel={() => setAdding(null)}
+        onClosed={focusSearch}
+      />
+      <AddProductDialog
+        product={editing?.product ?? null}
+        initial={editing?.initial}
+        onDone={(result) => {
+          if (editing) finishEdit(editing.key, result);
+        }}
+        onCancel={() => setEditing(null)}
         onClosed={focusSearch}
       />
       <PayDialog

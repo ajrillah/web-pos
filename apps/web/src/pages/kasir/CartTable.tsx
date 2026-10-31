@@ -1,7 +1,6 @@
-import { formatInteger, formatRupiah, NOTE_MAX_LENGTH } from '@toko-podomoro/shared';
+import { formatInteger, formatRupiah } from '@toko-podomoro/shared';
 import { RotateCcw, ShoppingBasket, X } from 'lucide-react';
 import { type Dispatch, type KeyboardEvent, useEffect, useRef, useState } from 'react';
-import { NumberInput } from '../../components/NumberInput';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -16,18 +15,21 @@ import { formatQty } from '../../lib/format';
 import { cn } from '../../lib/utils';
 import { type Cart, type CartAction, cartQtyOf, lineSubtotalOf, lineUnit } from './cart';
 
-const GRID = 'grid grid-cols-[44px_minmax(0,1fr)_280px_150px_150px_48px] items-center gap-3';
+const GRID = 'grid grid-cols-[44px_minmax(0,1fr)_240px_140px_140px_40px] items-center gap-3';
 
 /** Cart lines: no, name with code · category, qty + unit, price, subtotal, remove. */
 export function CartTable({
   cart,
   dispatch,
   onDone,
+  onEditLine,
 }: {
   cart: Cart;
   dispatch: Dispatch<CartAction>;
   /** Called after an edit is finished (Enter); Kasir returns focus to the search box. */
   onDone: () => void;
+  /** Reopens the add modal in edit mode for a cart line. */
+  onEditLine: (key: string) => void;
 }) {
   const newestRef = useRef<HTMLDivElement>(null);
 
@@ -85,27 +87,26 @@ export function CartTable({
             >
               <span className="text-center text-muted-foreground tabular-nums">{index + 1}</span>
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="truncate font-semibold">{line.product.name}</span>
+                <button
+                  type="button"
+                  data-edit-line={line.product.code}
+                  onClick={() => onEditLine(line.key)}
+                  className="flex w-full items-center gap-2 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-primary-soft rounded"
+                >
+                  <span className="truncate font-semibold uppercase">
+                    {line.product.name}
+                    {line.note && (
+                      <span className="font-normal text-muted-foreground"> ({line.note})</span>
+                    )}
+                  </span>
                   {isNewest && <Badge variant="primary">BARU</Badge>}
                   {isReturn && <Badge variant="destructive">RETUR</Badge>}
                   {priceChanged && <Badge variant="warning">Harga berubah</Badge>}
-                </div>
+                </button>
                 <div className="truncate text-sm text-muted-foreground">
                   <span className="font-mono">{line.product.code}</span> ·{' '}
                   {line.product.categoryName}
                 </div>
-                <Input
-                  aria-label={`Catatan ${line.product.name}`}
-                  placeholder="Catatan (opsional)"
-                  value={line.note ?? ''}
-                  maxLength={NOTE_MAX_LENGTH}
-                  onChange={(e) =>
-                    dispatch({ type: 'setNote', key: line.key, note: e.target.value })
-                  }
-                  onKeyDown={finishOnEnter}
-                  className="mt-1 h-9 text-sm uppercase-input"
-                />
                 {remaining < 0 && (
                   <div className="text-sm font-semibold text-destructive">
                     Stok kurang: sisa{' '}
@@ -170,21 +171,9 @@ export function CartTable({
                 )}
               </div>
               <div className="text-right tabular-nums">
-                <NumberInput
-                  aria-label={`Harga ${line.product.name}`}
-                  value={line.unitPrice ?? unit?.sellPrice ?? null}
-                  onValueChange={(next) => {
-                    if (next === null) return;
-                    dispatch({
-                      type: 'setPrice',
-                      key: line.key,
-                      unitPrice: next === unit?.sellPrice ? undefined : next,
-                    });
-                  }}
-                  onKeyDown={finishOnEnter}
-                  prefix="Rp"
-                  className="h-10 w-36"
-                />
+                <div className="font-semibold">
+                  {formatRupiah(line.unitPrice ?? unit?.sellPrice ?? 0)}
+                </div>
                 <div className="text-sm text-muted-foreground">/ {unit?.name}</div>
               </div>
               <div className="text-right font-semibold tabular-nums">
