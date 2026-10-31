@@ -228,6 +228,11 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - Uppercase auto-convert: the user text the server stores uppercase is product name, category name, customer name and note, supplier name and note, purchase note, stock adjustment note, and sale item note; the conversion happens server-side (service layer). Only those fields display uppercase in the UI (CSS `text-transform: uppercase`, placeholders excluded). Everything else keeps what was typed: product code, unit names and the stock unit label, user names, and store settings, including the receipt header and footer.
 - Price alert: `products.price_alert` (boolean, default false) is set true when a purchase records a `cost_price` higher than the current one; cleared when an owner updates the product's sell price to at least the new cost. A warning icon is shown on the product list for flagged products.
 
+### 6.1.3 Kasir modal flows (revisions)
+- Add / edit cart line: picking a product from search opens a sequential modal with four steps - jumlah, satuan (skipped when the product has one unit, including every bulk product), harga per satuan (default = unit sell price, must stay at or above the unit cost), and catatan (optional, uppercase; empty + Enter skips). Each step auto-focuses its field and advances with Enter; Esc cancels the whole modal. Clicking a cart line's product name reopens the same modal pre-filled with that line's values; saving replaces the line in place (keeping any return sign).
+- Cart line display: the item note is shown inline after the product name in parentheses ("INDOMIE GORENG (ACEH)"), one line per cart item; the previous separate note row and the inline price-edit field are gone. Quantity, unit, and the retur toggle stay inline for quick keyboard tweaks.
+- Bayar (F8) sequential flow: pelanggan (opsional) -> total -> metode -> jumlah. The metode step is a keyboard listbox with Tunai (default), QRIS, and Transfer bank, picked by arrow keys and confirmed with Enter. The jumlah step holds one amount for the chosen method, with quick buttons "Uang pas" plus Rp 50.000 / 100.000 / 200.000 / 500.000 (the presets filter down to the ones above the total) for Tunai, and a single "Uang pas" for QRIS and Transfer; Tunai shows change (kembalian). Underpayment still routes to the kasbon step, where the shortfall and the customer's new balance are shown before saving. Esc goes one step back; from the first step it closes the dialog.
+
 ### 6.2 Receipt
 - After payment: prompt "Simpan nota PDF?" — `Enter` = yes, `Esc` = skip.
 - Server generates the PDF (58 or 80 mm, setting) and saves it to the receipt folder (setting `receipt_folder`; default `%USERPROFILE%\Documents\TokoPodomoro\Nota\`). The file name follows 6.1.2, e.g. `TRX-011026-0001-BIMA.pdf`.
@@ -323,7 +328,7 @@ Sales, payments, purchases, adjustments, and opname are not audit-logged; their 
 - A customer with remaining kasbon cannot be deactivated.
 
 ### 6.8 Reports (Laporan, owner)
-- Sales and profit.
+- Sales and profit. The Penjualan tab opens with a daily-omzet area chart above the per-day table (teal gradient, smooth bezier, dashed grid; axis labels in short rupiah like `Rp 1,5jt`; hover tooltip shows the day and the exact amount). The chart uses `report.days` and is not a separate endpoint. Recharts, bundled offline like the rest of the app.
 - Per category: revenue, profit, margin, share.
 - Top and slow-moving products.
 - Stock value: negative stock counted as 0; negative-stock items listed separately.
