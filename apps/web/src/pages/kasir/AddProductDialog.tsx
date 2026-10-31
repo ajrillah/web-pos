@@ -94,6 +94,25 @@ export function AddProductDialog({
     }
   }, [product, initial, isBulk]);
 
+  // Radix Dialog's focus scope moves focus back to the dialog root when the previous step
+  // unmounts, which beats React's `autoFocus` on the newly mounted step. Re-focus the step's
+  // primary control after a macrotask so Enter/Arrow keys work without pressing Tab first.
+  useEffect(() => {
+    if (!product) return;
+    const selector =
+      step === 'qty'
+        ? '#add-qty'
+        : step === 'unit'
+          ? '[aria-label="Pilih satuan"]'
+          : step === 'price'
+            ? '#add-price'
+            : '#add-note';
+    const t = setTimeout(() => {
+      document.querySelector<HTMLElement>(selector)?.focus();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [step, product]);
+
   const unit = useMemo(() => product?.units.find((u) => u.id === unitId), [product, unitId]);
 
   // When moving between steps the price default follows the current unit, unless the cashier

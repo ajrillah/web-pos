@@ -85,6 +85,31 @@ export function PayDialog({
     }
   }, [open]);
 
+  // Radix Dialog's focus scope restores focus to the dialog root between step changes, which
+  // beats React's `autoFocus` on the newly mounted step. Re-focus the step's primary control
+  // after a macrotask so Enter/Arrow keys work without pressing Tab first.
+  useEffect(() => {
+    if (!open) return;
+    const selector =
+      step === 'customer'
+        ? customer
+          ? '[data-step-focus]'
+          : '#customer-search'
+        : step === 'total'
+          ? '[data-step-focus]'
+          : step === 'method'
+            ? '[aria-label="Metode pembayaran"]'
+            : step === 'amount'
+              ? '#pay-amount'
+              : customer
+                ? '[data-step-focus]'
+                : '#customer-search';
+    const t = setTimeout(() => {
+      document.querySelector<HTMLElement>(selector)?.focus();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [step, open, customer]);
+
   // Payment breakdown — the chosen method carries the entered amount; the others stay 0.
   const paid = amount ?? 0;
   const cash = method === 'tunai' ? paid : 0;
@@ -226,7 +251,13 @@ export function PayDialog({
         <TotalCard total={total} shortfall={step === 'kasbon' ? shortfall : 0} />
 
         {step === 'customer' && (
-          <div className="space-y-3">
+          <form
+            onSubmit={(e: FormEvent) => {
+              e.preventDefault();
+              next();
+            }}
+            className="space-y-3"
+          >
             {customer ? (
               <div className="flex items-center justify-between rounded-[20px] bg-selected px-5 py-3">
                 <span>
@@ -248,18 +279,18 @@ export function PayDialog({
             )}
             <ErrorAlert message={error} />
             <div className="flex justify-end gap-3">
-              <Button variant="secondary" onClick={onClose}>
+              <Button variant="secondary" type="button" onClick={onClose}>
                 Tutup <Kbd>Esc</Kbd>
               </Button>
               <Button
-                onClick={next}
+                type="submit"
                 className="min-w-40"
-                data-autofocus={customer ? true : undefined}
+                data-step-focus={customer ? true : undefined}
               >
                 {customer ? 'Lanjut' : 'Lewati'} <Kbd>Enter</Kbd>
               </Button>
             </div>
-          </div>
+          </form>
         )}
 
         {step === 'total' && (
@@ -278,7 +309,7 @@ export function PayDialog({
               <Button variant="secondary" type="button" onClick={back}>
                 <ArrowLeft className="size-4" aria-hidden /> Kembali <Kbd>Esc</Kbd>
               </Button>
-              <Button type="submit" className="min-w-40" data-autofocus>
+              <Button type="submit" className="min-w-40" data-step-focus>
                 Lanjut <Kbd>Enter</Kbd>
               </Button>
             </div>
@@ -435,7 +466,13 @@ export function PayDialog({
         )}
 
         {step === 'kasbon' && (
-          <div className="space-y-4">
+          <form
+            onSubmit={(e: FormEvent) => {
+              e.preventDefault();
+              if (!busy && customer) void submitSale();
+            }}
+            className="space-y-4"
+          >
             {customer ? (
               <div className="flex items-center justify-between rounded-[20px] bg-selected px-5 py-4">
                 <div>
@@ -458,19 +495,19 @@ export function PayDialog({
             )}
             <ErrorAlert message={error} />
             <div className="flex justify-end gap-3">
-              <Button variant="secondary" onClick={back}>
+              <Button variant="secondary" type="button" onClick={back}>
                 <ArrowLeft className="size-4" aria-hidden /> Kembali <Kbd>Esc</Kbd>
               </Button>
               <Button
-                onClick={() => void submitSale()}
+                type="submit"
                 disabled={busy || !customer}
-                data-autofocus={customer ? true : undefined}
+                data-step-focus={customer ? true : undefined}
                 className="min-w-48"
               >
                 {busy ? 'Menyimpan…' : 'Catat kasbon'} <Kbd>Enter</Kbd>
               </Button>
             </div>
-          </div>
+          </form>
         )}
       </DialogContent>
     </Dialog>
